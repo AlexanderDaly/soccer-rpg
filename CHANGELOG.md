@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tab/Shift+Tab cycles between sections (Name, Position, Appearance, Traits)
   - Enter opens confirmation dialog when name is valid
   - Escape returns to main menu or closes confirmation dialog
+- **Nationality Flag Icons**: Visual flag display for nationality selection
+  - 73 SVG country flags from flag-icons library (MIT License)
+  - Flag displayed next to selected nationality
+  - Flags shown in dropdown list for easy identification
 
 ## [0.1.0] - 2025-01-29
 

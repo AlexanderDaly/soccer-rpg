@@ -13,7 +13,7 @@ This document tracks planned improvements for the character creation screen (`sc
 ### Nationality Selection
 - [x] Add country/nationality dropdown or searchable list
 - [ ] Could affect starting league options or unlock regional storylines
-- [ ] Consider including flag icons for visual identification
+- [x] Flag icons for visual identification (73 SVG flags in assets/flags/)
 
 ### Dominant Foot
 - [x] Add Left/Right/Both foot preference selection
@@ -115,7 +115,8 @@ This document tracks planned improvements for the character creation screen (`sc
 - Scene file: `scenes/menus/character_creation.tscn`
 - Player data stored via: `GameManager.start_new_career()`
 - Stats system: `StatSystem` singleton
-- **Nationality selection**: Implemented with searchable dropdown (68 nations), stored in `PlayerData.nationality`
+- **Nationality selection**: Implemented with searchable dropdown (73 nations), stored in `PlayerData.nationality`
+- **Flag icons**: SVG flags loaded from `res://assets/flags/{CODE}.svg`, displayed in selector and dropdown list
 - **Dominant foot**: Implemented with toggle buttons (Left/Right/Both), stored in `PlayerData.dominant_foot`
 - **Starting age**: Fixed at 14 (high school), stored in `PlayerData.age`
 - **Personality traits**: Implemented with checkbox selection (0-2 traits), stored in `PlayerData.personality_traits`

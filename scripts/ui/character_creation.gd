@@ -140,6 +140,8 @@ var foot_buttons: Dictionary = {}
 var trait_checkboxes: Dictionary = {}
 var nationality_input: LineEdit
 var nationality_list: ItemList
+var nationality_flag: TextureRect
+var flag_textures: Dictionary = {}  # code -> Texture2D
 var selected_appearance: Dictionary = {
 	"hair_color": "black",
 	"hair_style": "short",
@@ -236,14 +238,39 @@ func _navigate_position(direction: int) -> void:
 func _init_nationality_lookup() -> void:
 	for code in NATIONALITIES:
 		_nationalities_by_name[NATIONALITIES[code]] = code
+	_preload_flag_textures()
+
+
+func _preload_flag_textures() -> void:
+	for code in NATIONALITIES:
+		var flag_path = "res://assets/flags/%s.svg" % code
+		if ResourceLoader.exists(flag_path):
+			flag_textures[code] = load(flag_path)
+
+
+func _get_flag_texture(code: String) -> Texture2D:
+	if code in flag_textures:
+		return flag_textures[code]
+	return null
 
 
 func _create_nationality_selector() -> void:
-	# Create container for input and dropdown
-	var container = Control.new()
-	container.name = "NationalityContainer"
-	container.custom_minimum_size = Vector2(0, 45)
-	nationality_section.add_child(container)
+	# Create HBox container for flag + input
+	var hbox = HBoxContainer.new()
+	hbox.name = "NationalityHBox"
+	hbox.theme_override_constants = {"separation": 10}
+	nationality_section.add_child(hbox)
+
+	# Create flag display
+	nationality_flag = TextureRect.new()
+	nationality_flag.name = "NationalityFlag"
+	nationality_flag.custom_minimum_size = Vector2(45, 30)
+	nationality_flag.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	nationality_flag.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var initial_flag = _get_flag_texture(selected_nationality)
+	if initial_flag:
+		nationality_flag.texture = initial_flag
+	hbox.add_child(nationality_flag)
 
 	# Create LineEdit for typing/searching
 	nationality_input = LineEdit.new()
@@ -252,15 +279,17 @@ func _create_nationality_selector() -> void:
 	nationality_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	nationality_input.placeholder_text = "Search country..."
 	nationality_input.text = "%s (%s)" % [NATIONALITIES[selected_nationality], selected_nationality]
-	container.add_child(nationality_input)
+	hbox.add_child(nationality_input)
 
-	# Create ItemList for dropdown
+	# Create ItemList for dropdown with icons
 	nationality_list = ItemList.new()
 	nationality_list.name = "NationalityList"
 	nationality_list.custom_minimum_size = Vector2(0, 200)
 	nationality_list.max_text_lines = 1
 	nationality_list.visible = false
 	nationality_list.z_index = 10
+	nationality_list.icon_mode = ItemList.ICON_MODE_LEFT
+	nationality_list.fixed_icon_size = Vector2(32, 24)
 	nationality_section.add_child(nationality_list)
 
 	# Connect signals
@@ -288,7 +317,11 @@ func _populate_nationality_list(search_text: String) -> void:
 
 		# Filter by search text
 		if search_lower.is_empty() or country_name.to_lower().contains(search_lower) or code.to_lower().contains(search_lower):
-			nationality_list.add_item(display_text)
+			var flag_icon = _get_flag_texture(code)
+			if flag_icon:
+				nationality_list.add_item(display_text, flag_icon)
+			else:
+				nationality_list.add_item(display_text)
 
 
 func _on_nationality_search_changed(new_text: String) -> void:
@@ -313,6 +346,7 @@ func _on_nationality_focus_exited() -> void:
 func _validate_nationality_selection() -> void:
 	# Reset input to show current valid selection
 	nationality_input.text = "%s (%s)" % [NATIONALITIES[selected_nationality], selected_nationality]
+	_update_nationality_flag()
 
 
 func _on_nationality_item_selected(index: int) -> void:
@@ -325,10 +359,18 @@ func _on_nationality_item_selected(index: int) -> void:
 		if code in NATIONALITIES:
 			selected_nationality = code
 			nationality_input.text = item_text
+			_update_nationality_flag()
 			AudioManager.play_ui_click()
 
 	nationality_list.visible = false
 	nationality_input.release_focus()
+
+
+func _update_nationality_flag() -> void:
+	if nationality_flag:
+		var flag_texture = _get_flag_texture(selected_nationality)
+		if flag_texture:
+			nationality_flag.texture = flag_texture
 
 
 func _setup_foot_buttons() -> void:
