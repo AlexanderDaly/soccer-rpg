@@ -1,0 +1,58 @@
+# Godot 4+ specific ignores
+.godot/
+
+# Godot-specific ignores
+*.translation
+
+# Imported textures and samples
+.import/
+
+# Mono-specific ignores
+.mono/
+data_*/
+mono_crash.*.json
+
+# System/IDE files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# VSCode
+.vscode/
+
+# JetBrains IDEs
+.idea/
+*.iml
+
+# Export templates
+export_presets.cfg
+
+# Build outputs
+build/
+export/
+*.exe
+*.x86_64
+*.pck
+*.zip
+
+# Local configuration
+local_config.json
+ai_config.json
+
+# Logs
+*.log
+logs/
+
+# User-specific files
+*.user
+
+# Temporary files
+tmp/
+temp/
+
+# AI generated assets (large files - track with Git LFS if needed)
+# Uncomment if you want to exclude AI assets from version control
+# assets/portraits/*.png
+# assets/sprites/characters/*.png
