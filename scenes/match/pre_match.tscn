@@ -1,0 +1,202 @@
+[gd_scene load_steps=2 format=3 uid="uid://pre_match_001"]
+
+[ext_resource type="Script" path="res://scripts/match/pre_match.gd" id="1_pre_match"]
+
+[node name="PreMatchScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_pre_match")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.15, 0.2, 1)
+
+[node name="MainContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 60.0
+offset_top = 40.0
+offset_right = -60.0
+offset_bottom = -40.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+
+[node name="TitleSection" type="VBoxContainer" parent="MainContainer"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="Title" type="Label" parent="MainContainer/TitleSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 36
+text = "MATCH PREVIEW"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="MainContainer/TitleSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+text = "Prepare for kickoff"
+horizontal_alignment = 1
+
+[node name="MatchInfoSection" type="HBoxContainer" parent="MainContainer"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 40
+
+[node name="MatchType" type="Label" parent="MainContainer/MatchInfoSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "League Match"
+
+[node name="Separator" type="Label" parent="MainContainer/MatchInfoSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "|"
+
+[node name="Importance" type="Label" parent="MainContainer/MatchInfoSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(1, 0.8, 0.2, 1)
+text = "Standard"
+
+[node name="HSeparator" type="HSeparator" parent="MainContainer"]
+layout_mode = 2
+
+[node name="MatchupSection" type="HBoxContainer" parent="MainContainer"]
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_constants/separation = 20
+
+[node name="HomeTeam" type="VBoxContainer" parent="MainContainer/MatchupSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 5
+
+[node name="TeamName" type="Label" parent="MainContainer/MatchupSection/HomeTeam"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "Home Team"
+horizontal_alignment = 1
+
+[node name="TeamOverall" type="Label" parent="MainContainer/MatchupSection/HomeTeam"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "OVR: 65"
+horizontal_alignment = 1
+
+[node name="Formation" type="Label" parent="MainContainer/MatchupSection/HomeTeam"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
+text = "4-4-2"
+horizontal_alignment = 1
+
+[node name="VsLabel" type="Label" parent="MainContainer/MatchupSection"]
+layout_mode = 2
+size_flags_vertical = 1
+theme_override_font_sizes/font_size = 32
+text = "VS"
+
+[node name="AwayTeam" type="VBoxContainer" parent="MainContainer/MatchupSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 5
+
+[node name="TeamName" type="Label" parent="MainContainer/MatchupSection/AwayTeam"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "Away Team"
+horizontal_alignment = 1
+
+[node name="TeamOverall" type="Label" parent="MainContainer/MatchupSection/AwayTeam"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "OVR: 60"
+horizontal_alignment = 1
+
+[node name="Formation" type="Label" parent="MainContainer/MatchupSection/AwayTeam"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
+text = "4-3-3"
+horizontal_alignment = 1
+
+[node name="HSeparator2" type="HSeparator" parent="MainContainer"]
+layout_mode = 2
+
+[node name="LineupsLabel" type="Label" parent="MainContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Starting Lineups"
+horizontal_alignment = 1
+
+[node name="LineupsSection" type="HBoxContainer" parent="MainContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 40
+
+[node name="HomeLineup" type="VBoxContainer" parent="MainContainer/LineupsSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 5
+
+[node name="Header" type="Label" parent="MainContainer/LineupsSection/HomeLineup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "HOME"
+horizontal_alignment = 1
+
+[node name="ScrollContainer" type="ScrollContainer" parent="MainContainer/LineupsSection/HomeLineup"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="PlayerList" type="VBoxContainer" parent="MainContainer/LineupsSection/HomeLineup/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="AwayLineup" type="VBoxContainer" parent="MainContainer/LineupsSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 5
+
+[node name="Header" type="Label" parent="MainContainer/LineupsSection/AwayLineup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "AWAY"
+horizontal_alignment = 1
+
+[node name="ScrollContainer" type="ScrollContainer" parent="MainContainer/LineupsSection/AwayLineup"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="PlayerList" type="VBoxContainer" parent="MainContainer/LineupsSection/AwayLineup/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="ButtonSection" type="HBoxContainer" parent="MainContainer"]
+layout_mode = 2
+alignment = 1
+
+[node name="PlayButton" type="Button" parent="MainContainer/ButtonSection"]
+custom_minimum_size = Vector2(250, 60)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "PLAY MATCH"

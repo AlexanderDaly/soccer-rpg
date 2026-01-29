@@ -1,0 +1,38 @@
+[gd_scene load_steps=2 format=3 uid="uid://notification_toast_001"]
+
+[ext_resource type="Script" path="res://scripts/desktop/notification_toast.gd" id="1_toast"]
+
+[node name="NotificationToast" type="PanelContainer"]
+custom_minimum_size = Vector2(300, 70)
+offset_right = 300.0
+offset_bottom = 70.0
+script = ExtResource("1_toast")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="IconRect" type="TextureRect" parent="HBoxContainer"]
+visible = false
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TitleLabel" type="Label" parent="HBoxContainer/VBoxContainer"]
+layout_mode = 2
+text = "Notification Title"
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+
+[node name="MessageLabel" type="Label" parent="HBoxContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+text = "Notification message goes here."
+theme_override_colors/font_color = Color(0.3, 0.3, 0.3, 1)
+theme_override_font_sizes/font_size = 14
+autowrap_mode = 2

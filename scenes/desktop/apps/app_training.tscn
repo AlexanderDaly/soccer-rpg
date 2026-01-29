@@ -1,0 +1,79 @@
+[gd_scene load_steps=3 format=3 uid="uid://app_training_001"]
+
+[ext_resource type="Script" path="res://scripts/desktop/apps/app_training.gd" id="1_training"]
+[ext_resource type="Theme" uid="uid://desktop_theme_001" path="res://resources/themes/retro_desktop_theme.tres" id="2_theme"]
+
+[node name="AppTraining" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+theme = ExtResource("2_theme")
+script = ExtResource("1_training")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="TitleLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Training Center"
+horizontal_alignment = 1
+
+[node name="StatusSection" type="VBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="StaminaRow" type="HBoxContainer" parent="VBoxContainer/StatusSection"]
+layout_mode = 2
+
+[node name="StaminaLabel" type="Label" parent="VBoxContainer/StatusSection/StaminaRow"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+text = "Stamina:"
+
+[node name="StaminaBar" type="ProgressBar" parent="VBoxContainer/StatusSection/StaminaRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="StaminaValue" type="Label" parent="VBoxContainer/StatusSection/StaminaRow"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "100%"
+horizontal_alignment = 2
+
+[node name="HSeparator" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="OptionsLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Training Options"
+
+[node name="ScrollContainer" type="ScrollContainer" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="TrainingOptions" type="VBoxContainer" parent="VBoxContainer/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="HSeparator2" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="StatusLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Select a training activity"
+horizontal_alignment = 1

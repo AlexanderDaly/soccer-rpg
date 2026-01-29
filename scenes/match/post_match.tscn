@@ -1,0 +1,234 @@
+[gd_scene load_steps=2 format=3 uid="uid://post_match_001"]
+
+[ext_resource type="Script" path="res://scripts/match/post_match.gd" id="1_post_match"]
+
+[node name="PostMatchScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_post_match")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.15, 0.2, 1)
+
+[node name="MainContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 80.0
+offset_top = 40.0
+offset_right = -80.0
+offset_bottom = -40.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+
+[node name="ResultSection" type="VBoxContainer" parent="MainContainer"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="ResultLabel" type="Label" parent="MainContainer/ResultSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+text = "VICTORY!"
+horizontal_alignment = 1
+
+[node name="ScoreLabel" type="Label" parent="MainContainer/ResultSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 64
+text = "3 - 1"
+horizontal_alignment = 1
+
+[node name="OpponentLabel" type="Label" parent="MainContainer/ResultSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+text = "vs Opponent FC"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="MainContainer"]
+layout_mode = 2
+
+[node name="PerformanceSection" type="VBoxContainer" parent="MainContainer"]
+layout_mode = 2
+theme_override_constants/separation = 15
+
+[node name="PerformanceTitle" type="Label" parent="MainContainer/PerformanceSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "YOUR PERFORMANCE"
+horizontal_alignment = 1
+
+[node name="RatingContainer" type="HBoxContainer" parent="MainContainer/PerformanceSection"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 10
+
+[node name="RatingLabel" type="Label" parent="MainContainer/PerformanceSection/RatingContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Match Rating:"
+
+[node name="RatingValue" type="Label" parent="MainContainer/PerformanceSection/RatingContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "7.5"
+
+[node name="StatsGrid" type="GridContainer" parent="MainContainer/PerformanceSection"]
+layout_mode = 2
+columns = 6
+
+[node name="GoalsLabel" type="Label" parent="MainContainer/PerformanceSection/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "Goals"
+horizontal_alignment = 1
+
+[node name="AssistsLabel" type="Label" parent="MainContainer/PerformanceSection/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "Assists"
+horizontal_alignment = 1
+
+[node name="ShotsLabel" type="Label" parent="MainContainer/PerformanceSection/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "Shots"
+horizontal_alignment = 1
+
+[node name="PassesLabel" type="Label" parent="MainContainer/PerformanceSection/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "Passes"
+horizontal_alignment = 1
+
+[node name="TacklesLabel" type="Label" parent="MainContainer/PerformanceSection/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "Tackles"
+horizontal_alignment = 1
+
+[node name="DribblesLabel" type="Label" parent="MainContainer/PerformanceSection/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "Dribbles"
+horizontal_alignment = 1
+
+[node name="GoalsValue" type="Label" parent="MainContainer/PerformanceSection/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+text = "0"
+horizontal_alignment = 1
+
+[node name="AssistsValue" type="Label" parent="MainContainer/PerformanceSection/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+text = "0"
+horizontal_alignment = 1
+
+[node name="ShotsValue" type="Label" parent="MainContainer/PerformanceSection/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+text = "0/0"
+horizontal_alignment = 1
+
+[node name="PassesValue" type="Label" parent="MainContainer/PerformanceSection/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+text = "0"
+horizontal_alignment = 1
+
+[node name="TacklesValue" type="Label" parent="MainContainer/PerformanceSection/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+text = "0"
+horizontal_alignment = 1
+
+[node name="DribblesValue" type="Label" parent="MainContainer/PerformanceSection/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+text = "0"
+horizontal_alignment = 1
+
+[node name="HSeparator2" type="HSeparator" parent="MainContainer"]
+layout_mode = 2
+
+[node name="RewardsSection" type="VBoxContainer" parent="MainContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="XPGained" type="Label" parent="MainContainer/RewardsSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+theme_override_colors/font_color = Color(0.4, 0.8, 1, 1)
+text = "+100 XP"
+horizontal_alignment = 1
+
+[node name="MilestonesContainer" type="VBoxContainer" parent="MainContainer/RewardsSection"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="HSeparator3" type="HSeparator" parent="MainContainer"]
+layout_mode = 2
+
+[node name="NarrativeSection" type="VBoxContainer" parent="MainContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="NarrativeTitle" type="Label" parent="MainContainer/NarrativeSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "Match Report"
+horizontal_alignment = 1
+
+[node name="ScrollContainer" type="ScrollContainer" parent="MainContainer/NarrativeSection"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="NarrativeText" type="Label" parent="MainContainer/NarrativeSection/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_font_sizes/font_size = 16
+text = "A well-fought match with plenty of action..."
+autowrap_mode = 2
+
+[node name="ButtonSection" type="HBoxContainer" parent="MainContainer"]
+layout_mode = 2
+alignment = 1
+
+[node name="ContinueButton" type="Button" parent="MainContainer/ButtonSection"]
+custom_minimum_size = Vector2(200, 55)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "CONTINUE"

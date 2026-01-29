@@ -1,0 +1,82 @@
+[gd_scene load_steps=2 format=3 uid="uid://career_hub"]
+
+[ext_resource type="Script" path="res://scripts/career/career_hub.gd" id="1_career_hub"]
+
+[node name="CareerHub" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_career_hub")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.15, 0.2, 1)
+
+[node name="MainContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -200.0
+offset_right = 300.0
+offset_bottom = 200.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 30
+
+[node name="PhaseLabel" type="Label" parent="MainContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "HIGH SCHOOL"
+horizontal_alignment = 1
+
+[node name="PlayerCard" type="PanelContainer" parent="MainContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 150)
+
+[node name="PlayerName" type="Label" parent="MainContainer/PlayerCard"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "Player Name"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Position" type="Label" parent="MainContainer/PlayerCard"]
+layout_mode = 2
+offset_top = 50.0
+theme_override_font_sizes/font_size = 20
+text = "CM"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Overall" type="Label" parent="MainContainer/PlayerCard"]
+layout_mode = 2
+offset_top = 90.0
+theme_override_font_sizes/font_size = 24
+text = "OVR: 50"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="PlaceholderLabel" type="Label" parent="MainContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "[Career Hub - Full implementation coming soon]"
+horizontal_alignment = 1
+
+[node name="BackButton" type="Button" parent="MainContainer"]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+text = "Back to Main Menu"
+
+[connection signal="pressed" from="MainContainer/BackButton" to="." method="_on_back_pressed"]

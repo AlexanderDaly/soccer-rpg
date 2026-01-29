@@ -1,0 +1,77 @@
+[gd_scene load_steps=3 format=3 uid="uid://app_email_001"]
+
+[ext_resource type="Script" path="res://scripts/desktop/apps/app_email.gd" id="1_email"]
+[ext_resource type="Theme" uid="uid://desktop_theme_001" path="res://resources/themes/retro_desktop_theme.tres" id="2_theme"]
+
+[node name="AppEmail" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+theme = ExtResource("2_theme")
+script = ExtResource("1_email")
+
+[node name="HSplitContainer" type="HSplitContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+split_offset = 180
+
+[node name="LeftPanel" type="VBoxContainer" parent="HSplitContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(150, 0)
+
+[node name="InboxLabel" type="Label" parent="HSplitContainer/LeftPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Inbox"
+
+[node name="InboxList" type="ItemList" parent="HSplitContainer/LeftPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+auto_height = true
+
+[node name="RightPanel" type="VBoxContainer" parent="HSplitContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MessageHeader" type="VBoxContainer" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+
+[node name="MessageTitle" type="Label" parent="HSplitContainer/RightPanel/MessageHeader"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Select an email"
+
+[node name="MessageFrom" type="Label" parent="HSplitContainer/RightPanel/MessageHeader"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.4, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+text = ""
+
+[node name="HSeparator" type="HSeparator" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+
+[node name="ScrollContainer" type="ScrollContainer" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="MessageBody" type="RichTextLabel" parent="HSplitContainer/RightPanel/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = ""
+fit_content = true
+
+[node name="HSeparator2" type="HSeparator" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+
+[node name="ActionContainer" type="HBoxContainer" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+alignment = 2

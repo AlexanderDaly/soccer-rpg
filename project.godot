@@ -29,6 +29,7 @@ CareerManager="*res://scripts/career/career_manager.gd"
 NarrativeEngine="*res://scripts/ai_narrative/narrative_engine.gd"
 AudioManager="*res://scripts/core/audio_manager.gd"
 SaveManager="*res://scripts/core/save_manager.gd"
+DesktopManager="*res://scripts/desktop/desktop_manager.gd"
 
 [display]
 

@@ -1,0 +1,120 @@
+[gd_scene load_steps=3 format=3 uid="uid://app_settings_001"]
+
+[ext_resource type="Script" path="res://scripts/desktop/apps/app_settings.gd" id="1_settings"]
+[ext_resource type="Theme" uid="uid://desktop_theme_001" path="res://resources/themes/retro_desktop_theme.tres" id="2_theme"]
+
+[node name="AppSettings" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+theme = ExtResource("2_theme")
+script = ExtResource("1_settings")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+
+[node name="TitleLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Settings"
+horizontal_alignment = 1
+
+[node name="AudioSection" type="VBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="AudioLabel" type="Label" parent="VBoxContainer/AudioSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Audio"
+
+[node name="MusicRow" type="HBoxContainer" parent="VBoxContainer/AudioSection"]
+layout_mode = 2
+
+[node name="MusicLabel" type="Label" parent="VBoxContainer/AudioSection/MusicRow"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+text = "Music"
+
+[node name="MusicSlider" type="HSlider" parent="VBoxContainer/AudioSection/MusicRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 100.0
+value = 80.0
+
+[node name="MusicValue" type="Label" parent="VBoxContainer/AudioSection/MusicRow"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "80%"
+horizontal_alignment = 2
+
+[node name="SFXRow" type="HBoxContainer" parent="VBoxContainer/AudioSection"]
+layout_mode = 2
+
+[node name="SFXLabel" type="Label" parent="VBoxContainer/AudioSection/SFXRow"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+text = "SFX"
+
+[node name="SFXSlider" type="HSlider" parent="VBoxContainer/AudioSection/SFXRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 100.0
+value = 100.0
+
+[node name="SFXValue" type="Label" parent="VBoxContainer/AudioSection/SFXRow"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "100%"
+horizontal_alignment = 2
+
+[node name="MuteRow" type="HBoxContainer" parent="VBoxContainer/AudioSection"]
+layout_mode = 2
+
+[node name="MuteLabel" type="Label" parent="VBoxContainer/AudioSection/MuteRow"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+text = "Mute All"
+
+[node name="MuteButton" type="CheckButton" parent="VBoxContainer/AudioSection/MuteRow"]
+layout_mode = 2
+
+[node name="HSeparator" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="GameSection" type="VBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="GameLabel" type="Label" parent="VBoxContainer/GameSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Game"
+
+[node name="AutoSaveRow" type="HBoxContainer" parent="VBoxContainer/GameSection"]
+layout_mode = 2
+
+[node name="AutoSaveLabel" type="Label" parent="VBoxContainer/GameSection/AutoSaveRow"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+text = "Auto-Save"
+
+[node name="AutoSaveButton" type="CheckButton" parent="VBoxContainer/GameSection/AutoSaveRow"]
+layout_mode = 2
+button_pressed = true
+
+[node name="Spacer" type="Control" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="QuitButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Quit to Main Menu"

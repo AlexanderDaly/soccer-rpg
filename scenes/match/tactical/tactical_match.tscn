@@ -1,0 +1,186 @@
+[gd_scene load_steps=4 format=3 uid="uid://bqx8j2tcnxrml"]
+
+[ext_resource type="Script" path="res://scripts/match/tactical/match_controller.gd" id="1_match_controller"]
+[ext_resource type="Script" path="res://scripts/match/tactical/tactical_ui_controller.gd" id="2_ui_controller"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_pitch"]
+size = Vector2(1344, 896)
+
+[node name="TacticalMatch" type="Node2D"]
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(512, 350)
+zoom = Vector2(0.9, 0.9)
+
+[node name="PitchBackground" type="ColorRect" parent="."]
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 1376.0
+offset_bottom = 928.0
+color = Color(0.133333, 0.545098, 0.133333, 1)
+
+[node name="PitchLines" type="Node2D" parent="."]
+
+[node name="OuterLines" type="Line2D" parent="PitchLines"]
+points = PackedVector2Array(0, 0, 1344, 0, 1344, 896, 0, 896, 0, 0)
+width = 3.0
+
+[node name="CenterLine" type="Line2D" parent="PitchLines"]
+points = PackedVector2Array(672, 0, 672, 896)
+width = 2.0
+
+[node name="CenterCircle" type="Line2D" parent="PitchLines"]
+points = PackedVector2Array(672, 348, 682, 320, 702, 298, 732, 283, 772, 278, 812, 283, 842, 298, 862, 320, 872, 348, 872, 448, 862, 476, 842, 498, 812, 513, 772, 518, 732, 513, 702, 498, 682, 476, 672, 448, 672, 348)
+width = 2.0
+
+[node name="HomeBox" type="Line2D" parent="PitchLines"]
+points = PackedVector2Array(0, 248, 168, 248, 168, 648, 0, 648)
+width = 2.0
+
+[node name="HomeSmallBox" type="Line2D" parent="PitchLines"]
+points = PackedVector2Array(0, 348, 56, 348, 56, 548, 0, 548)
+width = 2.0
+
+[node name="AwayBox" type="Line2D" parent="PitchLines"]
+points = PackedVector2Array(1344, 248, 1176, 248, 1176, 648, 1344, 648)
+width = 2.0
+
+[node name="AwaySmallBox" type="Line2D" parent="PitchLines"]
+points = PackedVector2Array(1344, 348, 1288, 348, 1288, 548, 1344, 548)
+width = 2.0
+
+[node name="MatchController" type="Node2D" parent="."]
+script = ExtResource("1_match_controller")
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="TopBar" type="PanelContainer" parent="UI"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 60.0
+grow_horizontal = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="UI/TopBar"]
+layout_mode = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="HomeScore" type="Label" parent="UI/TopBar/HBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "HOME"
+
+[node name="ScoreLabel" type="Label" parent="UI/TopBar/HBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "0 - 0"
+
+[node name="AwayScore" type="Label" parent="UI/TopBar/HBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "AWAY"
+
+[node name="MinuteLabel" type="Label" parent="UI/TopBar/HBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "0'"
+
+[node name="ActionPanel" type="PanelContainer" parent="UI"]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -200.0
+offset_top = -120.0
+offset_right = 200.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/ActionPanel"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="TurnLabel" type="Label" parent="UI/ActionPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "YOUR TURN"
+horizontal_alignment = 1
+
+[node name="APLabel" type="Label" parent="UI/ActionPanel/VBoxContainer"]
+layout_mode = 2
+text = "AP: 3/3"
+horizontal_alignment = 1
+
+[node name="ButtonGrid" type="GridContainer" parent="UI/ActionPanel/VBoxContainer"]
+layout_mode = 2
+columns = 3
+
+[node name="MoveBtn" type="Button" parent="UI/ActionPanel/VBoxContainer/ButtonGrid"]
+custom_minimum_size = Vector2(120, 35)
+layout_mode = 2
+text = "Move (1)"
+
+[node name="PassBtn" type="Button" parent="UI/ActionPanel/VBoxContainer/ButtonGrid"]
+custom_minimum_size = Vector2(120, 35)
+layout_mode = 2
+text = "Pass (1)"
+
+[node name="ShootBtn" type="Button" parent="UI/ActionPanel/VBoxContainer/ButtonGrid"]
+custom_minimum_size = Vector2(120, 35)
+layout_mode = 2
+text = "Shoot (2)"
+
+[node name="DribbleBtn" type="Button" parent="UI/ActionPanel/VBoxContainer/ButtonGrid"]
+custom_minimum_size = Vector2(120, 35)
+layout_mode = 2
+text = "Dribble (1)"
+
+[node name="TackleBtn" type="Button" parent="UI/ActionPanel/VBoxContainer/ButtonGrid"]
+custom_minimum_size = Vector2(120, 35)
+layout_mode = 2
+text = "Tackle (1)"
+
+[node name="EndTurnBtn" type="Button" parent="UI/ActionPanel/VBoxContainer/ButtonGrid"]
+custom_minimum_size = Vector2(120, 35)
+layout_mode = 2
+text = "End Turn"
+
+[node name="InfoPanel" type="PanelContainer" parent="UI"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -200.0
+offset_bottom = 150.0
+grow_horizontal = 0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/InfoPanel"]
+layout_mode = 2
+
+[node name="SelectedLabel" type="Label" parent="UI/InfoPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Selected: None"
+
+[node name="PositionLabel" type="Label" parent="UI/InfoPanel/VBoxContainer"]
+layout_mode = 2
+text = "Position: --"
+
+[node name="StaminaLabel" type="Label" parent="UI/InfoPanel/VBoxContainer"]
+layout_mode = 2
+text = "Stamina: 100%"
+
+[node name="StatsLabel" type="Label" parent="UI/InfoPanel/VBoxContainer"]
+layout_mode = 2
+text = "SPD: -- TEC: --
+PAS: -- SHO: --"
+
+[node name="UIController" type="Node" parent="UI"]
+script = ExtResource("2_ui_controller")
+
+[connection signal="pressed" from="UI/ActionPanel/VBoxContainer/ButtonGrid/MoveBtn" to="UI/UIController" method="_on_move_btn_pressed"]
+[connection signal="pressed" from="UI/ActionPanel/VBoxContainer/ButtonGrid/PassBtn" to="UI/UIController" method="_on_pass_btn_pressed"]
+[connection signal="pressed" from="UI/ActionPanel/VBoxContainer/ButtonGrid/ShootBtn" to="UI/UIController" method="_on_shoot_btn_pressed"]
+[connection signal="pressed" from="UI/ActionPanel/VBoxContainer/ButtonGrid/DribbleBtn" to="UI/UIController" method="_on_dribble_btn_pressed"]
+[connection signal="pressed" from="UI/ActionPanel/VBoxContainer/ButtonGrid/TackleBtn" to="UI/UIController" method="_on_tackle_btn_pressed"]
+[connection signal="pressed" from="UI/ActionPanel/VBoxContainer/ButtonGrid/EndTurnBtn" to="UI/UIController" method="_on_end_turn_btn_pressed"]
