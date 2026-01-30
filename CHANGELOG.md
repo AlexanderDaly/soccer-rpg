@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Training Games UI Redesign**: Updated all training mini-games from retro Windows 95-style to dark FIFA/Pro Evo console dashboard aesthetic
+  - Dark navy backgrounds with semi-transparent panels
+  - Green accent colors for selection and success states
+  - Amber/red indicators for warnings and failures
+  - Removed drop shadows, added subtle rounded corners
+  - Light text on dark backgrounds for readability
+  - Affected drills: Freekick, Penalty, Rondo
+
 ### Added
 - GUT testing framework with unit tests for core systems
 - GitHub Actions CI/CD pipeline

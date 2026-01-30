@@ -112,6 +112,25 @@ const STAMINA_COST: int = 15
 const FREEKICKS_PER_SESSION: int = 10
 const CHARGE_RATE: float = 66.67  # 100% in 1.5 seconds
 
+# Console Dashboard Colors
+const BG_DARK = Color(0.039, 0.086, 0.157)
+const PANEL_BG = Color(0.06, 0.1, 0.18, 0.95)
+const BORDER_COLOR = Color(0.15, 0.25, 0.4)
+const ACCENT_GREEN = Color(0, 1, 0.5)
+const TEXT_PRIMARY = Color(0.9, 0.95, 1)
+const TEXT_SECONDARY = Color(0.6, 0.65, 0.7)
+const TEXT_MUTED = Color(0.5, 0.55, 0.6)
+
+# State Colors
+const COLOR_DEFAULT = Color(0.1, 0.15, 0.25)
+const COLOR_SELECTED = Color(0, 0.6, 0.3)
+const COLOR_SUCCESS = Color(0, 0.8, 0.4)
+const COLOR_FAIL = Color(0.8, 0.3, 0.3)
+const COLOR_WARNING = Color(0.9, 0.7, 0.2)
+const COLOR_BLOCKED = Color(0.6, 0.2, 0.2)
+const COLOR_CONTESTED = Color(0.8, 0.5, 0.2)
+const COLOR_OPEN = Color(0.2, 0.5, 0.8)
+
 # Node references
 @onready var difficulty_selector: OptionButton = $VBoxContainer/HeaderSection/DifficultyContainer/DifficultySelector
 @onready var score_label: Label = $VBoxContainer/HeaderSection/ScoreLabel
@@ -165,6 +184,7 @@ func _ready() -> void:
 	_setup_curve_buttons()
 	_setup_wall_indicator()
 	_setup_signals()
+	_style_footer_buttons()
 	_update_player_stats_display()
 	_generate_new_wall_position()
 	_set_state(DrillState.SELECTING_ZONE)
@@ -227,6 +247,74 @@ func _setup_signals() -> void:
 	charge_timer.timeout.connect(_on_charge_tick)
 
 
+func _style_footer_buttons() -> void:
+	# Style Continue button with console green accent
+	var continue_style = StyleBoxFlat.new()
+	continue_style.bg_color = Color(0, 0.6, 0.3)
+	continue_style.border_width_left = 2
+	continue_style.border_width_top = 2
+	continue_style.border_width_right = 2
+	continue_style.border_width_bottom = 2
+	continue_style.border_color = Color(0, 0.8, 0.4)
+	continue_style.set_corner_radius_all(6)
+	continue_button.add_theme_stylebox_override("normal", continue_style)
+	continue_button.add_theme_color_override("font_color", TEXT_PRIMARY)
+
+	var continue_hover = continue_style.duplicate()
+	continue_hover.bg_color = Color(0, 0.7, 0.35)
+	continue_button.add_theme_stylebox_override("hover", continue_hover)
+
+	var continue_pressed = continue_style.duplicate()
+	continue_pressed.bg_color = Color(0, 0.5, 0.25)
+	continue_button.add_theme_stylebox_override("pressed", continue_pressed)
+
+	# Style Exit button with dark panel style
+	var exit_style = StyleBoxFlat.new()
+	exit_style.bg_color = COLOR_DEFAULT
+	exit_style.border_width_left = 2
+	exit_style.border_width_top = 2
+	exit_style.border_width_right = 2
+	exit_style.border_width_bottom = 2
+	exit_style.border_color = BORDER_COLOR
+	exit_style.set_corner_radius_all(6)
+	exit_button.add_theme_stylebox_override("normal", exit_style)
+	exit_button.add_theme_color_override("font_color", TEXT_PRIMARY)
+
+	var exit_hover = exit_style.duplicate()
+	exit_hover.bg_color = Color(0.15, 0.2, 0.3)
+	exit_button.add_theme_stylebox_override("hover", exit_hover)
+
+	var exit_pressed = exit_style.duplicate()
+	exit_pressed.bg_color = Color(0.08, 0.12, 0.2)
+	exit_button.add_theme_stylebox_override("pressed", exit_pressed)
+
+	# Style Shoot button with console theme
+	var shoot_style = StyleBoxFlat.new()
+	shoot_style.bg_color = COLOR_DEFAULT
+	shoot_style.border_width_left = 2
+	shoot_style.border_width_top = 2
+	shoot_style.border_width_right = 2
+	shoot_style.border_width_bottom = 2
+	shoot_style.border_color = ACCENT_GREEN
+	shoot_style.set_corner_radius_all(6)
+	shoot_button.add_theme_stylebox_override("normal", shoot_style)
+	shoot_button.add_theme_color_override("font_color", TEXT_PRIMARY)
+
+	var shoot_hover = shoot_style.duplicate()
+	shoot_hover.bg_color = Color(0.15, 0.2, 0.3)
+	shoot_button.add_theme_stylebox_override("hover", shoot_hover)
+
+	var shoot_pressed = shoot_style.duplicate()
+	shoot_pressed.bg_color = Color(0, 0.5, 0.25)
+	shoot_button.add_theme_stylebox_override("pressed", shoot_pressed)
+
+	var shoot_disabled = shoot_style.duplicate()
+	shoot_disabled.bg_color = Color(0.08, 0.1, 0.15)
+	shoot_disabled.border_color = Color(0.2, 0.25, 0.35)
+	shoot_button.add_theme_stylebox_override("disabled", shoot_disabled)
+	shoot_button.add_theme_color_override("font_disabled_color", TEXT_MUTED)
+
+
 func _update_player_stats_display() -> void:
 	var player = GameManager.player_data
 	if not player:
@@ -285,15 +373,15 @@ func _update_zone_blocking_display() -> void:
 
 	for zone in zone_buttons:
 		var btn = zone_buttons[zone]
-		var base_color = Color(0.75, 0.75, 0.75)
-		var border_color = Color(0.4, 0.4, 0.4)
+		var base_color = COLOR_DEFAULT
+		var border_color = BORDER_COLOR
 
 		if zone in blocking.full:
-			border_color = Color(0.9, 0.3, 0.2)  # Red - fully blocked
+			border_color = COLOR_BLOCKED  # Red - fully blocked
 		elif zone in blocking.partial:
-			border_color = Color(0.9, 0.7, 0.2)  # Yellow - partially blocked
+			border_color = COLOR_WARNING  # Amber - partially blocked
 		else:
-			border_color = Color(0.3, 0.8, 0.3)  # Green - clear
+			border_color = COLOR_OPEN  # Blue - clear
 
 		_set_zone_button_style(zone, base_color, border_color)
 
@@ -414,13 +502,15 @@ func _reset_curve_selection() -> void:
 	for i in range(curve_buttons.size()):
 		var btn = curve_buttons[i]
 		var style = StyleBoxFlat.new()
-		style.bg_color = Color(0.75, 0.75, 0.75)
+		style.bg_color = COLOR_DEFAULT
 		style.border_width_left = 2
 		style.border_width_top = 2
 		style.border_width_right = 2
 		style.border_width_bottom = 2
-		style.border_color = Color(0.4, 0.4, 0.4)
+		style.border_color = BORDER_COLOR
+		style.set_corner_radius_all(6)
 		btn.add_theme_stylebox_override("normal", style)
+		btn.add_theme_color_override("font_color", TEXT_PRIMARY)
 
 	# Default select straight
 	selected_curve = CurveDirection.STRAIGHT
@@ -432,15 +522,18 @@ func _highlight_curve_button(index: int) -> void:
 		var btn = curve_buttons[i]
 		var style = StyleBoxFlat.new()
 		if i == index:
-			style.bg_color = Color(0.9, 0.9, 0.4)  # Yellow highlight
+			style.bg_color = COLOR_SELECTED  # Green highlight
+			style.border_color = ACCENT_GREEN
 		else:
-			style.bg_color = Color(0.75, 0.75, 0.75)
+			style.bg_color = COLOR_DEFAULT
+			style.border_color = BORDER_COLOR
 		style.border_width_left = 2
 		style.border_width_top = 2
 		style.border_width_right = 2
 		style.border_width_bottom = 2
-		style.border_color = Color(0.4, 0.4, 0.4)
+		style.set_corner_radius_all(6)
 		btn.add_theme_stylebox_override("normal", style)
+		btn.add_theme_color_override("font_color", TEXT_PRIMARY)
 
 
 func _update_curve_hint() -> void:
@@ -498,22 +591,29 @@ func _on_charge_tick() -> void:
 func _update_power_bar_color() -> void:
 	var color: Color
 	if current_power < 40:
-		color = Color(0.9, 0.3, 0.2)  # Red - weak
+		color = COLOR_FAIL  # Darker red - weak
 	elif current_power < 70:
-		color = Color(0.9, 0.8, 0.2)  # Yellow - good
+		color = COLOR_WARNING  # Amber - good
 	elif current_power <= 85:
-		color = Color(0.2, 0.9, 0.3)  # Green - optimal
+		color = COLOR_SUCCESS  # Console green - optimal
 	else:
-		color = Color(0.9, 0.5, 0.2)  # Orange - overpowered
+		color = COLOR_CONTESTED  # Orange - overpowered
 
-	var style = StyleBoxFlat.new()
-	style.bg_color = color
-	style.border_width_left = 1
-	style.border_width_top = 1
-	style.border_width_right = 1
-	style.border_width_bottom = 1
-	style.border_color = Color(0.3, 0.3, 0.3)
-	power_bar.add_theme_stylebox_override("fill", style)
+	var fill_style = StyleBoxFlat.new()
+	fill_style.bg_color = color
+	fill_style.set_corner_radius_all(4)
+	power_bar.add_theme_stylebox_override("fill", fill_style)
+
+	# Set dark background for power bar
+	var bg_style = StyleBoxFlat.new()
+	bg_style.bg_color = COLOR_DEFAULT
+	bg_style.border_width_left = 1
+	bg_style.border_width_top = 1
+	bg_style.border_width_right = 1
+	bg_style.border_width_bottom = 1
+	bg_style.border_color = BORDER_COLOR
+	bg_style.set_corner_radius_all(4)
+	power_bar.add_theme_stylebox_override("background", bg_style)
 
 
 func _release_shot() -> void:
@@ -530,9 +630,9 @@ func _on_zone_selected(zone: String) -> void:
 	# Reset zone colors to blocking display
 	_update_zone_blocking_display()
 
-	# Highlight new selection
+	# Highlight new selection with green
 	selected_zone = zone
-	_set_zone_button_style(zone, Color(0.9, 0.9, 0.4), Color(0.6, 0.6, 0.2))  # Yellow highlight
+	_set_zone_button_style(zone, COLOR_SELECTED, ACCENT_GREEN)
 
 	_update_modifiers_display()
 	AudioManager.play_ui_click()
@@ -565,7 +665,9 @@ func _set_zone_button_style(zone: String, bg_color: Color, border_color: Color) 
 		style.border_width_right = 3
 		style.border_width_bottom = 3
 		style.border_color = border_color
+		style.set_corner_radius_all(6)
 		btn.add_theme_stylebox_override("normal", style)
+		btn.add_theme_color_override("font_color", TEXT_PRIMARY)
 
 
 func _update_modifiers_display() -> void:
@@ -726,9 +828,9 @@ func _resolve_gk_save(target_zone: String, diff: Dictionary) -> Dictionary:
 func _display_result(result: Dictionary) -> void:
 	# Update zone button color
 	if result.scored:
-		_set_zone_button_style(selected_zone, Color(0.2, 0.9, 0.3), Color(0.1, 0.6, 0.1))  # Green - goal
+		_set_zone_button_style(selected_zone, COLOR_SUCCESS, Color(0, 0.6, 0.3))  # Green - goal
 	else:
-		_set_zone_button_style(selected_zone, Color(0.9, 0.3, 0.2), Color(0.6, 0.1, 0.1))  # Red - miss/save
+		_set_zone_button_style(selected_zone, COLOR_FAIL, Color(0.6, 0.2, 0.2))  # Red - miss/save
 
 	# Build skill check breakdown
 	var breakdown = ""

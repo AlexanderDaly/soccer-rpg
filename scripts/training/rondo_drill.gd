@@ -98,13 +98,21 @@ const STAMINA_COST: int = 15
 const ROUNDS_PER_SESSION: int = 10
 const DEFENDER_MOVE_DELAY: float = 0.8  # Time for defender to "move" to target
 
+# Console Dashboard Colors
+const BG_DARK = Color(0.039, 0.086, 0.157)
+const PANEL_BG = Color(0.06, 0.1, 0.18, 0.95)
+const BORDER_COLOR = Color(0.15, 0.25, 0.4)
+const ACCENT_GREEN = Color(0, 1, 0.5)
+const TEXT_PRIMARY = Color(0.9, 0.95, 1)
+const TEXT_SECONDARY = Color(0.6, 0.65, 0.7)
+const TEXT_MUTED = Color(0.5, 0.55, 0.6)
+
 # Node references
 @onready var difficulty_selector: OptionButton = $VBoxContainer/HeaderSection/DifficultyContainer/DifficultySelector
 @onready var score_label: Label = $VBoxContainer/HeaderSection/ScoreLabel
 @onready var rondo_field: Control = $VBoxContainer/MainContent/FieldSection/RondoField
 @onready var timer_bar: ProgressBar = $VBoxContainer/MainContent/FieldSection/TimerSection/TimerBar
 @onready var timer_label: Label = $VBoxContainer/MainContent/FieldSection/TimerSection/TimerLabel
-@onready var round_label: Label = $VBoxContainer/MainContent/FieldSection/RoundLabel
 @onready var defender_indicator: Label = $VBoxContainer/MainContent/FieldSection/RondoField/DefenderIndicator
 @onready var pas_value: Label = $VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox/PASRow/PASValue
 @onready var tec_value: Label = $VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox/TECRow/TECValue
@@ -142,19 +150,20 @@ var defender_weights: Array[float] = [1.0, 1.0, 1.0, 1.0, 1.0]
 # Teammate button references
 var teammate_buttons: Array[Button] = []
 
-# Colors
-const COLOR_DEFAULT = Color(0.3, 0.5, 0.8)      # Blue
-const COLOR_COVERED = Color(0.9, 0.2, 0.2)      # Red (pulsing)
-const COLOR_CONTESTED = Color(0.9, 0.6, 0.2)   # Orange
-const COLOR_SELECTED = Color(0.9, 0.9, 0.3)    # Yellow
-const COLOR_SUCCESS = Color(0.2, 0.8, 0.3)     # Green
-const COLOR_FAIL = Color(0.5, 0.5, 0.5)        # Gray
+# State Colors (console theme)
+const COLOR_DEFAULT_BUTTON = Color(0.1, 0.15, 0.25)   # Dark panel
+const COLOR_COVERED = Color(0.6, 0.2, 0.2)            # Red - covered by defender
+const COLOR_CONTESTED_BUTTON = Color(0.8, 0.5, 0.2)   # Orange - contested
+const COLOR_SELECTED_BUTTON = Color(0, 0.6, 0.3)      # Green - selected
+const COLOR_SUCCESS_BUTTON = Color(0, 0.8, 0.4)       # Bright green - success
+const COLOR_FAIL_BUTTON = Color(0.3, 0.3, 0.35)       # Dark gray - fail
 
 
 func _ready() -> void:
 	_setup_difficulty_selector()
 	_setup_teammate_buttons()
 	_setup_signals()
+	_style_footer_buttons()
 	_update_player_stats_display()
 	_show_session_start_narration()
 	_set_state(DrillState.DEFENDING)
@@ -184,13 +193,55 @@ func _setup_teammate_buttons() -> void:
 		if btn:
 			teammate_buttons.append(btn)
 			btn.pressed.connect(_on_teammate_pressed.bind(i))
-			_set_button_color(btn, COLOR_DEFAULT)
+			_set_button_color(btn, COLOR_DEFAULT_BUTTON)
 
 
 func _setup_signals() -> void:
 	continue_button.pressed.connect(_on_continue_pressed)
 	exit_button.pressed.connect(_on_exit_pressed)
 	round_timer.timeout.connect(_on_timer_tick)
+
+
+func _style_footer_buttons() -> void:
+	# Style Continue button with console green accent
+	var continue_style = StyleBoxFlat.new()
+	continue_style.bg_color = Color(0, 0.6, 0.3)
+	continue_style.border_width_left = 2
+	continue_style.border_width_top = 2
+	continue_style.border_width_right = 2
+	continue_style.border_width_bottom = 2
+	continue_style.border_color = Color(0, 0.8, 0.4)
+	continue_style.set_corner_radius_all(6)
+	continue_button.add_theme_stylebox_override("normal", continue_style)
+	continue_button.add_theme_color_override("font_color", TEXT_PRIMARY)
+
+	var continue_hover = continue_style.duplicate()
+	continue_hover.bg_color = Color(0, 0.7, 0.35)
+	continue_button.add_theme_stylebox_override("hover", continue_hover)
+
+	var continue_pressed = continue_style.duplicate()
+	continue_pressed.bg_color = Color(0, 0.5, 0.25)
+	continue_button.add_theme_stylebox_override("pressed", continue_pressed)
+
+	# Style Exit button with dark panel style
+	var exit_style = StyleBoxFlat.new()
+	exit_style.bg_color = COLOR_DEFAULT
+	exit_style.border_width_left = 2
+	exit_style.border_width_top = 2
+	exit_style.border_width_right = 2
+	exit_style.border_width_bottom = 2
+	exit_style.border_color = BORDER_COLOR
+	exit_style.set_corner_radius_all(6)
+	exit_button.add_theme_stylebox_override("normal", exit_style)
+	exit_button.add_theme_color_override("font_color", TEXT_PRIMARY)
+
+	var exit_hover = exit_style.duplicate()
+	exit_hover.bg_color = Color(0.15, 0.2, 0.3)
+	exit_button.add_theme_stylebox_override("hover", exit_hover)
+
+	var exit_pressed = exit_style.duplicate()
+	exit_pressed.bg_color = Color(0.08, 0.12, 0.2)
+	exit_button.add_theme_stylebox_override("pressed", exit_pressed)
 
 
 func _update_player_stats_display() -> void:
@@ -246,7 +297,7 @@ func _enable_teammate_buttons(enabled: bool) -> void:
 func _start_new_round() -> void:
 	# Reset button colors
 	for i in range(teammate_buttons.size()):
-		_set_button_color(teammate_buttons[i], COLOR_DEFAULT)
+		_set_button_color(teammate_buttons[i], COLOR_DEFAULT_BUTTON)
 
 	# Pick defender target
 	_select_defender_target()
@@ -319,9 +370,9 @@ func _update_teammate_colors() -> void:
 			"covered":
 				_set_button_color(btn, COLOR_COVERED)
 			"contested":
-				_set_button_color(btn, COLOR_CONTESTED)
+				_set_button_color(btn, COLOR_CONTESTED_BUTTON)
 			_:
-				_set_button_color(btn, COLOR_DEFAULT)
+				_set_button_color(btn, COLOR_DEFAULT_BUTTON)
 
 	# Update info panel
 	target_label.text = "Defender on: T%d" % (defender_target + 1)
@@ -404,20 +455,27 @@ func _update_timer_bar_color() -> void:
 	var color: Color
 
 	if pct > 0.66:
-		color = Color(0.2, 0.8, 0.3)  # Green
+		color = Color(0, 0.8, 0.4)  # Console green
 	elif pct > 0.33:
-		color = Color(0.9, 0.8, 0.2)  # Yellow
+		color = Color(0.9, 0.7, 0.2)  # Amber
 	else:
-		color = Color(0.9, 0.3, 0.2)  # Red
+		color = Color(0.8, 0.3, 0.3)  # Darker red
 
-	var style = StyleBoxFlat.new()
-	style.bg_color = color
-	style.border_width_left = 1
-	style.border_width_top = 1
-	style.border_width_right = 1
-	style.border_width_bottom = 1
-	style.border_color = Color(0.3, 0.3, 0.3)
-	timer_bar.add_theme_stylebox_override("fill", style)
+	var fill_style = StyleBoxFlat.new()
+	fill_style.bg_color = color
+	fill_style.set_corner_radius_all(4)
+	timer_bar.add_theme_stylebox_override("fill", fill_style)
+
+	# Set dark background for timer bar
+	var bg_style = StyleBoxFlat.new()
+	bg_style.bg_color = Color(0.1, 0.15, 0.25)
+	bg_style.border_width_left = 1
+	bg_style.border_width_top = 1
+	bg_style.border_width_right = 1
+	bg_style.border_width_bottom = 1
+	bg_style.border_color = BORDER_COLOR
+	bg_style.set_corner_radius_all(4)
+	timer_bar.add_theme_stylebox_override("background", bg_style)
 
 
 func _get_timing_level() -> String:
@@ -587,9 +645,9 @@ func _display_pass_result(result: Dictionary, teammate_idx: int) -> void:
 	var btn = teammate_buttons[teammate_idx]
 
 	if result.success:
-		_set_button_color(btn, COLOR_SUCCESS)
+		_set_button_color(btn, COLOR_SUCCESS_BUTTON)
 	else:
-		_set_button_color(btn, COLOR_FAIL)
+		_set_button_color(btn, COLOR_FAIL_BUTTON)
 
 	# Build skill check breakdown
 	var breakdown = ""
@@ -618,7 +676,7 @@ func _display_pass_result(result: Dictionary, teammate_idx: int) -> void:
 func _display_timeout_result() -> void:
 	# Gray out all buttons
 	for btn in teammate_buttons:
-		_set_button_color(btn, COLOR_FAIL)
+		_set_button_color(btn, COLOR_FAIL_BUTTON)
 
 	var breakdown = "[b]TIMEOUT![/b]\n\n"
 	breakdown += "You held onto the ball too long.\n"
@@ -662,7 +720,6 @@ func _clear_modifiers_display() -> void:
 func _update_score_display() -> void:
 	score_label.text = "%d / %d" % [successful_passes, ROUNDS_PER_SESSION]
 	round_counter.text = "Round %d of %d" % [mini(rounds_played + 1, ROUNDS_PER_SESSION), ROUNDS_PER_SESSION]
-	round_label.text = round_counter.text
 
 
 func _complete_drill() -> void:
@@ -753,14 +810,12 @@ func _set_button_color(btn: Button, color: Color) -> void:
 	style.border_width_top = 2
 	style.border_width_right = 2
 	style.border_width_bottom = 2
-	style.border_color = Color(0.2, 0.2, 0.2)
-	style.corner_radius_top_left = 5
-	style.corner_radius_top_right = 5
-	style.corner_radius_bottom_left = 5
-	style.corner_radius_bottom_right = 5
+	style.border_color = BORDER_COLOR
+	style.set_corner_radius_all(6)
 	btn.add_theme_stylebox_override("normal", style)
 	btn.add_theme_stylebox_override("hover", style)
 	btn.add_theme_stylebox_override("pressed", style)
+	btn.add_theme_color_override("font_color", TEXT_PRIMARY)
 
 
 func _on_difficulty_changed(index: int) -> void:
