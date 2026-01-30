@@ -184,7 +184,10 @@ func _collect_save_data() -> Dictionary:
 		
 		# Player data
 		"player": _serialize_player(),
-		
+
+		# Team data
+		"team": _serialize_team(),
+
 		# Career data
 		"career": _serialize_career(),
 		
@@ -201,17 +204,16 @@ func _collect_save_data() -> Dictionary:
 func _serialize_player() -> Dictionary:
 	if not GameManager.player_data:
 		return {}
-	
-	var player = GameManager.player_data
-	return {
-		"name": player.name,
-		"position": player.position,
-		"stats": player.stats,
-		"level": player.level,
-		"xp": player.xp,
-		"skills": player.unlocked_skills,
-		"form": player.current_form
-	}
+
+	# Use the complete to_dict() to preserve all player data
+	return GameManager.player_data.to_dict()
+
+
+func _serialize_team() -> Dictionary:
+	if not GameManager.current_team:
+		return {}
+
+	return GameManager.current_team.to_dict()
 
 
 func _serialize_career() -> Dictionary:
@@ -260,7 +262,12 @@ func _apply_save_data(data: Dictionary) -> void:
 	if "player" in data and data.player:
 		GameManager.player_data = PlayerData.new()
 		GameManager.player_data.from_dict(data.player)
-	
+
+	# Restore team
+	if "team" in data and data.team:
+		GameManager.current_team = TeamData.new()
+		GameManager.current_team.from_dict(data.team)
+
 	# Restore career
 	if "career" in data:
 		var career = data.career

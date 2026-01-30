@@ -1,0 +1,344 @@
+[gd_scene load_steps=3 format=3 uid="uid://rondo_drill_001"]
+
+[ext_resource type="Script" path="res://scripts/training/rondo_drill.gd" id="1_script"]
+[ext_resource type="Theme" uid="uid://desktop_theme_001" path="res://resources/themes/retro_desktop_theme.tres" id="2_theme"]
+
+[node name="RondoDrill" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="HeaderSection" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="TitleLabel" type="Label" parent="VBoxContainer/HeaderSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 22
+text = "Rondo Training"
+
+[node name="DifficultyContainer" type="HBoxContainer" parent="VBoxContainer/HeaderSection"]
+layout_mode = 2
+
+[node name="DifficultyLabel" type="Label" parent="VBoxContainer/HeaderSection/DifficultyContainer"]
+layout_mode = 2
+text = "Defender:"
+
+[node name="DifficultySelector" type="OptionButton" parent="VBoxContainer/HeaderSection/DifficultyContainer"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+
+[node name="ScoreLabel" type="Label" parent="VBoxContainer/HeaderSection"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "0 / 10"
+horizontal_alignment = 2
+
+[node name="HSeparator1" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="MainContent" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="FieldSection" type="VBoxContainer" parent="VBoxContainer/MainContent"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.5
+theme_override_constants/separation = 12
+
+[node name="FieldLabel" type="Label" parent="VBoxContainer/MainContent/FieldSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Pass to an Open Teammate"
+horizontal_alignment = 1
+
+[node name="RondoField" type="Control" parent="VBoxContainer/MainContent/FieldSection"]
+custom_minimum_size = Vector2(320, 280)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 3
+
+[node name="FieldBackground" type="ColorRect" parent="VBoxContainer/MainContent/FieldSection/RondoField"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.18, 0.45, 0.2, 1)
+
+[node name="CenterCircle" type="ColorRect" parent="VBoxContainer/MainContent/FieldSection/RondoField"]
+layout_mode = 0
+offset_left = 135.0
+offset_top = 115.0
+offset_right = 185.0
+offset_bottom = 165.0
+color = Color(0.15, 0.38, 0.17, 1)
+
+[node name="PlayerLabel" type="Label" parent="VBoxContainer/MainContent/FieldSection/RondoField"]
+layout_mode = 0
+offset_left = 145.0
+offset_top = 130.0
+offset_right = 175.0
+offset_bottom = 155.0
+text = "YOU"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Teammate0" type="Button" parent="VBoxContainer/MainContent/FieldSection/RondoField"]
+custom_minimum_size = Vector2(60, 40)
+layout_mode = 0
+offset_left = 130.0
+offset_top = 15.0
+offset_right = 190.0
+offset_bottom = 55.0
+text = "T1"
+
+[node name="Teammate1" type="Button" parent="VBoxContainer/MainContent/FieldSection/RondoField"]
+custom_minimum_size = Vector2(60, 40)
+layout_mode = 0
+offset_left = 240.0
+offset_top = 75.0
+offset_right = 300.0
+offset_bottom = 115.0
+text = "T2"
+
+[node name="Teammate2" type="Button" parent="VBoxContainer/MainContent/FieldSection/RondoField"]
+custom_minimum_size = Vector2(60, 40)
+layout_mode = 0
+offset_left = 215.0
+offset_top = 200.0
+offset_right = 275.0
+offset_bottom = 240.0
+text = "T3"
+
+[node name="Teammate3" type="Button" parent="VBoxContainer/MainContent/FieldSection/RondoField"]
+custom_minimum_size = Vector2(60, 40)
+layout_mode = 0
+offset_left = 45.0
+offset_top = 200.0
+offset_right = 105.0
+offset_bottom = 240.0
+text = "T4"
+
+[node name="Teammate4" type="Button" parent="VBoxContainer/MainContent/FieldSection/RondoField"]
+custom_minimum_size = Vector2(60, 40)
+layout_mode = 0
+offset_left = 20.0
+offset_top = 75.0
+offset_right = 80.0
+offset_bottom = 115.0
+text = "T5"
+
+[node name="DefenderIndicator" type="Label" parent="VBoxContainer/MainContent/FieldSection/RondoField"]
+layout_mode = 0
+offset_left = 130.0
+offset_top = 70.0
+offset_right = 190.0
+offset_bottom = 100.0
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.9, 0.2, 0.2, 1)
+text = "[DEF]"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TimerSection" type="VBoxContainer" parent="VBoxContainer/MainContent/FieldSection"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TimerLabel" type="Label" parent="VBoxContainer/MainContent/FieldSection/TimerSection"]
+layout_mode = 2
+text = "Time: 3.0s"
+horizontal_alignment = 1
+
+[node name="TimerBar" type="ProgressBar" parent="VBoxContainer/MainContent/FieldSection/TimerSection"]
+custom_minimum_size = Vector2(0, 25)
+layout_mode = 2
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="RoundLabel" type="Label" parent="VBoxContainer/MainContent/FieldSection"]
+layout_mode = 2
+text = "Round 1 of 10"
+horizontal_alignment = 1
+
+[node name="InfoSection" type="VBoxContainer" parent="VBoxContainer/MainContent"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="PlayerStatsPanel" type="PanelContainer" parent="VBoxContainer/MainContent/InfoSection"]
+layout_mode = 2
+
+[node name="StatsVBox" type="VBoxContainer" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="StatsTitle" type="Label" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Your Stats"
+
+[node name="PASRow" type="HBoxContainer" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox"]
+layout_mode = 2
+
+[node name="PASLabel" type="Label" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox/PASRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Passing (PAS):"
+
+[node name="PASValue" type="Label" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox/PASRow"]
+layout_mode = 2
+text = "50"
+
+[node name="TECRow" type="HBoxContainer" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox"]
+layout_mode = 2
+
+[node name="TECLabel" type="Label" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox/TECRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Technique (TEC):"
+
+[node name="TECValue" type="Label" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox/TECRow"]
+layout_mode = 2
+text = "50"
+
+[node name="HSeparatorStats" type="HSeparator" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox"]
+layout_mode = 2
+
+[node name="BaseRow" type="HBoxContainer" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox"]
+layout_mode = 2
+
+[node name="BaseLabel" type="Label" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox/BaseRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Base Success %:"
+
+[node name="BaseValue" type="Label" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox/BaseRow"]
+layout_mode = 2
+text = "50.0%"
+
+[node name="CurrentRoundPanel" type="PanelContainer" parent="VBoxContainer/MainContent/InfoSection"]
+layout_mode = 2
+
+[node name="RoundVBox" type="VBoxContainer" parent="VBoxContainer/MainContent/InfoSection/CurrentRoundPanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="RoundTitle" type="Label" parent="VBoxContainer/MainContent/InfoSection/CurrentRoundPanel/RoundVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Current Round"
+
+[node name="TargetLabel" type="Label" parent="VBoxContainer/MainContent/InfoSection/CurrentRoundPanel/RoundVBox"]
+layout_mode = 2
+text = "Target: --"
+
+[node name="PressureLabel" type="Label" parent="VBoxContainer/MainContent/InfoSection/CurrentRoundPanel/RoundVBox"]
+layout_mode = 2
+text = "Pressure: --"
+
+[node name="HSeparatorRound" type="HSeparator" parent="VBoxContainer/MainContent/InfoSection/CurrentRoundPanel/RoundVBox"]
+layout_mode = 2
+
+[node name="ModifiersTitle" type="Label" parent="VBoxContainer/MainContent/InfoSection/CurrentRoundPanel/RoundVBox"]
+layout_mode = 2
+text = "Selected Pass:"
+
+[node name="DistanceModLabel" type="Label" parent="VBoxContainer/MainContent/InfoSection/CurrentRoundPanel/RoundVBox"]
+layout_mode = 2
+text = "Distance: --"
+
+[node name="PressureModLabel" type="Label" parent="VBoxContainer/MainContent/InfoSection/CurrentRoundPanel/RoundVBox"]
+layout_mode = 2
+text = "Pressure: --"
+
+[node name="TimingModLabel" type="Label" parent="VBoxContainer/MainContent/InfoSection/CurrentRoundPanel/RoundVBox"]
+layout_mode = 2
+text = "Timing: --"
+
+[node name="FinalChanceLabel" type="Label" parent="VBoxContainer/MainContent/InfoSection/CurrentRoundPanel/RoundVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Final: --%"
+
+[node name="SkillCheckPanel" type="PanelContainer" parent="VBoxContainer/MainContent/InfoSection"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="SkillCheckVBox" type="VBoxContainer" parent="VBoxContainer/MainContent/InfoSection/SkillCheckPanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="SkillCheckTitle" type="Label" parent="VBoxContainer/MainContent/InfoSection/SkillCheckPanel/SkillCheckVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Last Pass Breakdown"
+
+[node name="SkillCheckDetails" type="RichTextLabel" parent="VBoxContainer/MainContent/InfoSection/SkillCheckPanel/SkillCheckVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+text = "Click a teammate to pass..."
+fit_content = true
+
+[node name="HSeparator2" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="NarrationSection" type="PanelContainer" parent="VBoxContainer"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+
+[node name="NarrationLabel" type="RichTextLabel" parent="VBoxContainer/NarrationSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+bbcode_enabled = true
+text = "[i]Time for some keep-ball. Stay sharp![/i]"
+fit_content = true
+
+[node name="HSeparator3" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="FooterSection" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="RoundCounter" type="Label" parent="VBoxContainer/FooterSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Round 1 of 10"
+
+[node name="ContinueButton" type="Button" parent="VBoxContainer/FooterSection"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+visible = false
+text = "Continue"
+
+[node name="ExitButton" type="Button" parent="VBoxContainer/FooterSection"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Exit Drill"
+
+[node name="RoundTimer" type="Timer" parent="."]
+wait_time = 0.05

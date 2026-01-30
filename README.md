@@ -1,5 +1,9 @@
 # Soccer Career RPG
 
+[![CI](https://github.com/yourusername/soccer-rpg/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/soccer-rpg/actions/workflows/ci.yml)
+[![Godot 4.x](https://img.shields.io/badge/Godot-4.x-blue.svg)](https://godotengine.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 An anime-style tactical soccer RPG where you rise from high school stardom to international glory.
 
 ## 🎮 Game Overview
@@ -136,9 +140,39 @@ To enable AI-generated narrative content:
 - [ ] Training mini-games
 - [ ] Art asset pipeline
 
+## 🧪 Testing
+
+This project uses [GUT (Godot Unit Testing)](https://github.com/bitwes/Gut) for testing.
+
+### Running Tests
+
+**In Godot Editor:**
+1. Open the project in Godot
+2. Enable the GUT plugin in Project Settings > Plugins
+3. Open the GUT panel (bottom dock)
+4. Click "Run All"
+
+**From Command Line:**
+```bash
+godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://tests/unit/ -gexit
+```
+
+### Test Structure
+```
+tests/
+└── unit/
+    ├── test_stat_system.gd    # StatSystem calculations
+    ├── test_player_data.gd    # PlayerData resource
+    └── test_hex_utils.gd      # Hex grid utilities
+```
+
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit issues and pull requests.
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
+- Branching strategy (GitHub Flow)
+- Commit message format (Conventional Commits)
+- Code style guidelines
+- Testing requirements
 
 ## 📜 License
 

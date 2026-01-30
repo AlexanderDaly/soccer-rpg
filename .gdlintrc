@@ -1,0 +1,41 @@
+# GDLint Configuration
+# https://github.com/Scony/godot-gdscript-toolkit
+
+# Disable specific rules if needed
+# disable = [
+#     "max-line-length",
+# ]
+
+# Maximum allowed line length
+max-line-length = 120
+
+# Class name regex pattern (PascalCase)
+class-name-regex = "([A-Z][a-z0-9]*)+$"
+
+# Function name regex pattern (snake_case)
+function-name-regex = "^(_|[a-z])[a-z0-9_]*$"
+
+# Variable name regex pattern (snake_case)
+variable-name-regex = "^(_|[a-z])[a-z0-9_]*$"
+
+# Constant name regex pattern (SCREAMING_SNAKE_CASE or PascalCase for classes)
+constant-name-regex = "^[A-Z][A-Z0-9_]*$|^([A-Z][a-z0-9]*)+$"
+
+# Signal name regex pattern (snake_case, past tense preferred)
+signal-name-regex = "^[a-z][a-z0-9_]*$"
+
+# Enum name regex pattern (PascalCase)
+enum-name-regex = "^([A-Z][a-z0-9]*)+$"
+
+# Enum element regex pattern (SCREAMING_SNAKE_CASE)
+enum-element-name-regex = "^[A-Z][A-Z0-9_]*$"
+
+# Tab-based indentation (Godot default)
+tab-characters = true
+
+# Exclude directories from linting
+exclude = [
+    "addons/*",
+    ".git/*",
+    "tests/*"
+]

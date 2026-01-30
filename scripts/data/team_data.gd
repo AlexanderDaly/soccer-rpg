@@ -96,13 +96,13 @@ func _generate_npc_player(pos: String, quality: int, phase: GameManager.CareerPh
 	# Generate appropriate name based on phase/setting
 	var npc_name = _generate_name(phase)
 	
-	# Generate stats
-	var npc_stats = StatSystem.generate_npc_stats(pos, quality)
-	
 	# Add some variance to quality within the team
 	var quality_variance = randi_range(-1, 1)
 	var adjusted_quality = clampi(quality + quality_variance, 1, 4)
-	
+
+	# Generate stats using the adjusted quality
+	var npc_stats = StatSystem.generate_npc_stats(pos, adjusted_quality)
+
 	return {
 		"id": npc_id,
 		"name": npc_name,

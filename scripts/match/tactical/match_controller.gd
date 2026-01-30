@@ -33,7 +33,7 @@ var away_score: int = 0
 
 # Turn settings
 const TURNS_PER_HALF: int = 45
-const MINUTES_PER_TURN: int = 2
+const MINUTES_PER_TURN: int = 1  # 45 turns * 1 minute = 45 min per half = 90 min total
 
 # Grid and units
 var hex_grid: TileMapLayer
@@ -381,8 +381,9 @@ func _execute_shot(target_hex: Vector2i) -> void:
 				var save_hex = _get_save_landing_hex(target_hex)
 				ball.make_loose(save_hex)
 			"off_target":
-				# Ball goes out - will need goal kick
-				ball.start_shot(player_unit, target_hex)
+				# Ball goes out - misses the goal
+				var miss_hex = _get_off_target_hex(target_hex)
+				ball.make_loose(miss_hex)
 
 	_clear_highlights()
 	_check_turn_end()
@@ -675,8 +676,9 @@ func _execute_ai_decision(unit: PlayerUnit, decision: Dictionary) -> void:
 						ball.make_loose(result.block_hex)
 					elif result.reason == "saved":
 						ball.make_loose(_get_save_landing_hex(target))
-					else:
-						ball.start_shot(unit, target)
+					else:  # off_target
+						var miss_hex = _get_off_target_hex(target)
+						ball.make_loose(miss_hex)
 
 				await get_tree().create_timer(0.3).timeout
 
@@ -801,6 +803,18 @@ func _get_save_landing_hex(goal_hex: Vector2i) -> Vector2i:
 	# Ball lands near goal after save
 	var offset_x = 2 if goal_hex.x < HexUtils.GRID_WIDTH / 2 else -2
 	var offset_y = randi_range(-2, 2)
+	return Vector2i(
+		clampi(goal_hex.x + offset_x, 0, HexUtils.GRID_WIDTH - 1),
+		clampi(goal_hex.y + offset_y, 0, HexUtils.GRID_HEIGHT - 1)
+	)
+
+
+func _get_off_target_hex(goal_hex: Vector2i) -> Vector2i:
+	# Ball goes wide or over - lands near goal but not on it
+	var offset_x = 1 if goal_hex.x < HexUtils.GRID_WIDTH / 2 else -1
+	var offset_y = randi_range(-3, 3)
+	if offset_y == 0:
+		offset_y = 1 if randf() > 0.5 else -1  # Ensure it's not on the goal line
 	return Vector2i(
 		clampi(goal_hex.x + offset_x, 0, HexUtils.GRID_WIDTH - 1),
 		clampi(goal_hex.y + offset_y, 0, HexUtils.GRID_HEIGHT - 1)

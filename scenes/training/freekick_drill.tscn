@@ -1,0 +1,410 @@
+[gd_scene load_steps=3 format=3 uid="uid://freekick_drill_001"]
+
+[ext_resource type="Script" path="res://scripts/training/freekick_drill.gd" id="1_script"]
+[ext_resource type="Theme" uid="uid://desktop_theme_001" path="res://resources/themes/retro_desktop_theme.tres" id="2_theme"]
+
+[node name="FreekickDrill" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="HeaderSection" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="TitleLabel" type="Label" parent="VBoxContainer/HeaderSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 22
+text = "Free Kick Challenge"
+
+[node name="DifficultyContainer" type="HBoxContainer" parent="VBoxContainer/HeaderSection"]
+layout_mode = 2
+
+[node name="DifficultyLabel" type="Label" parent="VBoxContainer/HeaderSection/DifficultyContainer"]
+layout_mode = 2
+text = "Distance:"
+
+[node name="DifficultySelector" type="OptionButton" parent="VBoxContainer/HeaderSection/DifficultyContainer"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+
+[node name="ScoreLabel" type="Label" parent="VBoxContainer/HeaderSection"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "0 / 10"
+horizontal_alignment = 2
+
+[node name="HSeparator1" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="MainContent" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="GoalSection" type="VBoxContainer" parent="VBoxContainer/MainContent"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.5
+theme_override_constants/separation = 10
+
+[node name="GoalLabel" type="Label" parent="VBoxContainer/MainContent/GoalSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Select Target Zone"
+horizontal_alignment = 1
+
+[node name="GoalFrame" type="PanelContainer" parent="VBoxContainer/MainContent/GoalSection"]
+custom_minimum_size = Vector2(300, 180)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 0
+
+[node name="ZoneGrid" type="GridContainer" parent="VBoxContainer/MainContent/GoalSection/GoalFrame"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+columns = 3
+
+[node name="TopLeft" type="Button" parent="VBoxContainer/MainContent/GoalSection/GoalFrame/ZoneGrid"]
+custom_minimum_size = Vector2(90, 55)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "TOP-L
+-20%"
+
+[node name="TopCenter" type="Button" parent="VBoxContainer/MainContent/GoalSection/GoalFrame/ZoneGrid"]
+custom_minimum_size = Vector2(90, 55)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "TOP-C
+-15%"
+
+[node name="TopRight" type="Button" parent="VBoxContainer/MainContent/GoalSection/GoalFrame/ZoneGrid"]
+custom_minimum_size = Vector2(90, 55)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "TOP-R
+-20%"
+
+[node name="MidLeft" type="Button" parent="VBoxContainer/MainContent/GoalSection/GoalFrame/ZoneGrid"]
+custom_minimum_size = Vector2(90, 55)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "MID-L
+-10%"
+
+[node name="MidCenter" type="Button" parent="VBoxContainer/MainContent/GoalSection/GoalFrame/ZoneGrid"]
+custom_minimum_size = Vector2(90, 55)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "MID-C
++5%"
+
+[node name="MidRight" type="Button" parent="VBoxContainer/MainContent/GoalSection/GoalFrame/ZoneGrid"]
+custom_minimum_size = Vector2(90, 55)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "MID-R
+-10%"
+
+[node name="LowLeft" type="Button" parent="VBoxContainer/MainContent/GoalSection/GoalFrame/ZoneGrid"]
+custom_minimum_size = Vector2(90, 55)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "LOW-L
+-10%"
+
+[node name="LowCenter" type="Button" parent="VBoxContainer/MainContent/GoalSection/GoalFrame/ZoneGrid"]
+custom_minimum_size = Vector2(90, 55)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "LOW-C
+-5%"
+
+[node name="LowRight" type="Button" parent="VBoxContainer/MainContent/GoalSection/GoalFrame/ZoneGrid"]
+custom_minimum_size = Vector2(90, 55)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "LOW-R
+-10%"
+
+[node name="WallIndicator" type="HBoxContainer" parent="VBoxContainer/MainContent/GoalSection"]
+custom_minimum_size = Vector2(300, 30)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="WallBlock1" type="Panel" parent="VBoxContainer/MainContent/GoalSection/WallIndicator"]
+custom_minimum_size = Vector2(50, 25)
+layout_mode = 2
+
+[node name="WallBlock2" type="Panel" parent="VBoxContainer/MainContent/GoalSection/WallIndicator"]
+custom_minimum_size = Vector2(50, 25)
+layout_mode = 2
+
+[node name="WallBlock3" type="Panel" parent="VBoxContainer/MainContent/GoalSection/WallIndicator"]
+custom_minimum_size = Vector2(50, 25)
+layout_mode = 2
+
+[node name="WallBlock4" type="Panel" parent="VBoxContainer/MainContent/GoalSection/WallIndicator"]
+custom_minimum_size = Vector2(50, 25)
+layout_mode = 2
+visible = false
+
+[node name="WallLabel" type="Label" parent="VBoxContainer/MainContent/GoalSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
+text = "^ Defensive Wall ^"
+horizontal_alignment = 1
+
+[node name="CurveSection" type="VBoxContainer" parent="VBoxContainer/MainContent/GoalSection"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="CurveLabel" type="Label" parent="VBoxContainer/MainContent/GoalSection/CurveSection"]
+layout_mode = 2
+text = "Curve Direction:"
+horizontal_alignment = 1
+
+[node name="CurveButtons" type="HBoxContainer" parent="VBoxContainer/MainContent/GoalSection/CurveSection"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/separation = 8
+
+[node name="LeftSwerve" type="Button" parent="VBoxContainer/MainContent/GoalSection/CurveSection/CurveButtons"]
+custom_minimum_size = Vector2(90, 35)
+layout_mode = 2
+disabled = true
+text = "← Swerve"
+
+[node name="Straight" type="Button" parent="VBoxContainer/MainContent/GoalSection/CurveSection/CurveButtons"]
+custom_minimum_size = Vector2(90, 35)
+layout_mode = 2
+disabled = true
+text = "Straight"
+
+[node name="RightSwerve" type="Button" parent="VBoxContainer/MainContent/GoalSection/CurveSection/CurveButtons"]
+custom_minimum_size = Vector2(90, 35)
+layout_mode = 2
+disabled = true
+text = "Swerve →"
+
+[node name="CurveHint" type="Label" parent="VBoxContainer/MainContent/GoalSection/CurveSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.4, 0.4, 0.4, 1)
+text = "Select a zone first"
+horizontal_alignment = 1
+
+[node name="PowerSection" type="VBoxContainer" parent="VBoxContainer/MainContent/GoalSection"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="PowerLabel" type="Label" parent="VBoxContainer/MainContent/GoalSection/PowerSection"]
+layout_mode = 2
+text = "Power: Hold SPACE to charge"
+horizontal_alignment = 1
+
+[node name="PowerBar" type="ProgressBar" parent="VBoxContainer/MainContent/GoalSection/PowerSection"]
+custom_minimum_size = Vector2(0, 25)
+layout_mode = 2
+max_value = 100.0
+value = 0.0
+show_percentage = true
+
+[node name="PowerHint" type="Label" parent="VBoxContainer/MainContent/GoalSection/PowerSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.4, 0.4, 0.4, 1)
+text = "0-39: Weak | 40-69: Good | 70-85: Optimal | 86+: Overpowered"
+horizontal_alignment = 1
+
+[node name="ShootButton" type="Button" parent="VBoxContainer/MainContent/GoalSection"]
+custom_minimum_size = Vector2(0, 35)
+layout_mode = 2
+disabled = true
+text = "Select a target zone"
+
+[node name="InfoSection" type="VBoxContainer" parent="VBoxContainer/MainContent"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="PlayerStatsPanel" type="PanelContainer" parent="VBoxContainer/MainContent/InfoSection"]
+layout_mode = 2
+
+[node name="StatsVBox" type="VBoxContainer" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="StatsTitle" type="Label" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Your Stats"
+
+[node name="SHORow" type="HBoxContainer" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox"]
+layout_mode = 2
+
+[node name="SHOLabel" type="Label" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox/SHORow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Shooting (SHO):"
+
+[node name="SHOValue" type="Label" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox/SHORow"]
+layout_mode = 2
+text = "50"
+
+[node name="TECRow" type="HBoxContainer" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox"]
+layout_mode = 2
+
+[node name="TECLabel" type="Label" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox/TECRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Technique (TEC):"
+
+[node name="TECValue" type="Label" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox/TECRow"]
+layout_mode = 2
+text = "50"
+
+[node name="HSeparatorStats" type="HSeparator" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox"]
+layout_mode = 2
+
+[node name="BaseRow" type="HBoxContainer" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox"]
+layout_mode = 2
+
+[node name="BaseLabel" type="Label" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox/BaseRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Base Success %:"
+
+[node name="BaseValue" type="Label" parent="VBoxContainer/MainContent/InfoSection/PlayerStatsPanel/StatsVBox/BaseRow"]
+layout_mode = 2
+text = "50.0%"
+
+[node name="ModifiersPanel" type="PanelContainer" parent="VBoxContainer/MainContent/InfoSection"]
+layout_mode = 2
+
+[node name="ModifiersVBox" type="VBoxContainer" parent="VBoxContainer/MainContent/InfoSection/ModifiersPanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ModifiersTitle" type="Label" parent="VBoxContainer/MainContent/InfoSection/ModifiersPanel/ModifiersVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Current Modifiers"
+
+[node name="ZoneModLabel" type="Label" parent="VBoxContainer/MainContent/InfoSection/ModifiersPanel/ModifiersVBox"]
+layout_mode = 2
+text = "Zone: --"
+
+[node name="WallModLabel" type="Label" parent="VBoxContainer/MainContent/InfoSection/ModifiersPanel/ModifiersVBox"]
+layout_mode = 2
+text = "Wall: --"
+
+[node name="CurveModLabel" type="Label" parent="VBoxContainer/MainContent/InfoSection/ModifiersPanel/ModifiersVBox"]
+layout_mode = 2
+text = "Curve: --"
+
+[node name="PowerModLabel" type="Label" parent="VBoxContainer/MainContent/InfoSection/ModifiersPanel/ModifiersVBox"]
+layout_mode = 2
+text = "Power: --"
+
+[node name="HSeparatorMods" type="HSeparator" parent="VBoxContainer/MainContent/InfoSection/ModifiersPanel/ModifiersVBox"]
+layout_mode = 2
+
+[node name="FinalChanceLabel" type="Label" parent="VBoxContainer/MainContent/InfoSection/ModifiersPanel/ModifiersVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Final: --%"
+
+[node name="SkillCheckPanel" type="PanelContainer" parent="VBoxContainer/MainContent/InfoSection"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="SkillCheckVBox" type="VBoxContainer" parent="VBoxContainer/MainContent/InfoSection/SkillCheckPanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="SkillCheckTitle" type="Label" parent="VBoxContainer/MainContent/InfoSection/SkillCheckPanel/SkillCheckVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Last Shot Breakdown"
+
+[node name="SkillCheckDetails" type="RichTextLabel" parent="VBoxContainer/MainContent/InfoSection/SkillCheckPanel/SkillCheckVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+text = "Take a free kick to see the skill check math..."
+fit_content = true
+
+[node name="HSeparator2" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="NarrationSection" type="PanelContainer" parent="VBoxContainer"]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+
+[node name="NarrationLabel" type="RichTextLabel" parent="VBoxContainer/NarrationSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+bbcode_enabled = true
+text = "[i]The wall is set. Pick your target and bend it like a pro...[/i]"
+fit_content = true
+
+[node name="HSeparator3" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="FooterSection" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="AttemptCounter" type="Label" parent="VBoxContainer/FooterSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Attempt 1 of 10"
+
+[node name="ContinueButton" type="Button" parent="VBoxContainer/FooterSection"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+visible = false
+text = "Continue"
+
+[node name="ExitButton" type="Button" parent="VBoxContainer/FooterSection"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Exit Drill"
+
+[node name="ChargeTimer" type="Timer" parent="."]
+wait_time = 0.016

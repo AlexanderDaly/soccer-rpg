@@ -116,6 +116,7 @@ const MAX_TRAITS = 2
 var confirmation_dialog: Control
 var confirm_button: Button
 var cancel_button: Button
+var summary_container: VBoxContainer
 
 # Stat bar references for animation
 var stat_bars: Dictionary = {}  # stat_key -> ColorRect
@@ -258,7 +259,7 @@ func _create_nationality_selector() -> void:
 	# Create HBox container for flag + input
 	var hbox = HBoxContainer.new()
 	hbox.name = "NationalityHBox"
-	hbox.theme_override_constants = {"separation": 10}
+	hbox.add_theme_constant_override("separation", 10)
 	nationality_section.add_child(hbox)
 
 	# Create flag display
@@ -417,7 +418,7 @@ func _create_appearance_selectors() -> void:
 		# Create label
 		var label = Label.new()
 		label.text = category.replace("_", " ").capitalize()
-		label.theme_override_font_sizes = {"font_size": 16}
+		label.add_theme_font_size_override("font_size", 16)
 		appearance_grid.add_child(label)
 
 		# Create dropdown
@@ -449,7 +450,7 @@ func _on_appearance_changed(index: int, category: String, options: Array) -> voi
 func _create_trait_selectors() -> void:
 	for trait_id in PERSONALITY_TRAITS:
 		var hbox = HBoxContainer.new()
-		hbox.theme_override_constants = {"separation": 10}
+		hbox.add_theme_constant_override("separation", 10)
 
 		var checkbox = CheckBox.new()
 		checkbox.name = "Check_" + trait_id
@@ -462,12 +463,12 @@ func _create_trait_selectors() -> void:
 
 		var name_label = Label.new()
 		name_label.text = trait_id.replace("_", " ").capitalize()
-		name_label.theme_override_font_sizes = {"font_size": 16}
+		name_label.add_theme_font_size_override("font_size", 16)
 		vbox.add_child(name_label)
 
 		var desc_label = Label.new()
 		desc_label.text = PERSONALITY_TRAITS[trait_id]
-		desc_label.theme_override_font_sizes = {"font_size": 12}
+		desc_label.add_theme_font_size_override("font_size", 12)
 		desc_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 		vbox.add_child(desc_label)
 
@@ -574,7 +575,8 @@ func _create_field_diagram() -> void:
 	var field_lines = Control.new()
 	field_lines.name = "FieldLines"
 	field_lines.set_anchors_preset(Control.PRESET_FULL_RECT)
-	field_lines.set_script(preload("res://scripts/ui/field_lines_drawer.gd") if ResourceLoader.exists("res://scripts/ui/field_lines_drawer.gd") else null)
+	if ResourceLoader.exists("res://scripts/ui/field_lines_drawer.gd"):
+		field_lines.set_script(load("res://scripts/ui/field_lines_drawer.gd"))
 	field_diagram.add_child(field_lines)
 
 	# Create custom drawing for field lines
@@ -679,28 +681,28 @@ func _create_confirmation_dialog() -> void:
 	panel.add_child(margin)
 
 	var vbox = VBoxContainer.new()
-	vbox.theme_override_constants = {"separation": 20}
+	vbox.add_theme_constant_override("separation", 20)
 	margin.add_child(vbox)
 
 	# Title
 	var title = Label.new()
 	title.name = "DialogTitle"
 	title.text = "Confirm Your Player"
-	title.theme_override_font_sizes = {"font_size": 28}
+	title.add_theme_font_size_override("font_size", 28)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
 
 	# Summary container
-	var summary = VBoxContainer.new()
-	summary.name = "SummaryContainer"
-	summary.theme_override_constants = {"separation": 8}
-	summary.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_child(summary)
+	summary_container = VBoxContainer.new()
+	summary_container.name = "SummaryContainer"
+	summary_container.add_theme_constant_override("separation", 8)
+	summary_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(summary_container)
 
 	# Button container
 	var button_box = HBoxContainer.new()
 	button_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	button_box.theme_override_constants = {"separation": 30}
+	button_box.add_theme_constant_override("separation", 30)
 	vbox.add_child(button_box)
 
 	cancel_button = Button.new()
@@ -848,9 +850,6 @@ func _on_start_pressed() -> void:
 
 
 func _show_confirmation_dialog() -> void:
-	# Update summary content
-	var summary_container = confirmation_dialog.get_node("PanelContainer/MarginContainer/VBoxContainer/SummaryContainer")
-
 	# Clear previous content
 	for child in summary_container.get_children():
 		child.queue_free()
@@ -883,14 +882,14 @@ func _show_confirmation_dialog() -> void:
 
 		var key_label = Label.new()
 		key_label.text = item[0] + ":"
-		key_label.theme_override_font_sizes = {"font_size": 18}
+		key_label.add_theme_font_size_override("font_size", 18)
 		key_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 		key_label.custom_minimum_size = Vector2(120, 0)
 		hbox.add_child(key_label)
 
 		var value_label = Label.new()
 		value_label.text = item[1]
-		value_label.theme_override_font_sizes = {"font_size": 18}
+		value_label.add_theme_font_size_override("font_size", 18)
 		value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		hbox.add_child(value_label)
 

@@ -5,6 +5,9 @@ class_name PlayerData
 @export var id: String = ""
 @export var name: String = ""
 @export var position: String = ""  # GK, CB, FB, CDM, CM, CAM, WNG, ST
+@export var nationality: String = "USA"
+@export var dominant_foot: String = "right"  # left, right, both
+@export var age: int = 14  # Starting age for high school
 
 # Primary stats (1-99)
 @export var stats: Dictionary = {
@@ -28,6 +31,9 @@ class_name PlayerData
 @export var morale: int = 50  # 0-100
 @export var injury_status: String = ""  # Empty if healthy
 
+# Training records (best scores for simulation)
+@export var training_records: Dictionary = {}  # e.g., {"penalty_drill": {"best_score": 7, "attempts": 10}}
+
 # Appearance (for AI art generation prompts)
 @export var appearance: Dictionary = {
 	"hair_color": "black",
@@ -42,18 +48,28 @@ class_name PlayerData
 @export var personality_traits: Array[String] = []
 
 
-func initialize(player_name: String, player_position: String) -> void:
+func initialize(player_name: String, player_position: String, player_nationality: String = "USA", player_appearance: Dictionary = {}, player_dominant_foot: String = "right", player_traits: Array[String] = []) -> void:
 	id = _generate_id()
 	name = player_name
 	position = player_position
-	
+	nationality = player_nationality
+	dominant_foot = player_dominant_foot
+	age = 14  # Everyone starts at high school age
+	personality_traits = player_traits
+
 	# Set starting stats based on position
 	_set_starting_stats()
-	
+
 	# Initialize stat XP tracking
 	for stat_key in stats:
 		stat_xp[stat_key] = 0
-	
+
+	# Apply custom appearance if provided
+	if not player_appearance.is_empty():
+		for key in player_appearance:
+			if key in appearance:
+				appearance[key] = player_appearance[key]
+
 	# Update narrative context
 	NarrativeEngine.update_context("player_name", name)
 	NarrativeEngine.update_context("position", position)
@@ -203,6 +219,9 @@ func to_dict() -> Dictionary:
 		"id": id,
 		"name": name,
 		"position": position,
+		"nationality": nationality,
+		"dominant_foot": dominant_foot,
+		"age": age,
 		"stats": stats,
 		"level": level,
 		"xp": xp,
@@ -215,7 +234,8 @@ func to_dict() -> Dictionary:
 		"morale": morale,
 		"injury_status": injury_status,
 		"appearance": appearance,
-		"personality_traits": personality_traits
+		"personality_traits": personality_traits,
+		"training_records": training_records
 	}
 
 
@@ -223,6 +243,9 @@ func from_dict(data: Dictionary) -> void:
 	id = data.get("id", _generate_id())
 	name = data.get("name", "Player")
 	position = data.get("position", "CM")
+	nationality = data.get("nationality", "USA")
+	dominant_foot = data.get("dominant_foot", "right")
+	age = data.get("age", 14)
 	stats = data.get("stats", stats)
 	level = data.get("level", 1)
 	xp = data.get("xp", 0)
@@ -236,3 +259,4 @@ func from_dict(data: Dictionary) -> void:
 	injury_status = data.get("injury_status", "")
 	appearance = data.get("appearance", appearance)
 	personality_traits.assign(data.get("personality_traits", []))
+	training_records = data.get("training_records", {})

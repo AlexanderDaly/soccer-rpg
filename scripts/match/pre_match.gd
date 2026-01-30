@@ -198,7 +198,7 @@ func _simulate_player_performance(team_goals: int) -> void:
 
 	# Simulate other stats
 	var passes = randi_range(20, 50)
-	var pass_accuracy = 0.7 + (player.stats.PAS / 200.0)
+	var pass_accuracy = minf(0.7 + (player.stats.PAS / 200.0), 1.0)
 	for i in range(passes):
 		var success = randf() < pass_accuracy
 		match_data.record_event("pass", {"is_player": true, "successful": success})

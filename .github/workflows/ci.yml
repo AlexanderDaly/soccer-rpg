@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: GDScript Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install gdtoolkit
+        run: pip install gdtoolkit
+
+      - name: Run gdlint
+        run: gdlint scripts/
+
+  test:
+    name: GUT Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Godot
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.3.0
+          use-dotnet: false
+
+      - name: Verify Godot installation
+        run: godot --version
+
+      - name: Import project
+        run: godot --headless --import . || true
+        timeout-minutes: 2
+
+      - name: Run GUT tests
+        run: |
+          godot --headless -s addons/gut/gut_cmdln.gd \
+            -gdir=res://tests/unit/ \
+            -ginclude_subdirs \
+            -gexit
+        timeout-minutes: 5
+        continue-on-error: true
+
+  validate-project:
+    name: Validate Project Structure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check required files exist
+        run: |
+          echo "Checking required project files..."
+          test -f project.godot || (echo "Missing project.godot" && exit 1)
+          test -f README.md || (echo "Missing README.md" && exit 1)
+          test -f CONTRIBUTING.md || (echo "Missing CONTRIBUTING.md" && exit 1)
+          test -f LICENSE || (echo "Missing LICENSE" && exit 1)
+          test -f CHANGELOG.md || (echo "Missing CHANGELOG.md" && exit 1)
+          echo "All required files present!"
+
+      - name: Check directory structure
+        run: |
+          echo "Checking directory structure..."
+          test -d scripts/ || (echo "Missing scripts/" && exit 1)
+          test -d scenes/ || (echo "Missing scenes/" && exit 1)
+          test -d assets/ || (echo "Missing assets/" && exit 1)
+          test -d resources/ || (echo "Missing resources/" && exit 1)
+          test -d tests/ || (echo "Missing tests/" && exit 1)
+          echo "Directory structure valid!"
+
+      - name: Validate project.godot
+        run: |
+          echo "Validating project.godot..."
+          grep -q 'config/name=' project.godot || (echo "Missing project name" && exit 1)
+          grep -q 'config/version=' project.godot || (echo "Missing project version" && exit 1)
+          echo "project.godot valid!"

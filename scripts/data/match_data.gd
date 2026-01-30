@@ -120,8 +120,7 @@ func _update_stats_from_event(event_type: String, data: Dictionary) -> void:
 	match event_type:
 		"goal":
 			player_stats.goals += 1
-			player_stats.shots += 1
-			player_stats.shots_on_target += 1
+			# Note: shots and shots_on_target are tracked by the "shot" event
 		"assist":
 			player_stats.assists += 1
 		"shot":

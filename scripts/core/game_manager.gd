@@ -60,14 +60,14 @@ func change_state(new_state: GameState) -> void:
 	game_state_changed.emit(new_state)
 
 
-func start_new_career(player_name: String, position: String) -> void:
+func start_new_career(player_name: String, position: String, nationality: String = "USA", appearance: Dictionary = {}, dominant_foot: String = "right", traits: Array[String] = []) -> void:
 	player_data = PlayerData.new()
-	player_data.initialize(player_name, position)
+	player_data.initialize(player_name, position, nationality, appearance, dominant_foot, traits)
 	current_career_phase = CareerPhase.HIGH_SCHOOL
-	
+
 	# Initialize starting team (high school)
 	current_team = _create_high_school_team()
-	
+
 	change_state(GameState.CAREER_HUB)
 	career_phase_changed.emit(current_career_phase)
 

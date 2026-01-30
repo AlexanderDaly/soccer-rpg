@@ -67,6 +67,135 @@ func _load_templates() -> void:
 			"I've been watching your progress. Very impressive.",
 			"My club is interested in players with your potential.",
 			"Keep performing like this and we'll be in touch."
+		],
+		"penalty_session_start": [
+			"Step up to the spot. The goalkeeper watches you intently...",
+			"The penalty spot awaits. Time to test your nerve.",
+			"You place the ball carefully on the spot. Focus.",
+			"Training session begins. The keeper is ready."
+		],
+		"penalty_session_end": [
+			"Good session! You scored {goals} out of {total} penalties.",
+			"Training complete. {goals} goals from {total} attempts.",
+			"The keeper heads off. You netted {goals} of {total} today.",
+			"Session over. {goals}/{total} - not bad for practice."
+		],
+		"penalty_goal": [
+			"The net ripples! Clinical finish.",
+			"Goal! The keeper had no chance.",
+			"Buried it! Perfect placement.",
+			"In it goes! The keeper guessed wrong.",
+			"What a strike! Pure confidence.",
+			"Smashed into the {zone}! Goal!",
+			"The keeper dives but it's in! Unstoppable."
+		],
+		"penalty_saved": [
+			"Saved! The keeper read that one well.",
+			"The goalkeeper parries it away! Good stop.",
+			"Denied! The keeper guessed correctly.",
+			"Blocked! The goalkeeper got a strong hand to it.",
+			"Save! Can't beat the keeper this time.",
+			"The keeper springs to their left and saves!"
+		],
+		"penalty_missed": [
+			"Wide! The shot sails past the post.",
+			"Over the bar! Too much power.",
+			"Missed! That one didn't trouble the keeper.",
+			"Off target! The pressure got to you.",
+			"Blazed over! Need to stay calm.",
+			"Wide of the post! Composure is key."
+		],
+		"penalty_attempt": [
+			"You take a deep breath and approach the ball...",
+			"The goalkeeper sets himself. You run up...",
+			"Eyes on the target. Here goes nothing.",
+			"Time to pick your spot and commit."
+		],
+		"rondo_session_start": [
+			"Time for some keep-ball. Stay sharp!",
+			"Rondo time. Keep the ball moving.",
+			"The defenders are ready. Don't lose possession.",
+			"Quick feet, quick decisions. Let's go."
+		],
+		"rondo_session_end": [
+			"Good session! {successes} successful passes out of {total}.",
+			"Training complete. {successes}/{total} - solid work.",
+			"The rondo ends. {successes} out of {total} passes completed.",
+			"Session over. {successes}/{total} successful passes today."
+		],
+		"rondo_success": [
+			"Nice pass! The defender couldn't get there.",
+			"Clean ball. Good decision.",
+			"Slick passing. Keep it up!",
+			"Perfect weight on that pass.",
+			"The ball zips through. Well played.",
+			"Smart choice. The teammate receives it cleanly."
+		],
+		"rondo_intercepted": [
+			"Intercepted! The defender read that one.",
+			"Picked off. Too predictable.",
+			"Cut out! The defender was waiting for it.",
+			"The pass is blocked. Better luck next time.",
+			"Stolen! Should have gone the other way."
+		],
+		"rondo_timeout": [
+			"Too slow! You held onto it too long.",
+			"Turnover. Quicker decisions needed.",
+			"Time ran out. The defender closed you down.",
+			"Hesitation cost you. Move the ball faster."
+		],
+		"rondo_risky_success": [
+			"Brave pass! Threading it through pressure.",
+			"Risky but it paid off! Great vision.",
+			"Through the danger zone! Audacious pass.",
+			"Against the odds, the pass finds its mark."
+		],
+		"freekick_session_start": [
+			"Time to practice your set pieces. Eye on the target.",
+			"Free kick training. Bend it like the pros.",
+			"The wall is set. Find a way around it.",
+			"Set piece practice. Pick your spot and commit."
+		],
+		"freekick_session_end": [
+			"Good session! {goals} goals from {total} attempts.",
+			"Training complete. {goals}/{total} free kicks converted.",
+			"The session ends. {goals} out of {total} found the net.",
+			"Practice over. {goals}/{total} - keep working on that technique."
+		],
+		"freekick_goal": [
+			"What a strike! The wall couldn't stop that.",
+			"Curled it beautifully into the net!",
+			"Goal! Perfect placement.",
+			"The keeper was rooted. Stunning free kick!",
+			"In it goes! Bent around the wall perfectly.",
+			"Clinical finish! The technique was flawless."
+		],
+		"freekick_goal_top_corner": [
+			"Top corner! Unstoppable!",
+			"Inch-perfect into the top corner!",
+			"The wall jumped but it sailed over them!",
+			"Postage stamp! No keeper saves that.",
+			"Top bins! What a free kick!"
+		],
+		"freekick_saved": [
+			"Saved! The keeper got across well.",
+			"Good effort but the keeper read it.",
+			"Denied! Strong hands from the keeper.",
+			"The keeper springs across and saves!",
+			"Pushed away! The keeper was equal to it."
+		],
+		"freekick_missed": [
+			"Wide! Couldn't beat the wall.",
+			"Over the bar! Too much on it.",
+			"Off target. Back to the training ground.",
+			"Misses the target. Composure needed.",
+			"Blazed over! The wall got a piece of that."
+		],
+		"freekick_wall_block": [
+			"Blocked by the wall! Pick your spot better.",
+			"Straight into the wall. Unlucky.",
+			"The wall stands firm! Need to go around them.",
+			"Blocked! Should have tried more curve."
 		]
 	}
 	

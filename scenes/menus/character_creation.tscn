@@ -47,7 +47,7 @@ theme_override_constants/separation = 60
 [node name="LeftPanel" type="VBoxContainer" parent="MainContainer/ContentContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_stretch_ratio = 0.4
+size_flags_stretch_ratio = 0.35
 theme_override_constants/separation = 30
 
 [node name="NameSection" type="VBoxContainer" parent="MainContainer/ContentContainer/LeftPanel"]
@@ -65,6 +65,53 @@ custom_minimum_size = Vector2(0, 45)
 placeholder_text = "Enter your name..."
 max_length = 20
 
+[node name="NameHint" type="Label" parent="MainContainer/ContentContainer/LeftPanel/NameSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+text = "Minimum 2 characters"
+
+[node name="NationalitySection" type="VBoxContainer" parent="MainContainer/ContentContainer/LeftPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="NationalityLabel" type="Label" parent="MainContainer/ContentContainer/LeftPanel/NationalitySection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Nationality"
+
+[node name="DominantFootSection" type="VBoxContainer" parent="MainContainer/ContentContainer/LeftPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="DominantFootLabel" type="Label" parent="MainContainer/ContentContainer/LeftPanel/DominantFootSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Dominant Foot"
+
+[node name="DominantFootContainer" type="HBoxContainer" parent="MainContainer/ContentContainer/LeftPanel/DominantFootSection"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="LeftFootButton" type="Button" parent="MainContainer/ContentContainer/LeftPanel/DominantFootSection/DominantFootContainer"]
+custom_minimum_size = Vector2(70, 40)
+layout_mode = 2
+toggle_mode = true
+text = "Left"
+
+[node name="RightFootButton" type="Button" parent="MainContainer/ContentContainer/LeftPanel/DominantFootSection/DominantFootContainer"]
+custom_minimum_size = Vector2(70, 40)
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+text = "Right"
+
+[node name="BothFeetButton" type="Button" parent="MainContainer/ContentContainer/LeftPanel/DominantFootSection/DominantFootContainer"]
+custom_minimum_size = Vector2(70, 40)
+layout_mode = 2
+toggle_mode = true
+text = "Both"
+
 [node name="PositionSection" type="VBoxContainer" parent="MainContainer/ContentContainer/LeftPanel"]
 layout_mode = 2
 size_flags_vertical = 3
@@ -80,10 +127,64 @@ layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 5
 
+[node name="CenterPanel" type="VBoxContainer" parent="MainContainer/ContentContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.3
+theme_override_constants/separation = 10
+
+[node name="AppearanceHeader" type="HBoxContainer" parent="MainContainer/ContentContainer/CenterPanel"]
+layout_mode = 2
+theme_override_constants/separation = 15
+
+[node name="AppearanceLabel" type="Label" parent="MainContainer/ContentContainer/CenterPanel/AppearanceHeader"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Customize Appearance"
+size_flags_horizontal = 3
+
+[node name="RandomizeButton" type="Button" parent="MainContainer/ContentContainer/CenterPanel/AppearanceHeader"]
+custom_minimum_size = Vector2(100, 35)
+layout_mode = 2
+text = "Randomize"
+
+[node name="AppearanceGrid" type="GridContainer" parent="MainContainer/ContentContainer/CenterPanel"]
+layout_mode = 2
+size_flags_vertical = 0
+columns = 2
+theme_override_constants/h_separation = 20
+theme_override_constants/v_separation = 10
+
+[node name="TraitsSection" type="VBoxContainer" parent="MainContainer/ContentContainer/CenterPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="TraitsLabel" type="Label" parent="MainContainer/ContentContainer/CenterPanel/TraitsSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Personality Traits"
+
+[node name="TraitsHint" type="Label" parent="MainContainer/ContentContainer/CenterPanel/TraitsSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+text = "Select up to 2 traits (optional)"
+
+[node name="TraitsScroll" type="ScrollContainer" parent="MainContainer/ContentContainer/CenterPanel/TraitsSection"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="TraitsList" type="VBoxContainer" parent="MainContainer/ContentContainer/CenterPanel/TraitsSection/TraitsScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
 [node name="RightPanel" type="VBoxContainer" parent="MainContainer/ContentContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_stretch_ratio = 0.6
+size_flags_stretch_ratio = 0.35
 theme_override_constants/separation = 20
 
 [node name="PositionDescription" type="Label" parent="MainContainer/ContentContainer/RightPanel"]
