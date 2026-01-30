@@ -3,21 +3,23 @@
 [![CI](https://github.com/yourusername/soccer-rpg/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/soccer-rpg/actions/workflows/ci.yml)
 [![Godot 4.x](https://img.shields.io/badge/Godot-4.x-blue.svg)](https://godotengine.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tests](https://img.shields.io/badge/tests-90%2B%20passing-brightgreen.svg)]()
 
 An anime-style tactical soccer RPG where you rise from high school stardom to international glory.
 
 ## 🎮 Game Overview
 
-**Soccer Career RPG** is a turn-based tactical soccer game with deep RPG progression and AI-driven dynamic storytelling. Guide your custom player from high school soccer through the U20 World Cup and into the professional ranks.
+**Soccer Career RPG** is a turn-based tactical soccer game with deep RPG progression and AI-driven dynamic storytelling. Guide your custom player through the Japanese high school soccer system—from prefecture league play through regional qualifiers to the national championship.
 
 ### Key Features
 
-- **Turn-Based Tactical Matches**: Full 11v11 matches on a grid-based pitch with chess-like strategic gameplay
-- **Career Progression**: Journey from high school → youth academy → U20 World Cup → professional career
-- **RPG Stat System**: 8 primary stats, derived secondary stats, and position-based archetypes
+- **Turn-Based Tactical Matches**: Full 11v11 matches on a hex-based pitch with chess-like strategic gameplay
+- **Japanese High School Season**: Authentic 3-phase season system with prefecture leagues, regional qualifiers, and the national championship
+- **RPG Stat System**: 8 primary stats, 10 derived secondary stats, and 8 position-based archetypes
+- **Training Mini-Games**: Free kick, penalty, and rondo drills with skill check mechanics and XP rewards
 - **Dynamic AI Narrative**: Context-aware story generation that adapts to your performance and choices
-- **Anime Art Style**: AI-generated character portraits and dramatic special moves
-- **Relationship System**: Build bonds with teammates, rivals, and coaches
+- **Dual UI Modes**: Modern console dashboard (FIFA/Pro Evo style) and retro desktop simulation
+- **Career Progression**: Journey from high school → youth academy → U20 World Cup → professional career
 
 ## 🛠️ Tech Stack
 
@@ -29,40 +31,47 @@ An anime-style tactical soccer RPG where you rise from high school stardom to in
 
 ```
 soccer-rpg/
-├── project.godot          # Godot project configuration
-├── scenes/
-│   ├── match/             # Match gameplay scenes
-│   ├── menus/             # UI screens (main menu, settings, etc.)
-│   ├── career/            # Career hub and management
-│   ├── dialogue/          # Dialogue/cutscene scenes
-│   └── training/          # Training mini-games
-├── scripts/
-│   ├── core/              # Autoloaded singletons
-│   │   ├── game_manager.gd
-│   │   ├── stat_system.gd
-│   │   ├── audio_manager.gd
-│   │   └── save_manager.gd
-│   ├── match/             # Match logic and turn system
-│   ├── career/            # Career progression
-│   │   └── career_manager.gd
-│   ├── ai_narrative/      # AI story generation
-│   │   └── narrative_engine.gd
-│   ├── ui/                # UI scripts
-│   └── data/              # Data classes
+├── project.godot              # Godot project configuration
+├── scripts/                   # 64 GDScript files (~19k LOC)
+│   ├── core/                  # Autoloaded singletons
+│   │   ├── game_manager.gd    # Central state controller
+│   │   ├── stat_system.gd     # Stats, XP, leveling
+│   │   ├── audio_manager.gd   # Sound/music management
+│   │   └── save_manager.gd    # Save/load serialization
+│   ├── season/                # Season system
+│   │   ├── season_manager.gd  # Season orchestration
+│   │   ├── season_data.gd     # Season state
+│   │   ├── league_data.gd     # Round-robin leagues
+│   │   └── tournament_data.gd # Knockout tournaments
+│   ├── match/tactical/        # Turn-based match system (50+ files)
+│   │   ├── match_controller.gd
+│   │   ├── hex_utils.gd       # Hex grid & A* pathfinding
+│   │   └── action_resolver.gd # Move, pass, shoot, tackle
+│   ├── dashboard/             # Console UI panels (13 files)
+│   ├── desktop/               # Desktop shell & apps (12 files)
+│   ├── training/              # Training mini-games
+│   ├── career/                # Career progression
+│   ├── ai_narrative/          # AI story generation
+│   └── data/                  # Data classes
 │       ├── player_data.gd
 │       ├── team_data.gd
 │       └── match_data.gd
+├── scenes/                    # 41 scene files
+│   ├── dashboard/             # Console dashboard panels
+│   ├── match/                 # Tactical match UI
+│   ├── desktop/               # Desktop shell & apps
+│   ├── training/              # Mini-game scenes
+│   ├── menus/                 # Main menu, settings
+│   └── career/                # Career hub
+├── tests/unit/                # 90+ unit tests (GUT framework)
 ├── assets/
-│   ├── sprites/           # Game sprites (characters, pitch, UI)
-│   ├── portraits/         # Character portrait images
-│   ├── audio/             # Sound effects and music
-│   └── fonts/             # Custom fonts
-├── resources/             # Godot resource files (.tres)
-│   ├── stats/             # Stat configurations
-│   ├── skills/            # Special move definitions
-│   ├── teams/             # Team data
-│   └── story/             # Story beat definitions
-└── addons/                # Godot plugins
+│   ├── flags/                 # 73 SVG country flags
+│   ├── ui/icons/              # Dashboard icons
+│   ├── audio/                 # Sound effects and music
+│   └── fonts/                 # Custom fonts
+├── resources/themes/          # UI themes (.tres)
+├── docs/                      # Development journals
+└── addons/gut/                # GUT testing framework
 ```
 
 ## 🎯 Stat System
@@ -88,6 +97,47 @@ soccer-rpg/
 - **CAM** - Attacking Midfielder
 - **WNG** - Winger
 - **ST** - Striker
+
+## ⚽ Season System
+
+The game features an authentic Japanese high school soccer season structure:
+
+### Three Phases
+1. **Prefecture League** (April - October)
+   - 10-team round-robin competition
+   - 18 matchdays with automatic scheduling
+   - Top 3 qualify for regional qualifiers
+
+2. **Prefecture Qualifiers** (November)
+   - 16-team single elimination tournament
+   - Winner advances to nationals
+
+3. **National Championship** (December - January)
+   - 48-team knockout tournament
+   - Authentic prefecture representation
+
+### Features
+- Real date scheduling with calendar integration
+- CPU match simulation using Poisson distribution
+- League standings with form guide
+- Tournament bracket visualization
+- Career milestone tracking (champion, finalist, etc.)
+
+## 🏋️ Training Mini-Games
+
+Three skill-based training drills to improve your player:
+
+| Drill | Description | Mechanics |
+|-------|-------------|-----------|
+| **Free Kick** | 10-shot session against a wall | Zone targeting, curve direction, power charging |
+| **Penalty** | Penalty spot practice | Goalkeeper mind games, placement accuracy |
+| **Rondo** | Possession keep-away | Pass count tracking, interception defense |
+
+Each drill features:
+- Difficulty levels (Youth, Pro, Elite)
+- XP rewards with bonus multipliers
+- Skill check math with multiple modifiers
+- Training records tracking
 
 ## 🚀 Getting Started
 
@@ -125,24 +175,90 @@ To enable AI-generated narrative content:
 ### Menu Controls
 - **Enter/Space**: Confirm
 - **Escape**: Back / Menu
+- **Arrow Keys**: Navigate options
+- **Tab**: Next field
 
-## 📋 Development Roadmap
+### Training Controls
+- **Arrow Keys**: Select zone target
+- **Left/Right**: Choose curve direction
+- **Hold Space**: Charge power
+- **Release Space**: Execute shot
 
-- [x] Project structure setup
-- [x] Core autoload singletons
-- [x] Stat system implementation
-- [x] Data classes (Player, Team, Match)
-- [x] Basic UI framework
-- [ ] Character creation screen
-- [ ] Tactical match prototype
-- [ ] Career hub implementation
-- [ ] AI narrative integration
-- [ ] Training mini-games
-- [ ] Art asset pipeline
+## 📋 Development Status
+
+### Completed Features
+- [x] Core autoload singletons (GameManager, StatSystem, SaveManager, AudioManager)
+- [x] Complete stat system (8 primary, 10 secondary, position archetypes)
+- [x] Data classes with full serialization (Player, Team, Match, Season)
+- [x] Character creation (name, position, appearance, nationality, traits)
+- [x] Tactical match system (11v11, hex-based, turn-based with AI)
+- [x] Japanese high school season system (league, qualifiers, nationals)
+- [x] Training mini-games (free kick, penalty, rondo)
+- [x] Console dashboard UI (9 feature panels)
+- [x] Desktop simulation UI (retro 90s aesthetic)
+- [x] AI narrative engine with fallback templates
+- [x] Save/load system with multiple slots
+- [x] Professional dev infrastructure (GUT tests, CI/CD, GDLint)
+
+### In Progress
+- [ ] Career phase progression beyond high school
+- [ ] Match animations and visual polish
+- [ ] Sound effects and music integration
+
+## 🔮 Future Projects
+
+### Near-Term Goals
+1. **Youth Academy Phase**
+   - Scout recruitment mechanics
+   - Academy training programs
+   - Youth international callups (U17, U18)
+
+2. **U20 World Cup Arc**
+   - International squad selection
+   - Tournament bracket play
+   - Rival nation storylines
+
+3. **Match Visual Polish**
+   - Animated player sprites
+   - Goal celebration cutscenes
+   - Weather effects (rain, snow)
+
+### Mid-Term Goals
+4. **Professional Career Launch**
+   - Club transfer system
+   - Contract negotiations
+   - Multiple league support (J-League, European leagues)
+
+5. **Relationship System**
+   - Teammate bond mechanics
+   - Rival progression
+   - Coach/manager interactions
+   - Press conference events
+
+6. **Special Moves System**
+   - Unlockable signature techniques
+   - Anime-style special move animations
+   - Team combination plays
+
+### Long-Term Vision
+7. **Art Asset Pipeline**
+   - AI-generated character portraits
+   - Dynamic match backgrounds
+   - Season/weather visual changes
+
+8. **Advanced Narrative**
+   - Branching storylines based on performance
+   - Multiple career endings
+   - Newspaper/social media integration
+
+9. **Community Features**
+   - Custom team creation
+   - Share custom formations
+   - Leaderboards for training games
 
 ## 🧪 Testing
 
-This project uses [GUT (Godot Unit Testing)](https://github.com/bitwes/Gut) for testing.
+This project uses [GUT (Godot Unit Testing)](https://github.com/bitwes/Gut) with 90+ passing tests.
 
 ### Running Tests
 
@@ -157,13 +273,15 @@ This project uses [GUT (Godot Unit Testing)](https://github.com/bitwes/Gut) for 
 godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://tests/unit/ -gexit
 ```
 
-### Test Structure
+**Via GitHub Actions:**
+Tests run automatically on every push and PR via the CI pipeline.
+
+### Test Coverage
 ```
-tests/
-└── unit/
-    ├── test_stat_system.gd    # StatSystem calculations
-    ├── test_player_data.gd    # PlayerData resource
-    └── test_hex_utils.gd      # Hex grid utilities
+tests/unit/
+├── test_stat_system.gd    # 25+ tests: secondary stats, overall rating, XP curves
+├── test_player_data.gd    # 25+ tests: serialization, stat operations, leveling
+└── test_hex_utils.gd      # 40+ tests: pathfinding, formations, hex math
 ```
 
 ## 🤝 Contributing
@@ -180,5 +298,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- Inspired by *Inazuma Eleven*, *Captain Tsubasa*, and *Football Manager*
+- Inspired by *Inazuma Eleven*, *Captain Tsubasa*, *Football Manager*, and *FIFA Career Mode*
 - Built with [Godot Engine](https://godotengine.org/)
+- Testing powered by [GUT (Godot Unit Testing)](https://github.com/bitwes/Gut)
+- Country flags from [flag-icons](https://github.com/lipis/flag-icons) (MIT License)
+- Japanese prefecture data for authentic school generation
