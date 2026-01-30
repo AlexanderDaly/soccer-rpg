@@ -148,10 +148,20 @@ func _complete_flight() -> void:
 
 	# Check if this was a goal
 	if is_shot:
+		var scored := false
 		if flight_target == HexUtils.HOME_GOAL_HEX:
 			goal_scored.emit(true)  # Goal on home side (away team scored)
+			scored = true
 		elif flight_target == HexUtils.AWAY_GOAL_HEX:
 			goal_scored.emit(false)  # Goal on away side (home team scored)
+			scored = true
+
+		if scored:
+			# Don't emit ball_arrived after a goal - match controller handles
+			# the reset and kickoff possession via _on_goal_scored
+			current_state = BallState.LOOSE
+			flight_path.clear()
+			return
 
 	current_state = BallState.LOOSE
 	flight_path.clear()
