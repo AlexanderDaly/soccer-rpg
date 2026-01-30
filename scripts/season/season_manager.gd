@@ -168,9 +168,14 @@ func _simulate_league_cpu_matches() -> Array[Dictionary]:
 
 	var results = MatchSimulator.simulate_batch_league_matches(cpu_fixtures, teams_by_id)
 
-	# Record results
+	# Record results with goal events for stats tracking
 	for result in results:
-		current_season.league.record_result(result.home_team_id, result.away_team_id, result.home_score, result.away_score)
+		current_season.league.record_result(
+			result.home_team_id, result.away_team_id,
+			result.home_score, result.away_score,
+			result.get("home_goal_events", []),
+			result.get("away_goal_events", [])
+		)
 
 	league_standings_updated.emit(current_season.league.get_sorted_standings())
 	return results
@@ -246,6 +251,13 @@ func _check_phase_transition() -> void:
 
 func _transition_to_qualifiers() -> void:
 	print("[SeasonManager] League complete, transitioning to qualifiers")
+
+	# Compute and store league awards
+	if current_season.league and current_season.league.player_stats:
+		var total_matches = current_season.league.player_stats.get_total_matches_in_league(current_season.league.teams.size())
+		var awards = current_season.league.player_stats.get_all_awards(total_matches)
+		current_season.league.league_awards = awards
+		print("[SeasonManager] League awards computed")
 
 	# Check for league champion milestone
 	if current_season.player_won_league():

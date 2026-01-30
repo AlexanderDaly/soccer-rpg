@@ -49,7 +49,7 @@ func generate_teammates(count: int, career_phase: GameManager.CareerPhase) -> vo
 	# Generate remaining players
 	for i in range(mini(count, positions_needed.size())):
 		var pos = positions_needed[i]
-		var teammate = _generate_npc_player(pos, quality, career_phase)
+		var teammate = _generate_npc_player(pos, quality, career_phase, i)
 		players.append(teammate)
 	
 	# Set captain (highest overall player)
@@ -90,8 +90,9 @@ func _get_positions_from_formation() -> Array[String]:
 	return positions
 
 
-func _generate_npc_player(pos: String, quality: int, phase: GameManager.CareerPhase) -> Dictionary:
-	var npc_id = "npc_%d" % randi()
+func _generate_npc_player(pos: String, quality: int, phase: GameManager.CareerPhase, player_index: int = 0) -> Dictionary:
+	# Create deterministic ID based on team ID, position, and index
+	var npc_id = "npc_%s_%s_%d" % [id.substr(0, 8), pos, player_index]
 	
 	# Generate appropriate name based on phase/setting
 	var npc_name = _generate_name(phase)

@@ -178,7 +178,7 @@ func player_eliminated_from_nationals() -> bool:
 
 
 func get_season_summary() -> Dictionary:
-	return {
+	var summary = {
 		"prefecture": prefecture,
 		"year": year,
 		"phase": Phase.keys()[current_phase],
@@ -188,6 +188,16 @@ func get_season_summary() -> Dictionary:
 		"nationals_stage_reached": national_championship.get_current_stage_name() if national_championship else "",
 		"national_champion": player_won_nationals()
 	}
+
+	# Include league awards and leaderboards if available
+	if league:
+		summary["league_awards"] = league.league_awards
+		if league.player_stats:
+			var total_matches = league.player_stats.get_total_matches_in_league(league.teams.size())
+			summary["top_scorers"] = league.player_stats.get_top_scorers(5, total_matches)
+			summary["top_assisters"] = league.player_stats.get_top_assisters(5, total_matches)
+
+	return summary
 
 
 func to_dict() -> Dictionary:

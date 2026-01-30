@@ -53,7 +53,9 @@ static func _simulate_match(home_team: TeamData, away_team: TeamData, is_knockou
 		"extra_time": false,
 		"penalties": false,
 		"penalty_score_home": 0,
-		"penalty_score_away": 0
+		"penalty_score_away": 0,
+		"home_goal_events": _attribute_goals(home_team, home_score),
+		"away_goal_events": _attribute_goals(away_team, away_score)
 	}
 
 	# Handle knockout draws
@@ -212,3 +214,92 @@ static func format_result_string(result: Dictionary) -> String:
 		score_str += " (AET)"
 
 	return "%s %s %s" % [result.home_team_name, score_str, result.away_team_name]
+
+
+# Position weights for goal scoring probability
+const POSITION_GOAL_WEIGHTS: Dictionary = {
+	"ST": 5.0,
+	"WNG": 2.5,
+	"CAM": 2.0,
+	"CM": 1.0,
+	"CDM": 0.5,
+	"FB": 0.3,
+	"CB": 0.2,
+	"GK": 0.01
+}
+
+# Chance of a goal having an assist
+const ASSIST_CHANCE: float = 0.7
+
+
+static func _attribute_goals(team: TeamData, goals_scored: int) -> Array[Dictionary]:
+	var events: Array[Dictionary] = []
+
+	if goals_scored == 0 or not team:
+		return events
+
+	var players = team.get_starting_eleven()
+	if players.is_empty():
+		return events
+
+	for _i in range(goals_scored):
+		var event: Dictionary = {}
+
+		# Select scorer
+		var scorer = _weighted_player_select(players, POSITION_GOAL_WEIGHTS)
+		event["scorer_id"] = scorer.get("id", "")
+		event["scorer_name"] = scorer.get("name", "Unknown")
+
+		# 70% chance of assist
+		if randf() < ASSIST_CHANCE:
+			# Assister should be different from scorer, midfielders/wingers more likely
+			var assister = _weighted_player_select(players, POSITION_GOAL_WEIGHTS, scorer.get("id", ""))
+			if not assister.is_empty():
+				event["assister_id"] = assister.get("id", "")
+				event["assister_name"] = assister.get("name", "Unknown")
+
+		events.append(event)
+
+	return events
+
+
+static func _weighted_player_select(players: Array, weights: Dictionary, exclude_id: String = "") -> Dictionary:
+	if players.is_empty():
+		return {}
+
+	var total_weight: float = 0.0
+	var player_weights: Array[Dictionary] = []
+
+	for player in players:
+		var player_id = player.get("id", "")
+		if player_id == exclude_id:
+			continue
+
+		var position = player.get("position", "CM")
+		var base_weight = weights.get(position, 1.0)
+
+		# Factor in player overall rating
+		var overall = player.get("overall", 50)
+		var rating_factor = overall / 50.0  # Normalize around 50
+
+		var final_weight = base_weight * rating_factor
+		total_weight += final_weight
+
+		player_weights.append({
+			"player": player,
+			"weight": final_weight
+		})
+
+	if total_weight == 0 or player_weights.is_empty():
+		return players[0] if players.size() > 0 else {}
+
+	# Weighted random selection
+	var roll = randf() * total_weight
+	var cumulative: float = 0.0
+
+	for pw in player_weights:
+		cumulative += pw.weight
+		if roll <= cumulative:
+			return pw.player
+
+	return player_weights[-1].player

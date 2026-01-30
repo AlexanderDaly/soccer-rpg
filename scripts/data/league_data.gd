@@ -25,6 +25,12 @@ const DAYS_BETWEEN_MATCHDAYS: int = 7  # Weekly matches
 @export var current_matchday: int = 1
 @export var is_complete: bool = false
 
+# Player stats tracking for awards
+@export var player_stats: SeasonPlayerStats = null
+
+# Computed awards after league completion
+@export var league_awards: Dictionary = {}
+
 
 func _init() -> void:
 	id = "league_%d" % randi()
@@ -56,6 +62,9 @@ func _initialize_standings() -> void:
 			"points": 0,
 			"form": []  # Last 5 results: "W", "D", "L"
 		}
+
+	# Initialize player stats tracking
+	player_stats = SeasonPlayerStats.new()
 
 
 func _generate_fixtures() -> void:
@@ -151,7 +160,8 @@ func get_formatted_date(matchday: int) -> String:
 	return "%s %d" % [months[date.month], date.day]
 
 
-func record_result(home_id: String, away_id: String, home_score: int, away_score: int) -> void:
+func record_result(home_id: String, away_id: String, home_score: int, away_score: int,
+					home_events: Array = [], away_events: Array = []) -> void:
 	# Find and update the fixture
 	for i in range(fixtures.size()):
 		var fixture = fixtures[i]
@@ -162,6 +172,9 @@ func record_result(home_id: String, away_id: String, home_score: int, away_score
 
 			# Update standings
 			_update_standings(home_id, away_id, home_score, away_score)
+
+			# Record player stats for awards
+			_record_player_stats(home_id, away_id, home_score, away_score, home_events, away_events)
 
 			# Check if all matches for current matchday are played
 			_check_matchday_complete()
@@ -219,6 +232,54 @@ func _add_form(team_id: String, result: String) -> void:
 	team_stats.form.append(result)
 	if team_stats.form.size() > 5:
 		team_stats.form.pop_front()
+
+
+func _record_player_stats(home_id: String, away_id: String, home_score: int, away_score: int,
+						home_events: Array, away_events: Array) -> void:
+	if not player_stats:
+		return
+
+	var home_team = get_team_by_id(home_id)
+	var away_team = get_team_by_id(away_id)
+
+	# Record appearances for starting eleven
+	if home_team:
+		for player in home_team.get_starting_eleven():
+			player_stats.record_appearance(player, home_id)
+
+	if away_team:
+		for player in away_team.get_starting_eleven():
+			player_stats.record_appearance(player, away_id)
+
+	# Record goals and assists from events
+	for event in home_events:
+		var scorer_id = event.get("scorer_id", "")
+		if not scorer_id.is_empty():
+			player_stats.record_goal(scorer_id)
+		var assister_id = event.get("assister_id", "")
+		if not assister_id.is_empty():
+			player_stats.record_assist(assister_id)
+
+	for event in away_events:
+		var scorer_id = event.get("scorer_id", "")
+		if not scorer_id.is_empty():
+			player_stats.record_goal(scorer_id)
+		var assister_id = event.get("assister_id", "")
+		if not assister_id.is_empty():
+			player_stats.record_assist(assister_id)
+
+	# Record clean sheets for goalkeepers
+	if home_team and away_score == 0:
+		for player in home_team.get_starting_eleven():
+			if player.get("position", "") == "GK":
+				player_stats.record_clean_sheet(player.get("id", ""))
+				break
+
+	if away_team and home_score == 0:
+		for player in away_team.get_starting_eleven():
+			if player.get("position", "") == "GK":
+				player_stats.record_clean_sheet(player.get("id", ""))
+				break
 
 
 func _check_matchday_complete() -> void:
@@ -351,7 +412,9 @@ func to_dict() -> Dictionary:
 		"standings": standings,
 		"fixtures": fixtures,
 		"current_matchday": current_matchday,
-		"is_complete": is_complete
+		"is_complete": is_complete,
+		"player_stats": player_stats.to_dict() if player_stats else {},
+		"league_awards": league_awards
 	}
 
 
@@ -364,6 +427,7 @@ func from_dict(data: Dictionary) -> void:
 	fixtures.assign(data.get("fixtures", []))
 	current_matchday = data.get("current_matchday", 1)
 	is_complete = data.get("is_complete", false)
+	league_awards = data.get("league_awards", {})
 
 	# Restore teams
 	teams.clear()
@@ -372,3 +436,11 @@ func from_dict(data: Dictionary) -> void:
 		var team = TeamData.new()
 		team.from_dict(team_data)
 		teams.append(team)
+
+	# Restore player stats
+	var player_stats_data = data.get("player_stats", {})
+	if not player_stats_data.is_empty():
+		player_stats = SeasonPlayerStats.new()
+		player_stats.from_dict(player_stats_data)
+	else:
+		player_stats = SeasonPlayerStats.new()
