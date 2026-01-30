@@ -434,7 +434,8 @@ func _execute_dribble(target_hex: Vector2i) -> void:
 		else:
 			ball.give_possession(defender)
 	else:
-		# No defender, just move
+		# No defender, just move (still costs AP)
+		player_unit.spend_ap(ActionResolver.AP_COST["dribble"])
 		player_unit.move_to_hex([player_unit.hex_position, target_hex])
 
 	_clear_highlights()
