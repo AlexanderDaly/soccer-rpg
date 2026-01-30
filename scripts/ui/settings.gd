@@ -50,6 +50,10 @@ func _on_sfx_slider_value_changed(value: float) -> void:
 func _on_auto_save_toggled(toggled: bool) -> void:
 	AudioManager.play_ui_click()
 	SaveManager.auto_save_enabled = toggled
+	if toggled:
+		SaveManager.start_auto_save()
+	else:
+		SaveManager.stop_auto_save()
 
 
 func _on_back_pressed() -> void:

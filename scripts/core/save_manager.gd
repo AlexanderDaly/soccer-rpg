@@ -34,6 +34,10 @@ func _setup_auto_save() -> void:
 	_auto_save_timer.timeout.connect(_on_auto_save)
 	add_child(_auto_save_timer)
 
+	# Start timer if auto-save is enabled by default
+	if auto_save_enabled:
+		_auto_save_timer.start()
+
 
 func _on_auto_save() -> void:
 	if auto_save_enabled and current_slot >= 0:
