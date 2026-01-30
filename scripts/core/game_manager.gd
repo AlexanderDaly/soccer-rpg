@@ -32,6 +32,7 @@ var current_career_phase: CareerPhase = CareerPhase.HIGH_SCHOOL
 var player_data: PlayerData = null
 var current_team: TeamData = null
 var current_match: MatchData = null
+var current_prefecture: String = ""
 
 # Debug mode
 var debug_mode: bool = OS.is_debug_build()
@@ -60,13 +61,17 @@ func change_state(new_state: GameState) -> void:
 	game_state_changed.emit(new_state)
 
 
-func start_new_career(player_name: String, position: String, nationality: String = "USA", appearance: Dictionary = {}, dominant_foot: String = "right", traits: Array[String] = []) -> void:
+func start_new_career(player_name: String, position: String, nationality: String = "USA", appearance: Dictionary = {}, dominant_foot: String = "right", traits: Array[String] = [], prefecture: String = "Kanagawa") -> void:
 	player_data = PlayerData.new()
 	player_data.initialize(player_name, position, nationality, appearance, dominant_foot, traits)
 	current_career_phase = CareerPhase.HIGH_SCHOOL
+	current_prefecture = prefecture
 
 	# Initialize starting team (high school)
 	current_team = _create_high_school_team()
+
+	# Initialize the season system
+	SeasonManager.initialize_season(prefecture, current_team)
 
 	change_state(GameState.CAREER_HUB)
 	career_phase_changed.emit(current_career_phase)
@@ -82,10 +87,10 @@ func advance_career_phase() -> void:
 		NarrativeEngine.generate_phase_transition_narrative(current_career_phase)
 
 
-func start_match(opponent_team: TeamData, match_type: String) -> void:
+func start_match(opponent_team: TeamData, match_type: String, player_is_home: bool = true) -> void:
 	current_match = MatchData.new()
-	current_match.setup(current_team, opponent_team, match_type)
-	
+	current_match.setup(current_team, opponent_team, match_type, player_is_home)
+
 	change_state(GameState.PRE_MATCH)
 	match_started.emit(current_match.to_dict())
 
@@ -104,7 +109,12 @@ func end_match(result: Dictionary) -> void:
 
 func _create_high_school_team() -> TeamData:
 	var team = TeamData.new()
-	team.name = "Sakura High School"
+	# Generate authentic Japanese school name based on prefecture
+	var capital = JapaneseSchoolGenerator.get_prefecture_capital(current_prefecture)
+	team.name = "%s First High School" % capital
+	team.short_name = capital.substr(0, 3).to_upper() if capital.length() >= 3 else capital.to_upper()
+	team.league = "%s Prefecture" % current_prefecture
+	team.tier = 1
 	team.generate_teammates(10, CareerPhase.HIGH_SCHOOL)  # 10 teammates + player
 	return team
 

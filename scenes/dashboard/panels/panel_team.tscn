@@ -1,0 +1,111 @@
+[gd_scene load_steps=2 format=3 uid="uid://panel_team_001"]
+
+[ext_resource type="Script" path="res://scripts/dashboard/panels/panel_team.gd" id="1_script"]
+
+[node name="PanelTeam" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.85)
+
+[node name="ContentContainer" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 48.0
+offset_top = 48.0
+offset_right = -48.0
+offset_bottom = -48.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="ContentContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 24
+
+[node name="VBoxContainer" type="VBoxContainer" parent="ContentContainer/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Header" type="HBoxContainer" parent="ContentContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="BackButton" type="Button" parent="ContentContainer/MarginContainer/VBoxContainer/Header"]
+custom_minimum_size = Vector2(80, 36)
+layout_mode = 2
+text = "< Back"
+
+[node name="TitleLabel" type="Label" parent="ContentContainer/MarginContainer/VBoxContainer/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 24
+text = "Team Roster"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="ContentContainer/MarginContainer/VBoxContainer/Header"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+
+[node name="ContentArea" type="Control" parent="ContentContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="MainContent" type="HBoxContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 24
+
+[node name="RosterSection" type="VBoxContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="TeamHeader" type="HBoxContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/RosterSection"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="TeamNameLabel" type="Label" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/RosterSection/TeamHeader"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 20
+text = "Team Name"
+
+[node name="FormationLabel" type="Label" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/RosterSection/TeamHeader"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.65, 0.7, 1)
+text = "Formation: 4-3-3"
+
+[node name="ScrollContainer" type="ScrollContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/RosterSection"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RosterList" type="VBoxContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/RosterSection/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="PlayerDetailPanel" type="PanelContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent"]
+visible = false
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2

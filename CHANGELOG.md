@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### Japanese High School Soccer Season System
+- **Complete Season Structure**: Authentic Japanese high school soccer calendar
+  - Prefecture League (April-October): 10 teams, round-robin format, 18 matches
+  - Prefecture Qualifiers (November): 16-team single elimination knockout
+  - National Championship (December-January): 48-team knockout tournament
+- **Calendar Integration**: Real date scheduling for league fixtures
+  - Season starts first Saturday of April
+  - Weekly matches (1 per week) through October
+  - Automatic date calculation for all 18 matchdays
+- **Schedule Panel Overhaul**: Complete rewrite of match schedule display
+  - Shows all player fixtures (not just next match)
+  - Displays recent results with W/D/L coloring
+  - Shows upcoming fixtures with date, matchday, home/away indicator
+  - Calendar view highlights match days for current month
+  - Played matches shown in different color
+- **Season Data Classes**:
+  - `LeagueData`: Standings, fixtures, round-robin logic, date calculation
+  - `TournamentData`: Knockout bracket management
+  - `SeasonData`: Season orchestration and phase tracking
+- **Core Season Systems**:
+  - `SeasonManager`: Autoload singleton coordinating season phases
+  - `MatchSimulator`: CPU vs CPU match simulation with Poisson distribution
+  - `JapaneseSchoolGenerator`: Authentic Japanese school name generation (47 prefectures)
+- **Season UI Panels**:
+  - `PanelLeagueTable`: League standings with player highlight, form guide, qualifying positions
+  - `PanelTournamentBracket`: Visual tournament bracket with match cards
+- **Prefecture Selection**: Player chooses prefecture at character creation
+- **Season Milestones**: Career achievements for season progress
+  - `prefecture_league_champion`: Win prefecture league
+  - `prefecture_qualifier_winner`: Win qualifier tournament
+  - `national_participant`: Qualify for nationals
+  - `national_quarter_finalist`, `national_semi_finalist`, `national_finalist`, `national_champion`
+- **Home/Away Support**: Fixtures now track and display home/away venue
+- **Save/Load Integration**: Full season state persistence
+
 ### Changed
 - **Training Games UI Redesign**: Updated all training mini-games from retro Windows 95-style to dark FIFA/Pro Evo console dashboard aesthetic
   - Dark navy backgrounds with semi-transparent panels

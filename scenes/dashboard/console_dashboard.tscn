@@ -1,0 +1,143 @@
+[gd_scene load_steps=5 format=3 uid="uid://console_dashboard_001"]
+
+[ext_resource type="Script" path="res://scripts/dashboard/console_dashboard.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://player_mini_card_001" path="res://scenes/dashboard/components/player_mini_card.tscn" id="2_player_card"]
+[ext_resource type="PackedScene" uid="uid://hero_match_card_001" path="res://scenes/dashboard/components/hero_match_card.tscn" id="3_hero_card"]
+[ext_resource type="Theme" uid="uid://console_dash_theme_001" path="res://resources/themes/console_dashboard_theme.tres" id="4_theme"]
+
+[node name="ConsoleDashboard" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("4_theme")
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.039, 0.086, 0.157, 1)
+
+[node name="MainLayout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="Header" type="PanelContainer" parent="MainLayout"]
+custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
+
+[node name="HeaderContent" type="HBoxContainer" parent="MainLayout/Header"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="ClubBadge" type="TextureRect" parent="MainLayout/Header/HeaderContent"]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 2
+stretch_mode = 5
+
+[node name="ClubNameLabel" type="Label" parent="MainLayout/Header/HeaderContent"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 20
+text = "SAKURA HIGH SCHOOL"
+
+[node name="NotificationBadge" type="Label" parent="MainLayout/Header/HeaderContent"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 12
+text = "3"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ClockLabel" type="Label" parent="MainLayout/Header/HeaderContent"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_colors/font_color = Color(0.7, 0.75, 0.8, 1)
+theme_override_font_sizes/font_size = 14
+text = "Apr 1, 2024  08:00"
+
+[node name="ContentArea" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 32
+
+[node name="LeftMargin" type="Control" parent="MainLayout/ContentArea"]
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
+
+[node name="LeftSection" type="VBoxContainer" parent="MainLayout/ContentArea"]
+custom_minimum_size = Vector2(400, 0)
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="TopSpacer" type="Control" parent="MainLayout/ContentArea/LeftSection"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+
+[node name="PlayerMiniCard" parent="MainLayout/ContentArea/LeftSection" instance=ExtResource("2_player_card")]
+layout_mode = 2
+
+[node name="TileGrid" type="GridContainer" parent="MainLayout/ContentArea/LeftSection"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 16
+columns = 2
+
+[node name="RightSection" type="VBoxContainer" parent="MainLayout/ContentArea"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 24
+
+[node name="TopSpacer" type="Control" parent="MainLayout/ContentArea/RightSection"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+
+[node name="HeroMatchCard" parent="MainLayout/ContentArea/RightSection" instance=ExtResource("3_hero_card")]
+layout_mode = 2
+
+[node name="BottomSpacer" type="Control" parent="MainLayout/ContentArea/RightSection"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RightMargin" type="Control" parent="MainLayout/ContentArea"]
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
+
+[node name="Footer" type="PanelContainer" parent="MainLayout"]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+
+[node name="FooterHints" type="Label" parent="MainLayout/Footer"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_colors/font_color = Color(0.5, 0.55, 0.6, 1)
+theme_override_font_sizes/font_size = 14
+text = "[Arrows/D-pad = Navigate]    [Enter/A = Select]    [Escape/B = Back]"
+horizontal_alignment = 1
+
+[node name="PanelLayer" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2

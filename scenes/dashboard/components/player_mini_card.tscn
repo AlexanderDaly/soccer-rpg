@@ -1,0 +1,90 @@
+[gd_scene load_steps=2 format=3 uid="uid://player_mini_card_001"]
+
+[ext_resource type="Script" path="res://scripts/dashboard/components/player_mini_card.gd" id="1_script"]
+
+[node name="PlayerMiniCard" type="PanelContainer"]
+custom_minimum_size = Vector2(280, 140)
+offset_right = 280.0
+offset_bottom = 140.0
+script = ExtResource("1_script")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="PortraitContainer" type="PanelContainer" parent="MarginContainer/HBoxContainer"]
+custom_minimum_size = Vector2(80, 80)
+layout_mode = 2
+
+[node name="PortraitRect" type="TextureRect" parent="MarginContainer/HBoxContainer/PortraitContainer"]
+layout_mode = 2
+expand_mode = 2
+stretch_mode = 5
+
+[node name="InfoContainer" type="VBoxContainer" parent="MarginContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="NameLabel" type="Label" parent="MarginContainer/HBoxContainer/InfoContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.97, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "Player Name"
+
+[node name="PositionRow" type="HBoxContainer" parent="MarginContainer/HBoxContainer/InfoContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PositionLabel" type="Label" parent="MarginContainer/HBoxContainer/InfoContainer/PositionRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 0.9, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+text = "CAM"
+
+[node name="OverallLabel" type="Label" parent="MarginContainer/HBoxContainer/InfoContainer/PositionRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.84, 0, 1)
+theme_override_font_sizes/font_size = 14
+text = "OVR 67"
+
+[node name="FormRow" type="HBoxContainer" parent="MarginContainer/HBoxContainer/InfoContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="FormIndicator" type="ColorRect" parent="MarginContainer/HBoxContainer/InfoContainer/FormRow"]
+custom_minimum_size = Vector2(12, 12)
+layout_mode = 2
+size_flags_vertical = 4
+color = Color(0.4, 0.9, 0.4, 1)
+
+[node name="FormLabel" type="Label" parent="MarginContainer/HBoxContainer/InfoContainer/FormRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.8, 1)
+theme_override_font_sizes/font_size = 13
+text = "Good Form"
+
+[node name="StaminaRow" type="HBoxContainer" parent="MarginContainer/HBoxContainer/InfoContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="StaminaBar" type="ProgressBar" parent="MarginContainer/HBoxContainer/InfoContainer/StaminaRow"]
+custom_minimum_size = Vector2(100, 16)
+layout_mode = 2
+size_flags_vertical = 4
+max_value = 100.0
+value = 75.0
+show_percentage = false
+
+[node name="StaminaLabel" type="Label" parent="MarginContainer/HBoxContainer/InfoContainer/StaminaRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.8, 1)
+theme_override_font_sizes/font_size = 13
+text = "75%"

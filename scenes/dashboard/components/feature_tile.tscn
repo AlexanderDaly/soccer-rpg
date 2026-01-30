@@ -1,0 +1,33 @@
+[gd_scene load_steps=2 format=3 uid="uid://feature_tile_001"]
+
+[ext_resource type="Script" path="res://scripts/dashboard/components/feature_tile.gd" id="1_script"]
+
+[node name="FeatureTile" type="PanelContainer"]
+custom_minimum_size = Vector2(180, 100)
+offset_right = 180.0
+offset_bottom = 100.0
+size_flags_horizontal = 3
+pivot_offset = Vector2(90, 50)
+script = ExtResource("1_script")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="IconRect" type="TextureRect" parent="MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+size_flags_horizontal = 4
+expand_mode = 2
+stretch_mode = 5
+
+[node name="TitleLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "Feature"
+horizontal_alignment = 1

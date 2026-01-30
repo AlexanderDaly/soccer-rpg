@@ -1,0 +1,124 @@
+[gd_scene load_steps=2 format=3 uid="uid://panel_email_001"]
+
+[ext_resource type="Script" path="res://scripts/dashboard/panels/panel_email.gd" id="1_script"]
+
+[node name="PanelEmail" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.85)
+
+[node name="ContentContainer" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 48.0
+offset_top = 48.0
+offset_right = -48.0
+offset_bottom = -48.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="ContentContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 24
+
+[node name="VBoxContainer" type="VBoxContainer" parent="ContentContainer/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Header" type="HBoxContainer" parent="ContentContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="BackButton" type="Button" parent="ContentContainer/MarginContainer/VBoxContainer/Header"]
+custom_minimum_size = Vector2(80, 36)
+layout_mode = 2
+text = "< Back"
+
+[node name="TitleLabel" type="Label" parent="ContentContainer/MarginContainer/VBoxContainer/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 24
+text = "ProMail"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="ContentContainer/MarginContainer/VBoxContainer/Header"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+
+[node name="ContentArea" type="Control" parent="ContentContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="MainContent" type="HSplitContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+split_offset = 300
+
+[node name="HSplitContainer" type="HSplitContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent"]
+layout_mode = 2
+split_offset = 300
+
+[node name="InboxPanel" type="PanelContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/HSplitContainer"]
+custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
+
+[node name="ScrollContainer" type="ScrollContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/HSplitContainer/InboxPanel"]
+layout_mode = 2
+
+[node name="InboxList" type="VBoxContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/HSplitContainer/InboxPanel/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="MessagePanel" type="PanelContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/HSplitContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="VBoxContainer" type="VBoxContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/HSplitContainer/MessagePanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="FromLabel" type="Label" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/HSplitContainer/MessagePanel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.8, 1)
+text = "From:"
+
+[node name="SubjectLabel" type="Label" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/HSplitContainer/MessagePanel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "Select an email"
+
+[node name="HSeparator" type="HSeparator" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/HSplitContainer/MessagePanel/VBoxContainer"]
+layout_mode = 2
+
+[node name="BodyText" type="RichTextLabel" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/HSplitContainer/MessagePanel/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/default_color = Color(0.8, 0.85, 0.9, 1)
+
+[node name="ActionButtons" type="HBoxContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/HSplitContainer/MessagePanel/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
