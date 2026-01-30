@@ -110,7 +110,7 @@ func _format_date(date_string: String) -> String:
 func _on_load_pressed(slot: int) -> void:
 	AudioManager.play_ui_confirm()
 	if SaveManager.load_game(slot):
-		get_tree().change_scene_to_file("res://scenes/desktop/desktop_shell.tscn")
+		get_tree().change_scene_to_file("res://scenes/dashboard/console_dashboard.tscn")
 
 
 func _on_delete_pressed(slot: int) -> void:

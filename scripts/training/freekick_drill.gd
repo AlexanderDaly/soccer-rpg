@@ -1028,8 +1028,8 @@ func _on_exit_pressed() -> void:
 	if current_state == DrillState.DRILL_COMPLETE:
 		_apply_rewards()
 
-	# Return to training app (close this scene)
-	queue_free()
+	# Return to console dashboard
+	get_tree().change_scene_to_file("res://scenes/dashboard/console_dashboard.tscn")
 
 
 func _apply_rewards() -> void:

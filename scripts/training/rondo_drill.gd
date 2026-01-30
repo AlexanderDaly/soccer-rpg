@@ -225,7 +225,7 @@ func _style_footer_buttons() -> void:
 
 	# Style Exit button with dark panel style
 	var exit_style = StyleBoxFlat.new()
-	exit_style.bg_color = COLOR_DEFAULT
+	exit_style.bg_color = COLOR_DEFAULT_BUTTON
 	exit_style.border_width_left = 2
 	exit_style.border_width_top = 2
 	exit_style.border_width_right = 2
@@ -840,7 +840,8 @@ func _on_exit_pressed() -> void:
 	if current_state == DrillState.DRILL_COMPLETE:
 		_apply_rewards()
 
-	queue_free()
+	# Return to console dashboard
+	get_tree().change_scene_to_file("res://scenes/dashboard/console_dashboard.tscn")
 
 
 func _apply_rewards() -> void:

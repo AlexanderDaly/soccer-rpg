@@ -135,6 +135,7 @@ var selected_position: String = "CM"
 var selected_nationality: String = "USA"
 var selected_dominant_foot: String = "right"
 var selected_traits: Array[String] = []
+var selected_prefecture: String = "Kanagawa"  # Default prefecture
 var position_buttons: Dictionary = {}
 var appearance_buttons: Dictionary = {}
 var foot_buttons: Dictionary = {}
@@ -143,6 +144,8 @@ var nationality_input: LineEdit
 var nationality_list: ItemList
 var nationality_flag: TextureRect
 var flag_textures: Dictionary = {}  # code -> Texture2D
+var prefecture_input: LineEdit
+var prefecture_list: ItemList
 var selected_appearance: Dictionary = {
 	"hair_color": "black",
 	"hair_style": "short",
@@ -156,6 +159,7 @@ var selected_appearance: Dictionary = {
 func _ready() -> void:
 	_init_nationality_lookup()
 	_create_nationality_selector()
+	_create_prefecture_selector()
 	_setup_foot_buttons()
 	_create_position_buttons()
 	_create_appearance_selectors()
@@ -372,6 +376,96 @@ func _update_nationality_flag() -> void:
 		var flag_texture = _get_flag_texture(selected_nationality)
 		if flag_texture:
 			nationality_flag.texture = flag_texture
+
+
+func _create_prefecture_selector() -> void:
+	# Create a new section for prefecture selection after nationality
+	var prefecture_section = VBoxContainer.new()
+	prefecture_section.name = "PrefectureSection"
+	prefecture_section.add_theme_constant_override("separation", 8)
+
+	# Insert after nationality section
+	var left_panel = nationality_section.get_parent()
+	var nationality_idx = nationality_section.get_index()
+	left_panel.add_child(prefecture_section)
+	left_panel.move_child(prefecture_section, nationality_idx + 1)
+
+	# Section label
+	var section_label = Label.new()
+	section_label.text = "PREFECTURE"
+	section_label.add_theme_font_size_override("font_size", 14)
+	section_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	prefecture_section.add_child(section_label)
+
+	# Prefecture input
+	prefecture_input = LineEdit.new()
+	prefecture_input.name = "PrefectureInput"
+	prefecture_input.custom_minimum_size = Vector2(0, 45)
+	prefecture_input.placeholder_text = "Search prefecture..."
+	prefecture_input.text = selected_prefecture
+	prefecture_section.add_child(prefecture_input)
+
+	# Prefecture list
+	prefecture_list = ItemList.new()
+	prefecture_list.name = "PrefectureList"
+	prefecture_list.custom_minimum_size = Vector2(0, 180)
+	prefecture_list.visible = false
+	prefecture_list.z_index = 10
+	prefecture_section.add_child(prefecture_list)
+
+	# Prefecture hint
+	var hint_label = Label.new()
+	hint_label.text = "Your high school league location"
+	hint_label.add_theme_font_size_override("font_size", 12)
+	hint_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	prefecture_section.add_child(hint_label)
+
+	# Connect signals
+	prefecture_input.text_changed.connect(_on_prefecture_search_changed)
+	prefecture_input.focus_entered.connect(_on_prefecture_focus_entered)
+	prefecture_input.focus_exited.connect(_on_prefecture_focus_exited)
+	prefecture_list.item_selected.connect(_on_prefecture_item_selected)
+
+	# Populate list
+	_populate_prefecture_list("")
+
+
+func _populate_prefecture_list(search_text: String) -> void:
+	prefecture_list.clear()
+
+	var prefectures = JapaneseSchoolGenerator.get_all_prefectures()
+	var search_lower = search_text.to_lower()
+
+	for pref in prefectures:
+		if search_lower.is_empty() or pref.to_lower().contains(search_lower):
+			prefecture_list.add_item(pref)
+
+
+func _on_prefecture_search_changed(new_text: String) -> void:
+	_populate_prefecture_list(new_text)
+	prefecture_list.visible = true
+
+
+func _on_prefecture_focus_entered() -> void:
+	prefecture_list.visible = true
+	prefecture_input.select_all()
+
+
+func _on_prefecture_focus_exited() -> void:
+	await get_tree().create_timer(0.15).timeout
+	prefecture_list.visible = false
+	# Reset to current selection
+	prefecture_input.text = selected_prefecture
+
+
+func _on_prefecture_item_selected(index: int) -> void:
+	var pref = prefecture_list.get_item_text(index)
+	selected_prefecture = pref
+	prefecture_input.text = pref
+	AudioManager.play_ui_click()
+
+	prefecture_list.visible = false
+	prefecture_input.release_focus()
 
 
 func _setup_foot_buttons() -> void:
@@ -865,6 +959,7 @@ func _show_confirmation_dialog() -> void:
 		["Name", player_name],
 		["Position", "%s - %s" % [selected_position, POSITION_DESCRIPTIONS[selected_position].split(" - ")[0]]],
 		["Nationality", nationality_name],
+		["Prefecture", "%s Prefecture" % selected_prefecture],
 		["Dominant Foot", foot_display],
 		["Age", "14 (High School)"]
 	]
@@ -910,11 +1005,11 @@ func _on_confirm_career() -> void:
 
 	AudioManager.play_ui_confirm()
 
-	# Start the career
-	GameManager.start_new_career(player_name, selected_position, selected_nationality, selected_appearance, selected_dominant_foot, selected_traits)
+	# Start the career with prefecture
+	GameManager.start_new_career(player_name, selected_position, selected_nationality, selected_appearance, selected_dominant_foot, selected_traits, selected_prefecture)
 
-	# Transition to desktop shell
-	get_tree().change_scene_to_file("res://scenes/desktop/desktop_shell.tscn")
+	# Transition to console dashboard
+	get_tree().change_scene_to_file("res://scenes/dashboard/console_dashboard.tscn")
 
 
 func _on_back_pressed() -> void:

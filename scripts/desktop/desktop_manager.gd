@@ -8,12 +8,27 @@ signal window_focused(window_id: String)
 signal window_minimized(window_id: String)
 signal window_restored(window_id: String)
 signal notification_received(notification: Dictionary)
+signal panel_opened(panel_id: String)
+signal panel_closed(panel_id: String)
 
 # Window tracking
 var active_windows: Dictionary = {}  # window_id -> WindowBase reference
 var window_z_order: Array[String] = []  # Front to back ordering
 var minimized_windows: Array[String] = []
 var focused_window_id: String = ""
+
+# Panel tracking (for console dashboard)
+var active_panel: Control = null
+var panel_scenes: Dictionary = {
+	"training": "res://scenes/dashboard/panels/panel_training.tscn",
+	"schedule": "res://scenes/dashboard/panels/panel_schedule.tscn",
+	"team": "res://scenes/dashboard/panels/panel_team.tscn",
+	"email": "res://scenes/dashboard/panels/panel_email.tscn",
+	"player_stats": "res://scenes/dashboard/panels/panel_player_stats.tscn",
+	"social": "res://scenes/dashboard/panels/panel_social.tscn",
+	"save_load": "res://scenes/dashboard/panels/panel_save_load.tscn",
+	"settings": "res://scenes/dashboard/panels/panel_settings.tscn"
+}
 
 # In-game time (for display purposes)
 var game_date: Dictionary = {
@@ -341,3 +356,57 @@ func get_time_string() -> String:
 func get_date_string() -> String:
 	var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 	return "%s %d, %d" % [months[game_date.month - 1], game_date.day, game_date.year]
+
+
+# Panel management (for console dashboard)
+func open_panel(panel_id: String, parent: Node) -> Control:
+	if active_panel:
+		close_current_panel()
+
+	var panel_path = panel_scenes.get(panel_id, "")
+	if panel_path.is_empty():
+		push_error("Unknown panel: " + panel_id)
+		return null
+
+	var panel_scene = load(panel_path)
+	if not panel_scene:
+		push_error("Failed to load panel scene: " + panel_path)
+		return null
+
+	active_panel = panel_scene.instantiate()
+	parent.add_child(active_panel)
+
+	if active_panel.has_method("open"):
+		active_panel.open()
+
+	panel_opened.emit(panel_id)
+	return active_panel
+
+
+func close_current_panel() -> void:
+	if not active_panel:
+		return
+
+	if active_panel.has_method("close"):
+		active_panel.close()
+	else:
+		active_panel.queue_free()
+
+	active_panel = null
+	panel_closed.emit("")
+
+
+func get_active_panel() -> Control:
+	return active_panel
+
+
+func is_panel_open() -> bool:
+	return active_panel != null
+
+
+func register_panel(panel_id: String, scene_path: String) -> void:
+	panel_scenes[panel_id] = scene_path
+
+
+func get_panel_scene_path(panel_id: String) -> String:
+	return panel_scenes.get(panel_id, "")

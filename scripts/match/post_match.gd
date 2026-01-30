@@ -34,6 +34,7 @@ func _ready() -> void:
 	if not CareerManager.match_history.is_empty():
 		match_result = CareerManager.match_history.back()
 		_display_result()
+		_update_season_standings()
 
 
 func _display_result() -> void:
@@ -194,9 +195,32 @@ func _generate_match_narrative() -> String:
 	return "\n".join(lines)
 
 
+func _update_season_standings() -> void:
+	# Update season manager with match result
+	if not SeasonManager.has_active_season():
+		return
+
+	var opponent_id = ""
+	var current_match = GameManager.current_match
+	if current_match:
+		var opponent_team = current_match.get_opponent_team()
+		if opponent_team:
+			opponent_id = opponent_team.id
+
+	var player_score = match_result.get("player_score", 0)
+	var opponent_score = match_result.get("opponent_score", 0)
+	var is_home = current_match.is_home if current_match else true
+
+	# Record the result in the season manager
+	SeasonManager.record_player_match_result(opponent_id, player_score, opponent_score, is_home)
+
+	# Simulate CPU matches for this matchday
+	SeasonManager.simulate_cpu_matches_for_current_matchday()
+
+
 func _on_continue_pressed() -> void:
 	AudioManager.play_ui_click()
 
-	# Return to career hub (desktop shell)
+	# Return to career hub (console dashboard)
 	GameManager.change_state(GameManager.GameState.CAREER_HUB)
-	get_tree().change_scene_to_file("res://scenes/desktop/desktop_shell.tscn")
+	get_tree().change_scene_to_file("res://scenes/dashboard/console_dashboard.tscn")

@@ -145,7 +145,7 @@ func _add_training_option(training: Dictionary) -> void:
 
 	var desc_label = Label.new()
 	desc_label.text = training.description
-	desc_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
+	desc_label.add_theme_color_override("font_color", Color(0.25, 0.25, 0.25))
 	desc_label.add_theme_font_size_override("font_size", 14)
 
 	var cost_label = Label.new()
@@ -153,7 +153,7 @@ func _add_training_option(training: Dictionary) -> void:
 		cost_label.text = "Stamina: -%d | Stat: %s +XP" % [training.stamina_cost, training.stat]
 	else:
 		cost_label.text = "Stamina: +%d" % abs(training.stamina_cost)
-	cost_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	cost_label.add_theme_color_override("font_color", Color(0.25, 0.25, 0.25))
 	cost_label.add_theme_font_size_override("font_size", 13)
 
 	info_vbox.add_child(name_label)

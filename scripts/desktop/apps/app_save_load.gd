@@ -115,7 +115,7 @@ func _on_save_completed(slot: int, success: bool) -> void:
 func _on_load_completed(slot: int, success: bool) -> void:
 	if success:
 		status_label.text = "Loaded from slot %d" % (slot + 1)
-		# Refresh desktop after loading
-		get_tree().change_scene_to_file("res://scenes/desktop/desktop_shell.tscn")
+		# Refresh console dashboard after loading
+		get_tree().change_scene_to_file("res://scenes/dashboard/console_dashboard.tscn")
 	else:
 		status_label.text = "Load failed!"
