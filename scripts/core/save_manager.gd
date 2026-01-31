@@ -202,6 +202,9 @@ func _collect_save_data() -> Dictionary:
 		# Narrative context
 		"narrative": _serialize_narrative(),
 
+		# Personas
+		"personas": PersonaManager.save_personas_to_dict(),
+
 		# Settings
 		"settings": _serialize_settings()
 	}
@@ -298,6 +301,10 @@ func _apply_save_data(data: Dictionary) -> void:
 	# Restore narrative context
 	if "narrative" in data:
 		NarrativeEngine.narrative_context = data.narrative
+
+	# Restore personas
+	if "personas" in data:
+		PersonaManager.load_personas_from_dict(data.personas)
 
 	# Restore settings
 	if "settings" in data:
