@@ -32,6 +32,64 @@ var tone_preset: String = "anime"
 var auto_generate: bool = true
 var batch_size: int = 5
 
+# Persona evolution definitions
+const PERSONA_EVOLUTIONS = {
+	"won_golden_boot": {
+		"traits_to_add": ["confident", "celebrated"],
+		"confidence_boost": 20,
+		"backstory_addition": "Won the Golden Boot award as the league's top scorer",
+		"experience_tier": "star"
+	},
+	"won_playmaker_award": {
+		"traits_to_add": ["creative", "visionary"],
+		"confidence_boost": 15,
+		"backstory_addition": "Won the Playmaker Award for most assists",
+		"experience_tier": "star"
+	},
+	"won_golden_glove": {
+		"traits_to_add": ["reliable", "commanding"],
+		"confidence_boost": 18,
+		"backstory_addition": "Won the Golden Glove for most clean sheets",
+		"experience_tier": "star"
+	},
+	"scored_in_nationals": {
+		"traits_to_add": ["clutch performer", "big-game player"],
+		"confidence_boost": 10,
+		"backstory_addition": "Scored in the National Championship"
+	},
+	"won_nationals": {
+		"traits_to_add": ["champion", "leader"],
+		"confidence_boost": 25,
+		"backstory_addition": "National Championship winner",
+		"experience_tier": "star"
+	},
+	"survived_major_injury": {
+		"traits_to_add": ["resilient", "determined"],
+		"confidence_boost": -5,
+		"backstory_addition": "Overcame a serious injury to return to playing"
+	},
+	"third_year_senior": {
+		"traits_to_add": ["experienced", "mentor"],
+		"confidence_boost": 5,
+		"experience_tier": "veteran"
+	},
+	"second_year_regular": {
+		"traits_to_add": ["settled", "dependable"],
+		"confidence_boost": 3,
+		"experience_tier": "regular"
+	},
+	"league_champion": {
+		"traits_to_add": ["winner", "focused"],
+		"confidence_boost": 15,
+		"backstory_addition": "Prefecture league champion"
+	},
+	"qualifier_winner": {
+		"traits_to_add": ["tournament-tested", "composed"],
+		"confidence_boost": 12,
+		"backstory_addition": "Prefecture qualifier tournament winner"
+	}
+}
+
 # System prompt for AI persona generation
 const PERSONA_SYSTEM_PROMPT = """You are a creative writer for an anime-style soccer RPG game. Generate a detailed character persona for an NPC.
 
@@ -205,6 +263,85 @@ func load_personas_from_dict(data: Dictionary) -> void:
 		persona.from_dict(data[npc_id])
 		persona_cache[npc_id] = persona
 	print("[PersonaManager] Loaded %d personas from save" % persona_cache.size())
+
+
+func evolve_persona_for_event(npc_id: String, event_type: String) -> void:
+	"""Evolve a persona based on a career event."""
+	if event_type not in PERSONA_EVOLUTIONS:
+		push_warning("[PersonaManager] Unknown evolution event: %s" % event_type)
+		return
+
+	var evolution = PERSONA_EVOLUTIONS[event_type]
+
+	# Get or create persona
+	var persona = get_persona(npc_id)
+	if not persona:
+		push_warning("[PersonaManager] No persona found for NPC: %s" % npc_id)
+		return
+
+	var changes: Dictionary = {
+		"event": event_type,
+		"timestamp": Time.get_unix_time_from_system() as int,
+		"traits_added": [],
+		"confidence_change": 0
+	}
+
+	# Add new personality traits (avoid duplicates)
+	var traits_to_add = evolution.get("traits_to_add", [])
+	for trait in traits_to_add:
+		if trait not in persona.personality_traits:
+			persona.personality_traits.append(trait)
+			changes.traits_added.append(trait)
+
+	# Adjust confidence level
+	var confidence_boost = evolution.get("confidence_boost", 0)
+	if confidence_boost != 0:
+		persona.confidence_level = clampi(persona.confidence_level + confidence_boost, 0, 100)
+		changes.confidence_change = confidence_boost
+
+	# Update experience tier if specified
+	var new_tier = evolution.get("experience_tier", "")
+	if new_tier != "":
+		var tier_order = ["rookie", "regular", "veteran", "star"]
+		var current_idx = tier_order.find(persona.experience_tier)
+		var new_idx = tier_order.find(new_tier)
+		# Only upgrade, never downgrade
+		if new_idx > current_idx:
+			persona.experience_tier = new_tier
+			changes["experience_tier"] = new_tier
+
+	# Add backstory addition
+	var backstory = evolution.get("backstory_addition", "")
+	if backstory != "" and backstory not in persona.backstory_hooks:
+		persona.backstory_hooks.append(backstory)
+		changes["backstory_added"] = backstory
+
+	# Add to notable achievements
+	if event_type not in persona.notable_achievements:
+		persona.notable_achievements.append(event_type)
+
+	# Record in evolution history
+	persona.evolution_history.append(changes)
+
+	# Record in NPC registry career events
+	NpcRegistry.record_career_event(npc_id, event_type)
+
+	print("[PersonaManager] Evolved persona for %s: %s" % [npc_id, event_type])
+
+
+func evolve_personas_for_school_year_promotion(team_npcs: Array[Dictionary]) -> void:
+	"""Evolve personas when players are promoted to a new school year."""
+	for npc in team_npcs:
+		var npc_id = npc.get("id", "")
+		if npc_id == "":
+			continue
+
+		var school_year = npc.get("school_year", 1)
+		match school_year:
+			2:
+				evolve_persona_for_event(npc_id, "second_year_regular")
+			3:
+				evolve_persona_for_event(npc_id, "third_year_senior")
 
 
 func _queue_generation(npc_id: String) -> void:
@@ -411,14 +548,24 @@ func _build_generation_prompt(npc_data: Dictionary, existing_persona: NpcPersona
 
 
 func _find_npc_data(npc_id: String) -> Dictionary:
-	"""Find NPC data from teams."""
-	# Check player's team
+	"""Find NPC data from teams or NPC registry."""
+	# Check player's team first
 	if GameManager.current_team:
 		var player = GameManager.current_team.get_player_by_id(npc_id)
 		if not player.is_empty():
 			return player
 
-	# Could extend to search other sources (opponent teams, etc.)
+	# Check NPC registry for persistent NPC data
+	if NpcRegistry and NpcRegistry.has_npc(npc_id):
+		return NpcRegistry.get_npc(npc_id)
+
+	# Check current season's opponent teams
+	if SeasonManager.current_season and SeasonManager.current_season.league:
+		for team in SeasonManager.current_season.league.teams:
+			var player = team.get_player_by_id(npc_id)
+			if not player.is_empty():
+				return player
+
 	return {}
 
 

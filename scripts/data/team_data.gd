@@ -25,33 +25,70 @@ class_name TeamData
 @export var players: Array[Dictionary] = []  # Array of NPC player data
 @export var captain_id: String = ""
 
+# Prefecture for stable ID generation
+var _prefecture: String = ""
+
 
 func _init() -> void:
+	# Default to random ID; will be overwritten by set_stable_id() when name/prefecture are known
 	id = "team_%d" % randi()
 
 
-func generate_teammates(count: int, career_phase: GameManager.CareerPhase) -> void:
+## Set a stable, deterministic ID based on team name and prefecture
+## This ensures the same school always has the same ID across seasons
+func set_stable_id(team_name: String, prefecture: String = "") -> void:
+	name = team_name
+	_prefecture = prefecture
+	id = NpcRegistry.generate_stable_team_id(team_name, prefecture)
+
+
+## Get the prefecture this team belongs to
+func get_prefecture() -> String:
+	if _prefecture != "":
+		return _prefecture
+	# Try to extract from league if set (e.g., "Kanagawa Prefecture")
+	if league.ends_with(" Prefecture"):
+		return league.replace(" Prefecture", "")
+	return ""
+
+
+func generate_teammates(count: int, career_phase: GameManager.CareerPhase, use_registry: bool = true) -> void:
 	players.clear()
-	
+
 	# Determine quality tier based on career phase
 	var quality = _get_quality_for_phase(career_phase)
-	
+
 	# Get positions needed based on formation
 	var positions_needed = _get_positions_from_formation()
-	
+
 	# Remove player's position (they fill one slot)
 	if GameManager.player_data:
 		var player_pos = GameManager.player_data.position
 		var pos_index = positions_needed.find(player_pos)
 		if pos_index >= 0:
 			positions_needed.remove_at(pos_index)
-	
+
+	# Track position counts for stable indexing
+	var position_counts: Dictionary = {}
+
 	# Generate remaining players
 	for i in range(mini(count, positions_needed.size())):
 		var pos = positions_needed[i]
-		var teammate = _generate_npc_player(pos, quality, career_phase, i)
+
+		# Get stable index for this position
+		if pos not in position_counts:
+			position_counts[pos] = 0
+		var pos_index = position_counts[pos]
+		position_counts[pos] += 1
+
+		var teammate: Dictionary
+		if use_registry and NpcRegistry:
+			teammate = _get_or_create_npc_via_registry(pos, quality, career_phase, pos_index)
+		else:
+			teammate = _generate_npc_player(pos, quality, career_phase, pos_index)
+
 		players.append(teammate)
-	
+
 	# Set captain (highest overall player)
 	_assign_captain()
 
@@ -93,10 +130,10 @@ func _get_positions_from_formation() -> Array[String]:
 func _generate_npc_player(pos: String, quality: int, phase: GameManager.CareerPhase, player_index: int = 0) -> Dictionary:
 	# Create deterministic ID based on team ID, position, and index
 	var npc_id = "npc_%s_%s_%d" % [id.substr(0, 8), pos, player_index]
-	
+
 	# Generate appropriate name based on phase/setting
 	var npc_name = _generate_name(phase)
-	
+
 	# Add some variance to quality within the team
 	var quality_variance = randi_range(-1, 1)
 	var adjusted_quality = clampi(quality + quality_variance, 1, 4)
@@ -113,6 +150,40 @@ func _generate_npc_player(pos: String, quality: int, phase: GameManager.CareerPh
 		"form": ["poor", "average", "average", "good", "excellent"][randi() % 5],
 		"personality": _random_personality()
 	}
+
+
+func _get_or_create_npc_via_registry(pos: String, quality: int, phase: GameManager.CareerPhase, pos_index: int) -> Dictionary:
+	"""Get existing NPC from registry or create new one if not found."""
+	# Check if this NPC already exists in the registry
+	var existing = NpcRegistry.get_or_create_npc(id, pos, pos_index, {}, true)
+
+	if not existing.is_empty() and existing.has("name"):
+		# NPC exists - return with potential stat evolution already applied
+		return existing
+
+	# Create new NPC data
+	var npc_name = _generate_name(phase)
+
+	# Add some variance to quality within the team
+	var quality_variance = randi_range(-1, 1)
+	var adjusted_quality = clampi(quality + quality_variance, 1, 4)
+
+	# Generate stats using the adjusted quality
+	var npc_stats = StatSystem.generate_npc_stats(pos, adjusted_quality)
+
+	var npc_data = {
+		"name": npc_name,
+		"position": pos,
+		"stats": npc_stats,
+		"overall": StatSystem.calculate_overall(npc_stats, pos),
+		"form": ["poor", "average", "average", "good", "excellent"][randi() % 5],
+		"personality": _random_personality(),
+		"team_name": name,
+		"team_id": id
+	}
+
+	# Register the new NPC and return
+	return NpcRegistry.get_or_create_npc(id, pos, pos_index, npc_data, false)
 
 
 func _generate_name(phase: GameManager.CareerPhase) -> String:
@@ -163,9 +234,10 @@ func get_player_by_position(pos: String) -> Dictionary:
 
 
 func get_starting_eleven() -> Array[Dictionary]:
-	# Returns the best 11 players (including user's player)
+	# Returns the best 11 available players (including user's player)
+	# Filters out injured and graduated players
 	var eleven: Array[Dictionary] = []
-	
+
 	# Add user's player
 	if GameManager.player_data:
 		eleven.append({
@@ -176,17 +248,56 @@ func get_starting_eleven() -> Array[Dictionary]:
 			"overall": GameManager.player_data.get_overall(),
 			"is_player": true
 		})
-	
-	# Add teammates
-	var sorted_players = players.duplicate()
-	sorted_players.sort_custom(func(a, b): return a.overall > b.overall)
-	
-	for player in sorted_players:
+
+	# Filter to only available players (not injured or graduated)
+	var available_players: Array[Dictionary] = []
+	for player in players:
+		var player_id = player.get("id", "")
+		if player_id == "":
+			available_players.append(player)
+			continue
+
+		# Check NPC status in registry
+		if NpcRegistry.has_npc(player_id):
+			var npc = NpcRegistry.get_npc(player_id)
+			var status = npc.get("status", "active")
+			if status == "active":
+				available_players.append(player)
+		else:
+			# Unknown NPCs are assumed available
+			available_players.append(player)
+
+	# Sort by overall rating
+	available_players.sort_custom(func(a, b): return a.overall > b.overall)
+
+	for player in available_players:
 		if eleven.size() >= 11:
 			break
 		eleven.append(player)
-	
+
 	return eleven
+
+
+func get_injured_players() -> Array[Dictionary]:
+	"""Get list of currently injured players on the team."""
+	var injured: Array[Dictionary] = []
+
+	for player in players:
+		var player_id = player.get("id", "")
+		if player_id == "" or not NpcRegistry.has_npc(player_id):
+			continue
+
+		var npc = NpcRegistry.get_npc(player_id)
+		if npc.get("status", "active") == "injured":
+			var injury = npc.get("injury", {})
+			injured.append({
+				"player": player,
+				"injury_type": injury.get("type", ""),
+				"matches_remaining": injury.get("matches_remaining", 0),
+				"description": injury.get("description", "")
+			})
+
+	return injured
 
 
 func get_average_overall() -> int:
@@ -210,7 +321,8 @@ func to_dict() -> Dictionary:
 		"formation": formation,
 		"tactics": tactics,
 		"players": players,
-		"captain_id": captain_id
+		"captain_id": captain_id,
+		"prefecture": _prefecture
 	}
 
 
@@ -224,3 +336,4 @@ func from_dict(data: Dictionary) -> void:
 	tactics = data.get("tactics", tactics)
 	players.assign(data.get("players", []))
 	captain_id = data.get("captain_id", "")
+	_prefecture = data.get("prefecture", "")

@@ -35,6 +35,7 @@ func _ready() -> void:
 		match_result = CareerManager.match_history.back()
 		_display_result()
 		_update_season_standings()
+		_roll_for_injuries()
 
 
 func _display_result() -> void:
@@ -211,11 +212,92 @@ func _update_season_standings() -> void:
 	var opponent_score = match_result.get("opponent_score", 0)
 	var is_home = current_match.is_home if current_match else true
 
-	# Record the result in the season manager
-	SeasonManager.record_player_match_result(opponent_id, player_score, opponent_score, is_home)
+	# Extract goal events from match result for season tracking
+	var home_goal_events = match_result.get("home_goal_events", [])
+	var away_goal_events = match_result.get("away_goal_events", [])
+	var player_goal_events: Array = []
+	var opponent_goal_events: Array = []
+
+	if is_home:
+		player_goal_events = home_goal_events
+		opponent_goal_events = away_goal_events
+	else:
+		player_goal_events = away_goal_events
+		opponent_goal_events = home_goal_events
+
+	# Record the result in the season manager with goal events
+	SeasonManager.record_player_match_result(
+		opponent_id, player_score, opponent_score, is_home,
+		false, false, 0, 0,  # extra_time, penalties, pen_player, pen_opponent
+		player_goal_events, opponent_goal_events
+	)
 
 	# Simulate CPU matches for this matchday
 	SeasonManager.simulate_cpu_matches_for_current_matchday()
+
+
+func _roll_for_injuries() -> void:
+	"""Roll for injuries after the match and apply them."""
+	if not GameManager.current_team:
+		return
+
+	# Determine match intensity based on current competition
+	var match_type = SeasonManager.get_match_type()
+	var competition_stage = ""
+	var tournament = SeasonManager.get_current_tournament()
+	if tournament:
+		competition_stage = TournamentData.Stage.keys()[tournament.current_stage].to_lower()
+
+	var intensity = InjurySystem.get_match_intensity(match_type, competition_stage)
+
+	# Roll for injuries on the player's team
+	var injuries = InjurySystem.roll_for_injuries(GameManager.current_team, intensity)
+
+	if injuries.is_empty():
+		return
+
+	# Apply injuries to NPC registry
+	InjurySystem.apply_injuries(injuries)
+
+	# Display injury notifications
+	for injury in injuries:
+		var npc_id = injury.get("npc_id", "")
+		var npc = NpcRegistry.get_npc(npc_id)
+		var player_name = npc.get("name", "Unknown Player")
+		var description = injury.get("description", "injury")
+		var matches_out = injury.get("matches_out", 1)
+		var injury_type = injury.get("type", "minor")
+
+		# Record severe injuries as career events for persona evolution tracking
+		if injury_type == "severe":
+			NpcRegistry.record_career_event(npc_id, "severe_injury")
+
+		# Show notification
+		var severity_text = InjurySystem.get_severity_text(injury_type)
+		DesktopManager.show_notification(
+			"Injury Report",
+			"%s suffered a %s (%s). Out for %d match%s." % [
+				player_name,
+				description,
+				severity_text,
+				matches_out,
+				"es" if matches_out > 1 else ""
+			],
+			"", ""
+		)
+
+		# Add to milestones display
+		_add_injury_display(player_name, description, injury_type)
+
+
+func _add_injury_display(player_name: String, description: String, injury_type: String) -> void:
+	"""Add injury information to the milestones container."""
+	var injury_label = Label.new()
+	injury_label.text = "INJURY: %s - %s" % [player_name, description]
+	injury_label.add_theme_color_override("font_color", InjurySystem.get_severity_color(injury_type))
+	injury_label.add_theme_font_size_override("font_size", 16)
+	injury_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	milestones_container.add_child(injury_label)
 
 
 func _on_continue_pressed() -> void:

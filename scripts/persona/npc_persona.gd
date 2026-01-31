@@ -23,6 +23,12 @@ class_name NpcPersona
 @export var generation_seed: int = 0
 @export var roleplay_prompt: String = ""
 
+# Evolution tracking
+@export var evolution_history: Array[Dictionary] = []  # [{event, timestamp, changes}]
+@export var confidence_level: int = 50  # 0-100
+@export var experience_tier: String = "rookie"  # rookie, regular, veteran, star
+@export var notable_achievements: Array[String] = []
+
 # Metadata
 @export var is_ai_generated: bool = false
 @export var generation_timestamp: int = 0
@@ -100,6 +106,10 @@ func to_dict() -> Dictionary:
 		"tone_preset": tone_preset,
 		"generation_seed": generation_seed,
 		"roleplay_prompt": roleplay_prompt,
+		"evolution_history": evolution_history,
+		"confidence_level": confidence_level,
+		"experience_tier": experience_tier,
+		"notable_achievements": notable_achievements,
 		"is_ai_generated": is_ai_generated,
 		"generation_timestamp": generation_timestamp
 	}
@@ -124,6 +134,10 @@ func from_dict(data: Dictionary) -> void:
 	tone_preset = data.get("tone_preset", "anime")
 	generation_seed = data.get("generation_seed", 0)
 	roleplay_prompt = data.get("roleplay_prompt", "")
+	evolution_history.assign(data.get("evolution_history", []))
+	confidence_level = data.get("confidence_level", 50)
+	experience_tier = data.get("experience_tier", "rookie")
+	notable_achievements.assign(data.get("notable_achievements", []))
 	is_ai_generated = data.get("is_ai_generated", false)
 	generation_timestamp = data.get("generation_timestamp", 0)
 
