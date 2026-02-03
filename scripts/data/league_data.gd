@@ -82,24 +82,59 @@ func _generate_fixtures() -> void:
 		return
 
 	var match_id_counter = 0
-	var matchday = 1
-
-	# First half of season (each team plays every other team once)
+	var team_indices: Array = []
 	for i in range(num_teams):
-		for j in range(i + 1, num_teams):
+		team_indices.append(i)
+
+	# Add a bye slot for odd number of teams
+	if num_teams % 2 == 1:
+		team_indices.append(-1)
+
+	var total_slots = team_indices.size()
+	var rounds = total_slots - 1
+	var matches_per_round = int(total_slots / 2)
+	var rotation: Array = team_indices.duplicate()
+
+	# First half of season (one match per team per matchday)
+	for round_index in range(rounds):
+		var matchday = round_index + 1
+		var swap_home_away = round_index % 2 == 1
+
+		for match_index in range(matches_per_round):
+			var home_index = rotation[match_index]
+			var away_index = rotation[total_slots - 1 - match_index]
+
+			if home_index == -1 or away_index == -1:
+				continue
+
+			if swap_home_away:
+				var temp = home_index
+				home_index = away_index
+				away_index = temp
+
+			var home_team = teams[home_index]
+			var away_team = teams[away_index]
+
 			fixtures.append({
 				"match_id": "match_%d_%d" % [id.hash(), match_id_counter],
 				"matchday": matchday,
-				"home_id": teams[i].id,
-				"away_id": teams[j].id,
-				"home_team_name": teams[i].name,
-				"away_team_name": teams[j].name,
+				"home_id": home_team.id,
+				"away_id": away_team.id,
+				"home_team_name": home_team.name,
+				"away_team_name": away_team.name,
 				"played": false,
 				"home_score": 0,
 				"away_score": 0
 			})
 			match_id_counter += 1
-			matchday = (matchday % (num_teams - 1)) + 1
+
+		# Rotate teams (keep the first team fixed)
+		var fixed = rotation[0]
+		var new_rotation: Array = [fixed]
+		new_rotation.append(rotation[total_slots - 1])
+		for slot_index in range(1, total_slots - 1):
+			new_rotation.append(rotation[slot_index])
+		rotation = new_rotation
 
 	# Second half of season (reverse fixtures)
 	var first_half_count = fixtures.size()
@@ -107,7 +142,7 @@ func _generate_fixtures() -> void:
 		var original = fixtures[i]
 		fixtures.append({
 			"match_id": "match_%d_%d" % [id.hash(), match_id_counter],
-			"matchday": matchday + original.matchday,
+			"matchday": rounds + original.matchday,
 			"home_id": original.away_id,
 			"away_id": original.home_id,
 			"home_team_name": original.away_team_name,
