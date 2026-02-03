@@ -31,6 +31,11 @@ var match_minute: int = 0
 var home_score: int = 0
 var away_score: int = 0
 
+# Goal tracking for season awards
+var home_goal_events: Array[Dictionary] = []
+var away_goal_events: Array[Dictionary] = []
+var last_passer: PlayerUnit = null  # Track who made the last pass for assist attribution
+
 # Turn settings
 const TURNS_PER_HALF: int = 45
 const MINUTES_PER_TURN: int = 1  # 45 turns * 1 minute = 45 min per half = 90 min total
@@ -92,6 +97,23 @@ func _setup_visual_layers() -> void:
 
 func _connect_signals() -> void:
 	pass
+
+
+func _exit_tree() -> void:
+	# Clean up resources to prevent memory leaks
+	_clear_highlights()
+
+	# Clean up units
+	for unit in all_units:
+		if is_instance_valid(unit):
+			unit.queue_free()
+	all_units.clear()
+	home_units.clear()
+	away_units.clear()
+
+	# Clean up ball
+	if ball and is_instance_valid(ball):
+		ball.queue_free()
 
 
 func _initialize_match() -> void:
@@ -326,6 +348,8 @@ func _execute_pass(target_hex: Vector2i) -> void:
 	var result = ActionResolver.execute_pass(player_unit, target_hex, receiver, opponents, match_data)
 
 	if result.success:
+		# Track passer for potential assist
+		last_passer = player_unit
 		ball.start_pass(player_unit, target_hex)
 		# Ball will be given to receiver when it arrives
 	else:
@@ -544,6 +568,12 @@ func _start_half_time() -> void:
 	var kickoff_unit = _get_kickoff_unit(false)
 	if kickoff_unit:
 		ball.give_possession(kickoff_unit)
+	elif away_units.size() > 0:
+		# Fallback if no kickoff unit found
+		ball.give_possession(away_units[0])
+	elif home_units.size() > 0:
+		# Last resort fallback
+		ball.give_possession(home_units[0])
 
 	match_phase = MatchPhase.PLAYING
 	_start_player_turn()
@@ -558,11 +588,55 @@ func _end_match() -> void:
 		match_data.away_score = away_score
 
 	# Generate result and transition
-	var result = match_data.generate_result() if match_data else {}
+	var result: Dictionary
+	if match_data:
+		result = match_data.generate_result()
+	else:
+		# Fallback result when match_data is null
+		push_warning("[MatchController] match_data is null, generating fallback result")
+		result = _generate_fallback_result()
+
+	# Add goal events for season tracking
+	result["home_goal_events"] = home_goal_events
+	result["away_goal_events"] = away_goal_events
+
 	match_ended.emit(result)
 
 	GameManager.end_match(result)
 	get_tree().change_scene_to_file("res://scenes/match/post_match.tscn")
+
+
+func _generate_fallback_result() -> Dictionary:
+	# Create minimal result when match_data is unavailable
+	var player_is_home = player_unit and player_unit.is_home_team
+	var player_score = home_score if player_is_home else away_score
+	var opponent_score = away_score if player_is_home else home_score
+
+	return {
+		"match_id": "unknown",
+		"match_type": "unknown",
+		"importance": 1.0,
+		"opponent_name": "Opponent",
+		"won": player_score > opponent_score,
+		"lost": player_score < opponent_score,
+		"draw": player_score == opponent_score,
+		"player_score": player_score,
+		"opponent_score": opponent_score,
+		"goals": 0,
+		"assists": 0,
+		"rating": 6.0,
+		"man_of_match": false,
+		"clean_sheet": opponent_score == 0,
+		"shots": 0,
+		"shots_on_target": 0,
+		"successful_passes": 0,
+		"successful_tackles": 0,
+		"successful_dribbles": 0,
+		"distance_covered": 0,
+		"yellow_cards": 0,
+		"red_card": false,
+		"key_events": []
+	}
 
 
 func _reset_positions() -> void:
@@ -642,6 +716,8 @@ func _execute_ai_decision(unit: PlayerUnit, decision: Dictionary) -> void:
 				var result = ActionResolver.execute_pass(unit, target, receiver, opponents, match_data)
 
 				if result.success:
+					# Track passer for potential assist
+					last_passer = unit
 					ball.start_pass(unit, target)
 				else:
 					var miss_hex = result.get("miss_hex", result.get("interception_hex", target))
@@ -659,6 +735,8 @@ func _execute_ai_decision(unit: PlayerUnit, decision: Dictionary) -> void:
 				if not result.success:
 					final_target = result.get("miss_hex", result.get("interception_hex", target))
 
+				# Track passer for potential assist
+				last_passer = unit
 				ball.start_pass(unit, final_target)
 				await ball.ball_arrived
 
@@ -714,13 +792,36 @@ func _on_goal_scored(is_home_goal: bool) -> void:
 	else:
 		home_score += 1
 
+	# Determine scorer (last unit with possession)
+	var scorer = ball.get_possessing_unit()
+
+	# Create goal event for season tracking
+	var goal_event: Dictionary = {}
+	if scorer:
+		goal_event["scorer_id"] = scorer.unit_id
+		goal_event["scorer_name"] = scorer.unit_name
+
+		# Add assist if last passer was from the same team and different from scorer
+		if last_passer and last_passer != scorer and last_passer.is_home_team == scorer.is_home_team:
+			goal_event["assister_id"] = last_passer.unit_id
+			goal_event["assister_name"] = last_passer.unit_name
+
+	# Store goal event for season tracking
+	if is_home_goal:
+		# Away team scored
+		away_goal_events.append(goal_event)
+	else:
+		# Home team scored
+		home_goal_events.append(goal_event)
+
+	# Reset last passer after goal
+	last_passer = null
+
 	# Update match data
 	if match_data:
 		match_data.home_score = home_score
 		match_data.away_score = away_score
 
-		# Record goal event with scorer info
-		var scorer = ball.get_possessing_unit()
 		var is_player_goal = scorer and scorer == player_unit
 		var team_scored = not is_home_goal == (player_unit and player_unit.is_home_team)
 

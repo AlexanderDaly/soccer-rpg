@@ -32,6 +32,7 @@ SaveManager="*res://scripts/core/save_manager.gd"
 DesktopManager="*res://scripts/desktop/desktop_manager.gd"
 SeasonManager="*res://scripts/season/season_manager.gd"
 PersonaManager="*res://scripts/persona/persona_manager.gd"
+NpcRegistry="*res://scripts/core/npc_registry.gd"
 
 [display]
 

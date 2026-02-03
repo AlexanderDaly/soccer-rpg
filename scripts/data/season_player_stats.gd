@@ -74,7 +74,8 @@ func get_golden_boot_winner(total_matches: int = 18) -> Dictionary:
 		return a.matches_played < b.matches_played
 	)
 
-	return eligible_players[0]
+	# Defensive check after sort (should never be empty at this point)
+	return eligible_players[0] if not eligible_players.is_empty() else {}
 
 
 func get_top_assister(total_matches: int = 18) -> Dictionary:
@@ -99,7 +100,8 @@ func get_top_assister(total_matches: int = 18) -> Dictionary:
 		return a.matches_played < b.matches_played
 	)
 
-	return eligible_players[0]
+	# Defensive check after sort (should never be empty at this point)
+	return eligible_players[0] if not eligible_players.is_empty() else {}
 
 
 func get_golden_glove(total_matches: int = 18) -> Dictionary:
@@ -122,7 +124,8 @@ func get_golden_glove(total_matches: int = 18) -> Dictionary:
 		return a.matches_played < b.matches_played
 	)
 
-	return eligible_gks[0]
+	# Defensive check after sort (should never be empty at this point)
+	return eligible_gks[0] if not eligible_gks.is_empty() else {}
 
 
 func get_all_awards(total_matches: int = 18) -> Dictionary:

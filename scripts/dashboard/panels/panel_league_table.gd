@@ -52,6 +52,9 @@ func _refresh_display() -> void:
 	# Show next fixture
 	_show_next_fixture(season.league)
 
+	# Show running leaders
+	_build_leaders_section(season.league)
+
 	# Setup form legend
 	_setup_form_legend()
 
@@ -308,3 +311,80 @@ func _setup_form_legend() -> void:
 	qual_note.add_theme_font_size_override("font_size", 12)
 	qual_note.add_theme_color_override("font_color", Color(0.4, 0.6, 0.4))
 	form_legend.add_child(qual_note)
+
+
+func _build_leaders_section(league: LeagueData) -> void:
+	if not league.player_stats or not standings_container:
+		return
+
+	# Add section header
+	var header = Label.new()
+	header.text = "League Leaders"
+	header.add_theme_font_size_override("font_size", 16)
+	header.add_theme_color_override("font_color", Color(0, 0.8, 0.4))
+	standings_container.add_child(header)
+
+	var leaders_row = HBoxContainer.new()
+	leaders_row.add_theme_constant_override("separation", 12)
+
+	var total_matches = league.player_stats.get_total_matches_in_league(league.teams.size())
+
+	# Top Scorer
+	var scorers = league.player_stats.get_top_scorers(1, 0)
+	if not scorers.is_empty():
+		leaders_row.add_child(_create_leader_card("Top Scorer", scorers[0].name, "%d goals" % scorers[0].goals, Color(0.85, 0.7, 0.2)))
+
+	# Top Assister
+	var assisters = league.player_stats.get_top_assisters(1, 0)
+	if not assisters.is_empty():
+		leaders_row.add_child(_create_leader_card("Top Assister", assisters[0].name, "%d assists" % assisters[0].assists, Color(0.75, 0.75, 0.8)))
+
+	# Clean Sheets Leader
+	var keepers = league.player_stats.get_golden_glove(0)
+	if not keepers.is_empty():
+		leaders_row.add_child(_create_leader_card("Clean Sheets", keepers.name, "%d" % keepers.clean_sheets, Color(0.2, 0.7, 0.9)))
+
+	standings_container.add_child(leaders_row)
+
+	# Spacer
+	var spacer = Control.new()
+	spacer.custom_minimum_size = Vector2(0, 12)
+	standings_container.add_child(spacer)
+
+
+func _create_leader_card(title: String, player_name: String, stat_text: String, accent_color: Color) -> PanelContainer:
+	var card = PanelContainer.new()
+	card.custom_minimum_size = Vector2(180, 60)
+
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.06, 0.1, 0.16)
+	style.set_corner_radius_all(6)
+	style.set_content_margin_all(8)
+	style.border_color = accent_color.darkened(0.3)
+	style.set_border_width_all(1)
+	card.add_theme_stylebox_override("panel", style)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
+
+	var title_label = Label.new()
+	title_label.text = title
+	title_label.add_theme_font_size_override("font_size", 11)
+	title_label.add_theme_color_override("font_color", accent_color)
+	vbox.add_child(title_label)
+
+	var name_label = Label.new()
+	name_label.text = player_name
+	name_label.add_theme_font_size_override("font_size", 13)
+	name_label.add_theme_color_override("font_color", Color(0.9, 0.95, 1))
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	vbox.add_child(name_label)
+
+	var stat_label = Label.new()
+	stat_label.text = stat_text
+	stat_label.add_theme_font_size_override("font_size", 12)
+	stat_label.add_theme_color_override("font_color", Color(0.6, 0.65, 0.7))
+	vbox.add_child(stat_label)
+
+	card.add_child(vbox)
+	return card

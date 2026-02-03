@@ -92,17 +92,32 @@ func _generate_48_team_bracket() -> void:
 	# SF: 4 -> 2
 	# Final: 2 -> 1
 
+	# Validate minimum team count
+	if teams.size() < 32:
+		push_error("[TournamentData] 48-team bracket requires at least 32 teams, got %d" % teams.size())
+		# Fall back to 16-team bracket if insufficient teams
+		_generate_16_team_bracket()
+		return
+
 	var shuffled_teams = teams.duplicate()
 	shuffled_teams.shuffle()
 
-	# Top 16 teams (by index, assuming sorted by strength) get byes
-	var seeded_teams = shuffled_teams.slice(0, 16)
-	var unseeded_teams = shuffled_teams.slice(16, 48)
+	# Calculate how many teams get byes (16 for 48 teams, fewer for fewer teams)
+	var total_teams = shuffled_teams.size()
+	var num_seeded = maxi(0, total_teams - 32)  # Teams that get byes to R2
+	var num_unseeded = total_teams - num_seeded
 
-	# First round - 16 matches (32 unseeded teams)
+	# Top teams (by index, assuming sorted by strength) get byes
+	var seeded_teams = shuffled_teams.slice(0, num_seeded)
+	var unseeded_teams = shuffled_teams.slice(num_seeded, total_teams)
+
+	# First round - pair up unseeded teams
 	var first_round: Array[Dictionary] = []
-	for i in range(0, 32, 2):
-		first_round.append(_create_match(unseeded_teams[i], unseeded_teams[i + 1], Stage.FIRST_ROUND))
+	var num_first_round_matches = num_unseeded / 2
+	for i in range(num_first_round_matches):
+		var idx = i * 2
+		if idx + 1 < unseeded_teams.size():
+			first_round.append(_create_match(unseeded_teams[idx], unseeded_teams[idx + 1], Stage.FIRST_ROUND))
 
 	bracket[Stage.FIRST_ROUND] = first_round
 
@@ -231,6 +246,12 @@ func _advance_to_next_stage() -> void:
 		if match_data.winner_id != "":
 			winners.append(match_data.winner_id)
 
+	# Add any teams that had a bye in this stage
+	var bye_key = "bye_teams_" + str(current_stage)
+	if bracket.has(bye_key):
+		winners.append_array(bracket[bye_key])
+		bracket.erase(bye_key)  # Clean up
+
 	# Determine next stage
 	var next_stage: Stage
 	match current_stage:
@@ -268,17 +289,31 @@ func _populate_next_stage(stage: Stage, team_ids: Array[String]) -> void:
 	# Shuffle for random matchups
 	team_ids.shuffle()
 
+	# Handle odd number of teams - one team gets a bye
+	var bye_teams: Array[String] = []
+	if team_ids.size() % 2 != 0:
+		# Last team gets a bye and advances automatically
+		bye_teams.append(team_ids.pop_back())
+		push_warning("[TournamentData] Odd number of teams (%d) - %s gets a bye" % [team_ids.size() + 1, bye_teams[0]])
+
 	var match_idx = 0
 	for i in range(0, team_ids.size(), 2):
-		if match_idx < next_matches.size():
+		if match_idx < next_matches.size() and i + 1 < team_ids.size():
 			var team_a = get_team_by_id(team_ids[i])
-			var team_b = get_team_by_id(team_ids[i + 1]) if i + 1 < team_ids.size() else null
+			var team_b = get_team_by_id(team_ids[i + 1])
 
-			next_matches[match_idx].team_a_id = team_a.id if team_a else ""
-			next_matches[match_idx].team_a_name = team_a.name if team_a else "TBD"
-			next_matches[match_idx].team_b_id = team_b.id if team_b else ""
-			next_matches[match_idx].team_b_name = team_b.name if team_b else "TBD"
-			match_idx += 1
+			if team_a and team_b:
+				next_matches[match_idx].team_a_id = team_a.id
+				next_matches[match_idx].team_a_name = team_a.name
+				next_matches[match_idx].team_b_id = team_b.id
+				next_matches[match_idx].team_b_name = team_b.name
+				match_idx += 1
+			else:
+				push_warning("[TournamentData] Could not find teams for match: %s vs %s" % [team_ids[i], team_ids[i + 1]])
+
+	# Store bye teams to be added to next round's winners
+	if not bye_teams.is_empty():
+		bracket["bye_teams_" + str(stage)] = bye_teams
 
 	bracket[stage] = next_matches
 
@@ -355,7 +390,9 @@ func get_current_stage_name() -> String:
 
 
 func player_won_tournament() -> bool:
-	return is_complete and champion_team_id == get_player_team_id()
+	if not is_complete or champion_team_id.is_empty():
+		return false
+	return champion_team_id == get_player_team_id()
 
 
 func to_dict() -> Dictionary:

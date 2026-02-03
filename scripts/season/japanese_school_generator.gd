@@ -237,13 +237,20 @@ static func generate_league_teams(prefecture: String, player_team: TeamData, cou
 	var teams: Array[TeamData] = []
 	var school_names = generate_unique_school_names(prefecture, count - 1)
 
+	# Set stable ID for player's team if not already set
+	if player_team.id.begins_with("team_") and player_team.id.length() < 15:
+		player_team.set_stable_id(player_team.name, prefecture)
+
+	# Register player's team
+	NpcRegistry.register_team(player_team.name, prefecture, {"is_player_team": true})
+
 	# Add player's team first
 	teams.append(player_team)
 
-	# Generate opponent teams
+	# Generate opponent teams with stable IDs
 	for i in range(mini(count - 1, school_names.size())):
 		var team = TeamData.new()
-		team.name = school_names[i]
+		team.set_stable_id(school_names[i], prefecture)
 		team.short_name = _generate_short_name(school_names[i])
 		team.league = "%s Prefecture" % prefecture
 		team.tier = 1  # High school tier
@@ -253,7 +260,10 @@ static func generate_league_teams(prefecture: String, player_team: TeamData, cou
 		team.tier = clampi(1 + strength_variance, 1, 2)
 
 		team.formation = ["4-4-2", "4-3-3", "4-2-3-1", "3-5-2"][randi() % 4]
-		team.generate_teammates(10, GameManager.CareerPhase.HIGH_SCHOOL)
+
+		# Register team and generate teammates using registry
+		NpcRegistry.register_team(school_names[i], prefecture, {"league_position": i + 1})
+		team.generate_teammates(10, GameManager.CareerPhase.HIGH_SCHOOL, true)
 
 		teams.append(team)
 
@@ -261,7 +271,7 @@ static func generate_league_teams(prefecture: String, player_team: TeamData, cou
 
 
 static func generate_qualifier_teams(prefecture: String, league_teams: Array[TeamData], count: int = 16) -> Array[TeamData]:
-	# Start with league teams
+	# Start with league teams (they already have stable IDs)
 	var teams: Array[TeamData] = []
 	teams.append_array(league_teams)
 
@@ -273,12 +283,15 @@ static func generate_qualifier_teams(prefecture: String, league_teams: Array[Tea
 
 		for name_entry in additional_names:
 			var team = TeamData.new()
-			team.name = name_entry
+			team.set_stable_id(name_entry, prefecture)
 			team.short_name = _generate_short_name(name_entry)
 			team.league = "%s Prefecture" % prefecture
 			team.tier = 1
 			team.formation = ["4-4-2", "4-3-3", "4-2-3-1", "3-5-2"][randi() % 4]
-			team.generate_teammates(10, GameManager.CareerPhase.HIGH_SCHOOL)
+
+			# Register and generate with registry
+			NpcRegistry.register_team(name_entry, prefecture, {"qualifier_entrant": true})
+			team.generate_teammates(10, GameManager.CareerPhase.HIGH_SCHOOL, true)
 			teams.append(team)
 
 	return teams
@@ -301,12 +314,15 @@ static func generate_national_teams(player_team: TeamData, count: int = 48) -> A
 
 		if school_name not in used_names:
 			var team = TeamData.new()
-			team.name = school_name
+			team.set_stable_id(school_name, pref)
 			team.short_name = _generate_short_name(school_name)
 			team.league = "%s Prefecture" % pref
 			team.tier = randi_range(1, 2)  # National teams are stronger
 			team.formation = ["4-4-2", "4-3-3", "4-2-3-1", "3-5-2"][randi() % 4]
-			team.generate_teammates(10, GameManager.CareerPhase.HIGH_SCHOOL)
+
+			# Register and generate with registry
+			NpcRegistry.register_team(school_name, pref, {"nationals_participant": true})
+			team.generate_teammates(10, GameManager.CareerPhase.HIGH_SCHOOL, true)
 			teams.append(team)
 			used_names.append(school_name)
 
@@ -326,11 +342,14 @@ static func generate_national_teams(player_team: TeamData, count: int = 48) -> A
 
 			if school_name not in used_names:
 				var team = TeamData.new()
-				team.name = school_name
+				# Use empty prefecture for generic national teams
+				team.set_stable_id(school_name, "")
 				team.short_name = _generate_short_name(school_name)
 				team.tier = randi_range(1, 2)
 				team.formation = ["4-4-2", "4-3-3", "4-2-3-1", "3-5-2"][randi() % 4]
-				team.generate_teammates(10, GameManager.CareerPhase.HIGH_SCHOOL)
+
+				NpcRegistry.register_team(school_name, "", {"nationals_participant": true})
+				team.generate_teammates(10, GameManager.CareerPhase.HIGH_SCHOOL, true)
 				teams.append(team)
 				used_names.append(school_name)
 

@@ -338,7 +338,8 @@ func promote_school_years() -> void:
 
 	for npc_id in npc_registry:
 		var npc = npc_registry[npc_id]
-		if npc.get("status", "") != "active":
+		var status = npc.get("status", "active")
+		if status == "graduated":
 			continue
 
 		var school_year = npc.get("school_year", 0)

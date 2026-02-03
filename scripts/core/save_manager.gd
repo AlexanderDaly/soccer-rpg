@@ -205,6 +205,9 @@ func _collect_save_data() -> Dictionary:
 		# Personas
 		"personas": PersonaManager.save_personas_to_dict(),
 
+		# NPC Registry (persistent NPC identities)
+		"npc_registry": NpcRegistry.to_dict(),
+
 		# Settings
 		"settings": _serialize_settings()
 	}
@@ -305,6 +308,10 @@ func _apply_save_data(data: Dictionary) -> void:
 	# Restore personas
 	if "personas" in data:
 		PersonaManager.load_personas_from_dict(data.personas)
+
+	# Restore NPC Registry (must be before team restoration for cross-reference)
+	if "npc_registry" in data:
+		NpcRegistry.from_dict(data.npc_registry)
 
 	# Restore settings
 	if "settings" in data:

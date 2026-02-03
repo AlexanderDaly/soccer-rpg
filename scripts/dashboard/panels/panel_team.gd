@@ -7,6 +7,8 @@ class_name PanelTeam
 @onready var roster_list: VBoxContainer = $ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/ScrollContainer/RosterList
 @onready var player_detail: PanelContainer = $ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/PlayerDetailPanel
 
+var _current_detail_player = null  # Track for refresh
+
 
 func _on_panel_ready() -> void:
 	panel_title = "Team Roster"
@@ -190,6 +192,7 @@ func _show_player_detail(player_data) -> void:
 	if not player_detail:
 		return
 
+	_current_detail_player = player_data
 	player_detail.visible = true
 
 	# Clear existing content
@@ -241,6 +244,9 @@ func _show_player_detail(player_data) -> void:
 		stat_row.add_child(stat_value)
 		vbox.add_child(stat_row)
 
+	# Persona section
+	_add_persona_section(vbox, player_data)
+
 	player_detail.add_child(vbox)
 
 
@@ -280,3 +286,101 @@ func _get_stat_color(val: int) -> Color:
 		return Color(1, 0.8, 0.3)
 	else:
 		return Color(1, 0.4, 0.4)
+
+
+func _add_persona_section(container: VBoxContainer, player_data) -> void:
+	# Get NPC ID - handle both PlayerData and Dictionary
+	var npc_id = ""
+	if player_data is PlayerData:
+		npc_id = player_data.id
+	else:
+		npc_id = player_data.get("id", "")
+
+	if npc_id.is_empty():
+		return
+
+	var persona = PersonaManager.get_persona(npc_id)
+	if not persona:
+		return
+
+	# Separator
+	var sep = HSeparator.new()
+	sep.add_theme_color_override("separator", Color(0.2, 0.3, 0.4))
+	container.add_child(sep)
+
+	# Header
+	var header = Label.new()
+	header.text = "Personality"
+	header.add_theme_font_size_override("font_size", 16)
+	header.add_theme_color_override("font_color", Color(0, 0.8, 0.4))
+	container.add_child(header)
+
+	# Traits
+	if not persona.personality_traits.is_empty():
+		var traits_label = Label.new()
+		traits_label.text = ", ".join(persona.personality_traits)
+		traits_label.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9))
+		traits_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+		container.add_child(traits_label)
+
+	# Speech style
+	if persona.speech_style != "":
+		var speech_label = Label.new()
+		speech_label.text = "\"" + persona.speech_style + "\""
+		speech_label.add_theme_font_size_override("font_size", 12)
+		speech_label.add_theme_color_override("font_color", Color(0.6, 0.65, 0.7))
+		speech_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+		container.add_child(speech_label)
+
+	# Goals (if any)
+	if not persona.goals.is_empty():
+		var goals_label = Label.new()
+		goals_label.text = "Goal: " + persona.goals[0]
+		goals_label.add_theme_font_size_override("font_size", 12)
+		goals_label.add_theme_color_override("font_color", Color(0.5, 0.7, 0.5))
+		goals_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+		container.add_child(goals_label)
+
+	# Debug controls (only in debug builds)
+	if OS.is_debug_build():
+		_add_debug_persona_controls(container, npc_id)
+
+
+func _add_debug_persona_controls(container: VBoxContainer, npc_id: String) -> void:
+	var debug_header = Label.new()
+	debug_header.text = "[DEBUG]"
+	debug_header.add_theme_font_size_override("font_size", 11)
+	debug_header.add_theme_color_override("font_color", Color(1, 0.5, 0))
+	container.add_child(debug_header)
+
+	var btn_row = HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 8)
+
+	var regen_btn = Button.new()
+	regen_btn.text = "Regenerate"
+	regen_btn.pressed.connect(_on_regenerate_persona.bind(npc_id))
+	btn_row.add_child(regen_btn)
+
+	var prompt_btn = Button.new()
+	prompt_btn.text = "View Prompt"
+	prompt_btn.pressed.connect(_on_view_prompt.bind(npc_id))
+	btn_row.add_child(prompt_btn)
+
+	container.add_child(btn_row)
+
+
+func _on_regenerate_persona(npc_id: String) -> void:
+	PersonaManager.persona_cache.erase(npc_id)
+	var _persona = PersonaManager.get_persona(npc_id)
+	print("[Debug] Regenerated persona for: %s" % npc_id)
+	# Refresh display
+	if _current_detail_player:
+		_show_player_detail(_current_detail_player)
+
+
+func _on_view_prompt(npc_id: String) -> void:
+	var persona = PersonaManager.get_persona(npc_id)
+	if persona:
+		print("\n=== Persona Prompt for %s ===" % npc_id)
+		print(persona.to_prompt())
+		print("=== End Prompt ===\n")

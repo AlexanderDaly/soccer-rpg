@@ -162,26 +162,55 @@ func get_formatted_date(matchday: int) -> String:
 
 func record_result(home_id: String, away_id: String, home_score: int, away_score: int,
 					home_events: Array = [], away_events: Array = []) -> void:
-	# Find and update the fixture
+	# Find and update the fixture (check both team orderings)
 	for i in range(fixtures.size()):
 		var fixture = fixtures[i]
-		if fixture.home_id == home_id and fixture.away_id == away_id and not fixture.played:
-			fixtures[i].played = true
-			fixtures[i].home_score = home_score
-			fixtures[i].away_score = away_score
+		if not fixture.played:
+			var is_exact_match = fixture.home_id == home_id and fixture.away_id == away_id
+			var is_reverse_match = fixture.home_id == away_id and fixture.away_id == home_id
 
-			# Update standings
-			_update_standings(home_id, away_id, home_score, away_score)
+			if is_exact_match:
+				fixtures[i].played = true
+				fixtures[i].home_score = home_score
+				fixtures[i].away_score = away_score
 
-			# Record player stats for awards
-			_record_player_stats(home_id, away_id, home_score, away_score, home_events, away_events)
+				# Update standings
+				_update_standings(home_id, away_id, home_score, away_score)
 
-			# Check if all matches for current matchday are played
-			_check_matchday_complete()
-			break
+				# Record player stats for awards
+				_record_player_stats(home_id, away_id, home_score, away_score, home_events, away_events)
+
+				# Check if all matches for current matchday are played
+				_check_matchday_complete()
+				return
+
+			elif is_reverse_match:
+				# Teams passed in reverse order - swap scores to match fixture
+				fixtures[i].played = true
+				fixtures[i].home_score = away_score
+				fixtures[i].away_score = home_score
+
+				# Update standings with fixture's team ordering
+				_update_standings(away_id, home_id, away_score, home_score)
+
+				# Record player stats (swap events to match fixture ordering)
+				_record_player_stats(away_id, home_id, away_score, home_score, away_events, home_events)
+
+				_check_matchday_complete()
+				return
+
+	push_warning("[LeagueData] No matching fixture found for %s vs %s" % [home_id, away_id])
 
 
 func _update_standings(home_id: String, away_id: String, home_score: int, away_score: int) -> void:
+	# Validate both teams exist in standings
+	if home_id not in standings:
+		push_error("[LeagueData] Home team %s not found in standings" % home_id)
+		return
+	if away_id not in standings:
+		push_error("[LeagueData] Away team %s not found in standings" % away_id)
+		return
+
 	var home_stats = standings[home_id]
 	var away_stats = standings[away_id]
 

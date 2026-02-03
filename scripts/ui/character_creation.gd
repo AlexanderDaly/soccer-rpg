@@ -48,6 +48,12 @@ const POSITION_DESCRIPTIONS = {
 
 const POSITION_ORDER = ["GK", "CB", "FB", "CDM", "CM", "CAM", "WNG", "ST"]
 
+const POSITION_GROUPS = [
+	{"label": "Defense", "positions": ["GK", "CB", "FB"], "color": Color(0.25, 0.55, 0.85)},
+	{"label": "Midfield", "positions": ["CDM", "CM", "CAM"], "color": Color(0.25, 0.75, 0.45)},
+	{"label": "Attack", "positions": ["WNG", "ST"], "color": Color(0.9, 0.55, 0.2)}
+]
+
 # Position zones on field (normalized 0-1 coordinates, origin top-left)
 # Format: {"center": Vector2, "size": Vector2}
 const POSITION_ZONES = {
@@ -487,15 +493,41 @@ func _on_foot_selected(foot: String) -> void:
 
 
 func _create_position_buttons() -> void:
-	for pos in POSITION_ORDER:
-		var button = Button.new()
-		button.text = pos
-		button.custom_minimum_size = Vector2(60, 40)
-		button.toggle_mode = true
-		button.button_group = _get_or_create_button_group()
-		button.pressed.connect(_on_position_selected.bind(pos))
-		position_container.add_child(button)
-		position_buttons[pos] = button
+	var button_group = ButtonGroup.new()
+	var is_first_group = true
+
+	for group in POSITION_GROUPS:
+		var group_label = group.get("label", "")
+		var group_color = group.get("color", Color.WHITE)
+		var group_positions = group.get("positions", [])
+
+		if not is_first_group:
+			var spacer = Control.new()
+			spacer.custom_minimum_size = Vector2(0, 6)
+			position_container.add_child(spacer)
+		is_first_group = false
+
+		var header = Label.new()
+		header.text = group_label.to_upper()
+		header.add_theme_font_size_override("font_size", 12)
+		header.add_theme_color_override("font_color", group_color)
+		position_container.add_child(header)
+
+		var divider = ColorRect.new()
+		divider.color = group_color.darkened(0.4)
+		divider.custom_minimum_size = Vector2(0, 2)
+		divider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		position_container.add_child(divider)
+
+		for pos in group_positions:
+			var button = Button.new()
+			button.text = pos
+			button.custom_minimum_size = Vector2(60, 40)
+			button.toggle_mode = true
+			button.button_group = button_group
+			button.pressed.connect(_on_position_selected.bind(pos))
+			position_container.add_child(button)
+			position_buttons[pos] = button
 
 	# Select CM by default
 	position_buttons["CM"].button_pressed = true

@@ -154,14 +154,17 @@ func _generate_npc_player(pos: String, quality: int, phase: GameManager.CareerPh
 
 func _get_or_create_npc_via_registry(pos: String, quality: int, phase: GameManager.CareerPhase, pos_index: int) -> Dictionary:
 	"""Get existing NPC from registry or create new one if not found."""
-	# Check if this NPC already exists in the registry
-	var existing = NpcRegistry.get_or_create_npc(id, pos, pos_index, {}, true)
+	var npc_id = NpcRegistry.generate_stable_npc_id(id, pos, pos_index)
+	var exists = NpcRegistry.has_npc(npc_id)
+	var existing: Dictionary = {}
 
-	if not existing.is_empty() and existing.has("name"):
-		# NPC exists - return with potential stat evolution already applied
-		return existing
+	if exists:
+		existing = NpcRegistry.get_npc(npc_id)
+		if existing.has("name") and existing.has("stats") and existing.has("overall"):
+			# NPC exists - return with potential stat evolution already applied
+			return NpcRegistry.get_or_create_npc(id, pos, pos_index, {}, true)
 
-	# Create new NPC data
+	# Create new NPC data (or heal missing data)
 	var npc_name = _generate_name(phase)
 
 	# Add some variance to quality within the team
@@ -181,6 +184,15 @@ func _get_or_create_npc_via_registry(pos: String, quality: int, phase: GameManag
 		"team_name": name,
 		"team_id": id
 	}
+
+	if exists:
+		var updates: Dictionary = {}
+		for key in npc_data:
+			if not existing.has(key) or existing[key] == null or (existing[key] is String and existing[key] == ""):
+				updates[key] = npc_data[key]
+		if not updates.is_empty():
+			NpcRegistry.update_npc(npc_id, updates)
+		return NpcRegistry.get_or_create_npc(id, pos, pos_index, {}, true)
 
 	# Register the new NPC and return
 	return NpcRegistry.get_or_create_npc(id, pos, pos_index, npc_data, false)

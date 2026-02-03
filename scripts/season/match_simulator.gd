@@ -23,6 +23,10 @@ static func _simulate_match(home_team: TeamData, away_team: TeamData, is_knockou
 	var home_strength = _calculate_team_strength(home_team)
 	var away_strength = _calculate_team_strength(away_team)
 
+	# Ensure minimum strength to prevent division by zero
+	home_strength = maxf(home_strength, 10.0)
+	away_strength = maxf(away_strength, 10.0)
+
 	# Apply home advantage
 	if has_home_advantage:
 		home_strength *= (1.0 + HOME_ADVANTAGE)
@@ -31,7 +35,7 @@ static func _simulate_match(home_team: TeamData, away_team: TeamData, is_knockou
 	var base_mean = MEAN_GOALS_KNOCKOUT if is_knockout else MEAN_GOALS_HIGH_SCHOOL
 
 	# Adjust expected goals based on relative strength
-	var strength_ratio = home_strength / away_strength if away_strength > 0 else 1.0
+	var strength_ratio = home_strength / away_strength
 	var home_expected = base_mean * strength_ratio
 	var away_expected = base_mean / strength_ratio
 
@@ -96,13 +100,17 @@ static func _poisson_random(mean: float) -> int:
 
 
 static func _handle_knockout_draw(result: Dictionary, home_strength: float, away_strength: float) -> Dictionary:
+	# Ensure minimum strengths for calculations
+	var safe_home_strength = maxf(home_strength, 10.0)
+	var safe_away_strength = maxf(away_strength, 10.0)
+
 	# 40% chance of extra time goal, 60% goes to penalties
 	if randf() < 0.4:
 		# Extra time goal
 		result.extra_time = true
 
 		# Determine which team scores based on strength
-		var home_chance = home_strength / (home_strength + away_strength)
+		var home_chance = safe_home_strength / (safe_home_strength + safe_away_strength)
 		if randf() < home_chance:
 			result.home_score += 1
 		else:
@@ -140,8 +148,12 @@ static func _simulate_penalty_shootout(home_strength: float, away_strength: floa
 		if randf() < away_rate:
 			away_scored += 1
 
-	# Sudden death if tied
-	while home_scored == away_scored:
+	# Sudden death if tied (with safety limit to prevent infinite loop)
+	var sudden_death_rounds = 0
+	const MAX_SUDDEN_DEATH_ROUNDS = 20  # Safety limit
+
+	while home_scored == away_scored and sudden_death_rounds < MAX_SUDDEN_DEATH_ROUNDS:
+		sudden_death_rounds += 1
 		var home_converts = randf() < home_rate
 		var away_converts = randf() < away_rate
 
@@ -153,6 +165,13 @@ static func _simulate_penalty_shootout(home_strength: float, away_strength: floa
 		# If both miss or both score, continue
 		if home_converts != away_converts:
 			break
+
+	# If still tied after max rounds, randomly pick winner (extremely rare edge case)
+	if home_scored == away_scored:
+		if randf() < 0.5:
+			home_scored += 1
+		else:
+			away_scored += 1
 
 	return {
 		"home": home_scored,

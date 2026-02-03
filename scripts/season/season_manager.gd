@@ -23,6 +23,10 @@ func initialize_season(prefecture: String, player_team: TeamData) -> void:
 		push_warning("[SeasonManager] Season system only available in HIGH_SCHOOL phase")
 		return
 
+	# Ensure player team has a stable ID before any roster changes or registry usage
+	if player_team and player_team.id.begins_with("team_") and player_team.id.length() < 15:
+		player_team.set_stable_id(player_team.name, prefecture)
+
 	# Set current season ID for NPC registry tracking
 	var season_year = _get_season_year()
 	var season_id = "%s_%d" % [prefecture, season_year]

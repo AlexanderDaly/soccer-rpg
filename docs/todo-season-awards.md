@@ -54,8 +54,8 @@ Goal: track match stats across the season to award titles like Top Goal Scorer a
 
 ## UI / UX
 - [x] Add awards section to post-season summary screen/panel.
-- [ ] Add notification at season end (e.g., Desktop notification toast).
-- [ ] Optional: show running leaders in League Table panel.
+- [x] Add notification at season end (e.g., Desktop notification toast).
+- [x] Optional: show running leaders in League Table panel.
 - [x] Add UI in desktop/phone interface *(panel_season_awards.tscn)*
 
 ## Persistence
@@ -96,6 +96,4 @@ This feature should be implemented **before** NPC Persona Generator as it:
 
 ### Remaining Work
 - Tactical match goal attribution (currently only simulated matches track stats)
-- Desktop notifications for awards
-- Running leaders in league table panel
 - Unit tests

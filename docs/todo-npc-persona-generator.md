@@ -4,7 +4,7 @@ Goal: generate a structured persona prompt for NPCs to be roleplayed by an LLM v
 
 ## Dependencies / Prerequisites
 - [x] Address NPC ID stability: Change from `"npc_%d" % randi()` to deterministic seeding (e.g., hash of team_id + roster_index + season)
-- [ ] Persist NPC identities across seasons (enables deeper narratives and rivalries)
+- [x] Persist NPC identities across seasons (enables deeper narratives and rivalries)
 
 ## Requirements
 - [x] Reference existing `NarrativeEngine` (`scripts/ai_narrative/narrative_engine.gd`) - has HTTP pattern, config loading, fallback system
@@ -46,9 +46,9 @@ Goal: generate a structured persona prompt for NPCs to be roleplayed by an LLM v
 - [x] Integrate with `SaveManager` (`scripts/core/save_manager.gd`)
 
 ## UI / Debug
-- [ ] Add a debug view to inspect NPC personas and prompts.
-- [ ] Add a dev tool to regenerate a persona for a selected NPC.
-- [ ] Add UI in desktop/phone interface
+- [x] Add a debug view to inspect NPC personas and prompts.
+- [x] Add a dev tool to regenerate a persona for a selected NPC.
+- [x] Add UI in desktop/phone interface
 
 ## Tests
 - [ ] Unit tests for deterministic persona generation.
@@ -59,6 +59,7 @@ Goal: generate a structured persona prompt for NPCs to be roleplayed by an LLM v
 - `scripts/ai_narrative/narrative_engine.gd` - Existing API pattern
 - `scripts/data/team_data.gd` - NPC generation (`_random_personality()`, `players[]`)
 - `scripts/core/save_manager.gd` - Persistence pattern
+- `scripts/core/npc_registry.gd` - **NEW** Persistent NPC identity storage
 - `scripts/persona/npc_persona.gd` - Persona data model
 - `scripts/persona/persona_templates.gd` - Fallback templates
 - `scripts/persona/persona_manager.gd` - PersonaManager autoload

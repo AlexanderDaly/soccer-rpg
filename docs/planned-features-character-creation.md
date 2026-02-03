@@ -80,9 +80,9 @@ This document tracks planned improvements for the character creation screen (`sc
 - [x] Uses Godot's Tween system with EASE_OUT TRANS_CUBIC (0.3s duration)
 
 ### Position Button Styling
-- [ ] Group positions by category with visual separators
-- [ ] Categories: Defense (GK, CB, FB) / Midfield (CDM, CM, CAM) / Attack (WNG, ST)
-- [ ] Color coding or icons per category
+- [x] Group positions by category with visual separators
+- [x] Categories: Defense (GK, CB, FB) / Midfield (CDM, CM, CAM) / Attack (WNG, ST)
+- [x] Color coding or icons per category
 
 ### Keyboard Shortcuts
 - [x] Arrow keys to navigate position selection
