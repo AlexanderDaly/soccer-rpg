@@ -40,6 +40,12 @@ func _ready() -> void:
 	GameManager.change_state(GameManager.GameState.CAREER_HUB)
 
 
+func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel") or event.is_action_pressed("ui_back"):
+		return_to_dashboard()
+		get_viewport().set_input_as_handled()
+
+
 func _setup_wallpaper() -> void:
 	wallpaper.color = DESKTOP_BG_COLOR
 
@@ -126,6 +132,11 @@ func _on_window_closed(window_id: String) -> void:
 
 func _on_notification_received(notification: Dictionary) -> void:
 	_show_notification_toast(notification)
+
+
+func return_to_dashboard() -> void:
+	DesktopManager.reset_window_state()
+	get_tree().change_scene_to_file("res://scenes/dashboard/console_dashboard.tscn")
 
 
 func _show_notification_toast(notification: Dictionary) -> void:

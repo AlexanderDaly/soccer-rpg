@@ -194,9 +194,16 @@ theme_override_constants/separation = 4
 [node name="ButtonSection" type="HBoxContainer" parent="MainContainer"]
 layout_mode = 2
 alignment = 1
+theme_override_constants/separation = 20
 
 [node name="PlayButton" type="Button" parent="MainContainer/ButtonSection"]
 custom_minimum_size = Vector2(250, 60)
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
 text = "PLAY MATCH"
+
+[node name="SimButton" type="Button" parent="MainContainer/ButtonSection"]
+custom_minimum_size = Vector2(250, 60)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "SIM MATCH"

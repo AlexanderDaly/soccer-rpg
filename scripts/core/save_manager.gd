@@ -34,6 +34,10 @@ func _setup_auto_save() -> void:
 	_auto_save_timer.timeout.connect(_on_auto_save)
 	add_child(_auto_save_timer)
 
+	# Start timer if auto-save is enabled by default
+	if auto_save_enabled:
+		_auto_save_timer.start()
+
 
 func _on_auto_save() -> void:
 	if auto_save_enabled and current_slot >= 0:
@@ -177,11 +181,12 @@ func _collect_save_data() -> Dictionary:
 		"version": SAVE_VERSION,
 		"save_date": Time.get_datetime_string_from_system(),
 		"playtime": _get_playtime(),
-		
+
 		# Game state
 		"game_state": GameManager.current_state,
 		"career_phase": GameManager.current_career_phase,
-		
+		"prefecture": GameManager.current_prefecture,
+
 		# Player data
 		"player": _serialize_player(),
 
@@ -190,14 +195,23 @@ func _collect_save_data() -> Dictionary:
 
 		# Career data
 		"career": _serialize_career(),
-		
+
+		# Season data
+		"season": _serialize_season(),
+
 		# Narrative context
 		"narrative": _serialize_narrative(),
-		
+
+		# Personas
+		"personas": PersonaManager.save_personas_to_dict(),
+
+		# NPC Registry (persistent NPC identities)
+		"npc_registry": NpcRegistry.to_dict(),
+
 		# Settings
 		"settings": _serialize_settings()
 	}
-	
+
 	return data
 
 
@@ -225,6 +239,10 @@ func _serialize_career() -> Dictionary:
 		"completed_milestones": CareerManager.completed_milestones,
 		"rivals": CareerManager.rivals
 	}
+
+
+func _serialize_season() -> Dictionary:
+	return SeasonManager.to_dict()
 
 
 func _serialize_narrative() -> Dictionary:
@@ -257,7 +275,8 @@ func _validate_save_data(data: Dictionary) -> bool:
 func _apply_save_data(data: Dictionary) -> void:
 	# Restore game state
 	GameManager.current_career_phase = data.get("career_phase", 0)
-	
+	GameManager.current_prefecture = data.get("prefecture", "Kanagawa")
+
 	# Restore player
 	if "player" in data and data.player:
 		GameManager.player_data = PlayerData.new()
@@ -271,17 +290,29 @@ func _apply_save_data(data: Dictionary) -> void:
 	# Restore career
 	if "career" in data:
 		var career = data.career
-		CareerManager.match_history = career.get("match_history", [])
+		CareerManager.match_history.assign(career.get("match_history", []))
 		CareerManager.career_stats = career.get("career_stats", {})
 		CareerManager.reputation = career.get("reputation", 10)
 		CareerManager.scout_attention = career.get("scout_attention", {})
 		CareerManager.completed_milestones.assign(career.get("completed_milestones", []))
 		CareerManager.rivals.assign(career.get("rivals", []))
-	
+
+	# Restore season data
+	if "season" in data:
+		SeasonManager.from_dict(data.season)
+
 	# Restore narrative context
 	if "narrative" in data:
 		NarrativeEngine.narrative_context = data.narrative
-	
+
+	# Restore personas
+	if "personas" in data:
+		PersonaManager.load_personas_from_dict(data.personas)
+
+	# Restore NPC Registry (must be before team restoration for cross-reference)
+	if "npc_registry" in data:
+		NpcRegistry.from_dict(data.npc_registry)
+
 	# Restore settings
 	if "settings" in data:
 		var settings = data.settings

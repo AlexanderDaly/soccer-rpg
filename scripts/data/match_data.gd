@@ -48,21 +48,21 @@ class_name MatchData
 @export var grid_state: Dictionary = {}
 
 
-func setup(player_team: TeamData, opponent_team: TeamData, type: String) -> void:
+func setup(player_team: TeamData, opponent_team: TeamData, type: String, player_is_home: bool = true) -> void:
 	id = "match_%d" % randi()
 	match_type = type
 	importance = _calculate_importance(type)
-	
-	# Randomly determine home/away
-	is_home = randf() > 0.5
-	
+
+	# Set home/away based on fixture (or random if not specified)
+	is_home = player_is_home
+
 	if is_home:
 		home_team = player_team
 		away_team = opponent_team
 	else:
 		home_team = opponent_team
 		away_team = player_team
-	
+
 	_initialize_grid()
 
 
@@ -76,6 +76,18 @@ func _calculate_importance(type: String) -> float:
 			return 1.5
 		"qualifier":
 			return 1.8
+		"prefecture_qualifier":
+			return 1.5
+		"prefecture_qualifier_final":
+			return 2.0
+		"national_championship":
+			return 1.8
+		"national_quarter_final":
+			return 2.0
+		"national_semi_final":
+			return 2.5
+		"national_final":
+			return 3.0
 		"world_cup":
 			return 2.5
 		"world_cup_final":
@@ -233,6 +245,8 @@ func calculate_match_rating() -> float:
 
 func generate_result() -> Dictionary:
 	calculate_match_rating()
+
+	var foul_counts = _count_team_fouls()
 	
 	return {
 		"match_id": id,
@@ -265,6 +279,10 @@ func generate_result() -> Dictionary:
 		# Cards
 		"yellow_cards": player_stats.yellow_cards,
 		"red_card": player_stats.red_card,
+
+		# Team fouls
+		"home_fouls": foul_counts.home,
+		"away_fouls": foul_counts.away,
 		
 		# Events
 		"key_events": _get_key_events()
@@ -280,6 +298,29 @@ func _get_key_events() -> Array[Dictionary]:
 			key_events.append(event)
 	
 	return key_events
+
+
+func _count_team_fouls() -> Dictionary:
+	var home_fouls = 0
+	var away_fouls = 0
+
+	for event in events:
+		if event.type != "foul_committed":
+			continue
+
+		var data = event.get("data", {})
+		if data.has("is_home_team"):
+			if data.is_home_team:
+				home_fouls += 1
+			else:
+				away_fouls += 1
+		elif data.has("team_id"):
+			if data.team_id == home_team.id:
+				home_fouls += 1
+			elif data.team_id == away_team.id:
+				away_fouls += 1
+
+	return {"home": home_fouls, "away": away_fouls}
 
 
 func to_dict() -> Dictionary:

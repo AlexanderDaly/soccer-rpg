@@ -14,6 +14,7 @@ func _ready() -> void:
 	_setup_style()
 	_connect_signals()
 	_start_clock()
+	start_button.text = "Back"
 
 
 func _setup_style() -> void:
@@ -62,7 +63,9 @@ func _update_notification_badge() -> void:
 
 func _on_start_pressed() -> void:
 	AudioManager.play_ui_click()
-	# Could open a start menu here in the future
+	var shell = get_parent()
+	if shell and shell.has_method("return_to_dashboard"):
+		shell.return_to_dashboard()
 
 
 func _on_window_opened(window_id: String) -> void:

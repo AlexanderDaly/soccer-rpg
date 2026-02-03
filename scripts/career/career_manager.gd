@@ -32,8 +32,16 @@ const MILESTONES = {
 	"first_assist": {"name": "First Assist", "description": "Record your first assist"},
 	"first_motm": {"name": "Star Player", "description": "Win your first Man of the Match award"},
 	"ten_goals": {"name": "Rising Striker", "description": "Score 10 career goals"},
-	"regional_champion": {"name": "Regional Champion", "description": "Win the regional high school tournament"},
-	"national_champion": {"name": "National Champion", "description": "Win the national high school tournament"},
+	"golden_boot": {"name": "Golden Boot", "description": "Win the league's top scorer award"},
+	"playmaker_award": {"name": "Playmaker", "description": "Win the league's top assists award"},
+	"golden_glove": {"name": "Golden Glove", "description": "Win the goalkeeper of the season award"},
+	"prefecture_league_champion": {"name": "League Champion", "description": "Win your prefecture league"},
+	"prefecture_qualifier_winner": {"name": "Prefecture Champion", "description": "Win the prefecture qualifier tournament"},
+	"national_participant": {"name": "National Stage", "description": "Qualify for the National Championship"},
+	"national_quarter_finalist": {"name": "National Contender", "description": "Reach the quarter-finals at nationals"},
+	"national_semi_finalist": {"name": "Final Four", "description": "Reach the semi-finals at nationals"},
+	"national_finalist": {"name": "Grand Finalist", "description": "Reach the National Championship final"},
+	"national_champion": {"name": "National Champion", "description": "Win the National High School Championship"},
 	"u20_callup": {"name": "International Call-up", "description": "Get selected for the U20 national team"},
 	"u20_debut": {"name": "International Debut", "description": "Play your first U20 international match"},
 	"world_cup_goal": {"name": "World Cup Hero", "description": "Score in the U20 World Cup"},
@@ -252,6 +260,39 @@ func add_rival(rival_data: Dictionary) -> void:
 func record_rival_encounter(rival_id: String, result: Dictionary) -> void:
 	if rival_id in rival_encounters:
 		rival_encounters[rival_id].append(result)
-		
+
 		# Update narrative context for this rivalry
 		NarrativeEngine.update_rivalry_context(rival_id, result)
+
+
+func record_season_award(award_type: String, stat_value: int = 0) -> void:
+	# Record that player won a season award
+	# award_type: "golden_boot", "playmaker_award", or "golden_glove"
+
+	# Complete the corresponding milestone
+	_complete_milestone(award_type)
+
+	# Awards give extra reputation boost (on top of milestone bonus)
+	var bonus_rep = 10 + (stat_value / 2)  # Bigger bonus for higher stats
+	_add_reputation(bonus_rep)
+
+	# Increase scout attention significantly
+	for team_id in scout_attention:
+		scout_attention[team_id] += 15
+
+	# If no scouts watching yet, generate interest from some teams
+	if scout_attention.is_empty() and reputation >= 15:
+		var teams = _get_scouting_teams(GameManager.current_career_phase)
+		for team in teams:
+			scout_attention[team.id] = 20
+
+	# Store in career stats
+	if not career_stats.has("awards"):
+		career_stats["awards"] = []
+	career_stats["awards"].append({
+		"type": award_type,
+		"value": stat_value,
+		"season": career_stats.current_season
+	})
+
+	print("[CareerManager] Player won %s with %d" % [award_type, stat_value])

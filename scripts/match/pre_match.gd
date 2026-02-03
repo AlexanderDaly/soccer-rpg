@@ -16,12 +16,15 @@ class_name PreMatchScreen
 @onready var importance_label: Label = $MainContainer/MatchInfoSection/Importance
 
 @onready var play_button: Button = $MainContainer/ButtonSection/PlayButton
+@onready var sim_button: Button = $MainContainer/ButtonSection/SimButton
 
 var match_data: MatchData
 
 
 func _ready() -> void:
 	play_button.pressed.connect(_on_play_pressed)
+	if sim_button:
+		sim_button.pressed.connect(_on_sim_pressed)
 
 	if GameManager.current_match:
 		_setup_match_display(GameManager.current_match)
@@ -128,37 +131,64 @@ func _on_play_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/match/tactical/tactical_match.tscn")
 
 
+func _on_sim_pressed() -> void:
+	AudioManager.play_ui_click()
+	_simulate_match()
+
+
 func _simulate_match() -> void:
-	# Simple match simulation based on team strengths
-	var player_team = match_data.get_player_team()
-	var opponent_team = match_data.get_opponent_team()
+	if not match_data:
+		return
 
-	var player_strength = player_team.get_average_overall()
-	var opponent_strength = opponent_team.get_average_overall()
+	var is_knockout = _is_knockout_match(match_data.match_type)
+	var sim_result: Dictionary
 
-	# Calculate expected goals based on team strength difference
-	var strength_diff = (player_strength - opponent_strength) / 20.0
+	var context: Dictionary = {
+		"importance": match_data.importance,
+		"rivalry": _is_rival_team(match_data.get_opponent_team().id)
+	}
 
-	var player_expected_goals = 1.5 + strength_diff + randf() * 1.5
-	var opponent_expected_goals = 1.5 - strength_diff + randf() * 1.5
+	# Pull form from league standings if available
+	if SeasonManager.current_season and SeasonManager.current_season.league:
+		var league = SeasonManager.current_season.league
+		if match_data.home_team and match_data.home_team.id in league.standings:
+			context["home_form"] = league.standings[match_data.home_team.id].form
+		if match_data.away_team and match_data.away_team.id in league.standings:
+			context["away_form"] = league.standings[match_data.away_team.id].form
 
-	# Generate actual goals with some randomness
-	var player_goals = _generate_goals(player_expected_goals)
-	var opponent_goals = _generate_goals(opponent_expected_goals)
-
-	# Set scores
-	if match_data.is_home:
-		match_data.home_score = player_goals
-		match_data.away_score = opponent_goals
+	if is_knockout:
+		sim_result = MatchSimulator.simulate_knockout_match(match_data.home_team, match_data.away_team, context)
 	else:
-		match_data.home_score = opponent_goals
-		match_data.away_score = player_goals
+		sim_result = MatchSimulator.simulate_league_match(match_data.home_team, match_data.away_team, context)
 
-	# Simulate player performance
-	_simulate_player_performance(player_goals)
+	# Apply simulated scores
+	match_data.home_score = sim_result.get("home_score", 0)
+	match_data.away_score = sim_result.get("away_score", 0)
+	match_data.is_extra_time = sim_result.get("extra_time", false)
 
-	# End the match
+	# Simulate player performance based on team goal events
+	var player_team_events = sim_result.get("home_goal_events", []) if match_data.is_home else sim_result.get("away_goal_events", [])
+	var player_stats = sim_result.get("home_player_stats", {}) if match_data.is_home else sim_result.get("away_player_stats", {})
+	var player_line = {}
+	if GameManager.player_data and player_stats.has(GameManager.player_data.id):
+		player_line = player_stats[GameManager.player_data.id]
+	_simulate_player_performance(player_team_events.size(), player_team_events, player_line)
+
+	# End the match with full result payload
 	var result = match_data.generate_result()
+	result["home_goal_events"] = sim_result.get("home_goal_events", [])
+	result["away_goal_events"] = sim_result.get("away_goal_events", [])
+	result["card_events"] = sim_result.get("card_events", [])
+	result["home_fouls"] = sim_result.get("home_fouls", 0)
+	result["away_fouls"] = sim_result.get("away_fouls", 0)
+	result["home_stats"] = sim_result.get("home_stats", {})
+	result["away_stats"] = sim_result.get("away_stats", {})
+	result["home_player_stats"] = sim_result.get("home_player_stats", {})
+	result["away_player_stats"] = sim_result.get("away_player_stats", {})
+	result["extra_time"] = sim_result.get("extra_time", false)
+	result["penalties"] = sim_result.get("penalties", false)
+	result["penalty_score_home"] = sim_result.get("penalty_score_home", 0)
+	result["penalty_score_away"] = sim_result.get("penalty_score_away", 0)
 	GameManager.end_match(result)
 
 	# Transition to post-match screen
@@ -180,7 +210,7 @@ func _generate_goals(expected: float) -> int:
 	return goals
 
 
-func _simulate_player_performance(team_goals: int) -> void:
+func _simulate_player_performance(team_goals: int, team_goal_events: Array = [], player_line: Dictionary = {}) -> void:
 	var player = GameManager.player_data
 	if not player:
 		return
@@ -190,18 +220,25 @@ func _simulate_player_performance(team_goals: int) -> void:
 	var assist_chance = _get_assist_chance_for_position(player.position)
 
 	# Calculate player goals and assists
-	for i in range(team_goals):
-		if randf() < goal_chance:
-			match_data.record_event("goal", {"is_player": true})
-		elif randf() < assist_chance:
-			match_data.record_event("assist", {"is_player": true})
+	if team_goal_events.is_empty():
+		for i in range(team_goals):
+			if randf() < goal_chance:
+				match_data.record_event("goal", {"is_player": true})
+			elif randf() < assist_chance:
+				match_data.record_event("assist", {"is_player": true})
+	else:
+		_record_player_goal_events(team_goal_events)
 
 	# Simulate other stats
-	var passes = randi_range(20, 50)
-	var pass_accuracy = minf(0.7 + (player.stats.PAS / 200.0), 1.0)
-	for i in range(passes):
-		var success = randf() < pass_accuracy
-		match_data.record_event("pass", {"is_player": true, "successful": success})
+	if player_line.has("passes_attempted"):
+		match_data.player_stats.passes_attempted = int(player_line.get("passes_attempted", 0))
+		match_data.player_stats.passes_completed = int(player_line.get("passes_completed", 0))
+	else:
+		var passes = randi_range(20, 50)
+		var pass_accuracy = minf(0.7 + (player.stats.PAS / 200.0), 1.0)
+		for i in range(passes):
+			var success = randf() < pass_accuracy
+			match_data.record_event("pass", {"is_player": true, "successful": success})
 
 	var tackles = randi_range(2, 8)
 	var tackle_success = 0.5 + (player.stats.DEF / 200.0)
@@ -217,9 +254,10 @@ func _simulate_player_performance(team_goals: int) -> void:
 
 	# Shots (if attacker/midfielder)
 	if player.position in ["ST", "WNG", "CAM", "CM"]:
-		var shots = randi_range(1, 5)
+		var goals = match_data.player_stats.goals
+		var shots = max(randi_range(1, 5), goals)
 		for i in range(shots):
-			var on_target = randf() < (0.4 + player.stats.SHO / 300.0)
+			var on_target = i < goals or randf() < (0.4 + player.stats.SHO / 300.0)
 			match_data.record_event("shot", {"is_player": true, "on_target": on_target})
 
 	# Small chance of cards
@@ -263,3 +301,51 @@ func _get_assist_chance_for_position(position: String) -> float:
 			return 0.02
 		_:
 			return 0.15
+
+
+func _record_player_goal_events(team_goal_events: Array) -> void:
+	var player = GameManager.player_data
+	if not player:
+		return
+
+	for event in team_goal_events:
+		var minute = int(event.get("minute", 0))
+		if minute > 0:
+			match_data.current_minute = minute
+		if event.get("scorer_id", "") == player.id:
+			match_data.record_event("goal", {"is_player": true})
+		if event.get("assister_id", "") == player.id:
+			match_data.record_event("assist", {"is_player": true})
+
+
+func _is_knockout_match(match_type: String) -> bool:
+	return match_type in [
+		"cup",
+		"qualifier",
+		"prefecture_qualifier",
+		"prefecture_qualifier_final",
+		"national_championship",
+		"national_quarter_final",
+		"national_semi_final",
+		"national_final",
+		"world_cup",
+		"world_cup_final"
+	]
+
+
+func _is_rival_team(team_id: String) -> bool:
+	if team_id == "":
+		return false
+
+	# Check known rival NPCs for matching team
+	var known_rivals = NpcRegistry.get_known_rivals()
+	for npc in known_rivals:
+		if npc.get("stable_team_id", "") == team_id or npc.get("team_id", "") == team_id:
+			return true
+
+	# Check explicit career rivals if defined
+	for rival in CareerManager.rivals:
+		if rival.get("team_id", "") == team_id or rival.get("stable_team_id", "") == team_id:
+			return true
+
+	return false

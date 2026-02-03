@@ -1,0 +1,116 @@
+[gd_scene load_steps=2 format=3 uid="uid://panel_league_table_001"]
+
+[ext_resource type="Script" path="res://scripts/dashboard/panels/panel_league_table.gd" id="1_script"]
+
+[node name="PanelLeagueTable" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+panel_title = "League Table"
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.85)
+
+[node name="ContentContainer" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 48.0
+offset_top = 48.0
+offset_right = -48.0
+offset_bottom = -48.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="ContentContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 24
+
+[node name="VBoxContainer" type="VBoxContainer" parent="ContentContainer/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Header" type="HBoxContainer" parent="ContentContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="BackButton" type="Button" parent="ContentContainer/MarginContainer/VBoxContainer/Header"]
+custom_minimum_size = Vector2(80, 36)
+layout_mode = 2
+text = "< Back"
+
+[node name="TitleLabel" type="Label" parent="ContentContainer/MarginContainer/VBoxContainer/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 24
+text = "League Table"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="ContentContainer/MarginContainer/VBoxContainer/Header"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+
+[node name="ContentArea" type="Control" parent="ContentContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="MainContent" type="VBoxContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+
+[node name="CompetitionHeader" type="HBoxContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent"]
+layout_mode = 2
+
+[node name="CompetitionLabel" type="Label" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/CompetitionHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 20
+text = "Prefecture League"
+
+[node name="MatchdayLabel" type="Label" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/CompetitionHeader"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.65, 0.7, 1)
+text = "Matchday 1"
+
+[node name="StandingsContainer" type="VBoxContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 0
+
+[node name="FormLegend" type="HBoxContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="NextMatchSection" type="VBoxContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="NextMatchLabel" type="Label" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/NextMatchSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.8, 1)
+theme_override_font_sizes/font_size = 14
+text = "NEXT MATCH"
+
+[node name="NextMatchInfo" type="VBoxContainer" parent="ContentContainer/MarginContainer/VBoxContainer/ContentArea/MainContent/NextMatchSection"]
+layout_mode = 2
+theme_override_constants/separation = 4
