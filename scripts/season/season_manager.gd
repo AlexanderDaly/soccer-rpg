@@ -32,11 +32,11 @@ func initialize_season(prefecture: String, player_team: TeamData) -> void:
 	var season_id = "%s_%d" % [prefecture, season_year]
 	NpcRegistry.set_current_season(season_id)
 
-	# Process pre-season roster changes (graduations, promotions, new players)
-	_process_pre_season_roster_changes(season_year, player_team)
-
 	# Generate league teams using Japanese school generator
 	var league_teams = JapaneseSchoolGenerator.generate_league_teams(prefecture, player_team, 10)
+
+	# Process pre-season roster changes (graduations, promotions, new players)
+	_process_pre_season_roster_changes(season_year, player_team)
 
 	# Find player team index in the generated list
 	var player_idx = 0
@@ -203,7 +203,7 @@ func get_match_importance() -> float:
 	return 1.0
 
 
-func record_player_match_result(opponent_id: String, player_score: int, opponent_score: int, is_home: bool = true, extra_time: bool = false, penalties: bool = false, pen_player: int = 0, pen_opponent: int = 0, player_goal_events: Array = [], opponent_goal_events: Array = []) -> void:
+func record_player_match_result(opponent_id: String, player_score: int, opponent_score: int, is_home: bool = true, extra_time: bool = false, penalties: bool = false, pen_player: int = 0, pen_opponent: int = 0, player_goal_events: Array = [], opponent_goal_events: Array = [], home_fouls: int = 0, away_fouls: int = 0) -> void:
 	if not current_season:
 		return
 
@@ -231,7 +231,7 @@ func record_player_match_result(opponent_id: String, player_score: int, opponent
 
 	match current_season.current_phase:
 		SeasonData.Phase.LEAGUE:
-			_record_league_result(home_id, away_id, home_score, away_score, home_events, away_events)
+			_record_league_result(home_id, away_id, home_score, away_score, home_events, away_events, home_fouls, away_fouls)
 		SeasonData.Phase.QUALIFIERS:
 			_record_qualifier_result(home_id, away_id, home_score, away_score, extra_time, penalties, pen_player, pen_opponent, is_home)
 		SeasonData.Phase.NATIONALS:
@@ -280,9 +280,9 @@ func _process_post_match_injury_recovery() -> void:
 					PersonaManager.evolve_persona_for_event(npc_id, "survived_major_injury")
 
 
-func _record_league_result(home_id: String, away_id: String, home_score: int, away_score: int, home_events: Array = [], away_events: Array = []) -> void:
+func _record_league_result(home_id: String, away_id: String, home_score: int, away_score: int, home_events: Array = [], away_events: Array = [], home_fouls: int = 0, away_fouls: int = 0) -> void:
 	if current_season.league:
-		current_season.league.record_result(home_id, away_id, home_score, away_score, home_events, away_events)
+		current_season.league.record_result(home_id, away_id, home_score, away_score, home_events, away_events, home_fouls, away_fouls)
 		league_standings_updated.emit(current_season.league.get_sorted_standings())
 
 
@@ -336,7 +336,8 @@ func _simulate_league_cpu_matches() -> Array[Dictionary]:
 	for team in current_season.league.teams:
 		teams_by_id[team.id] = team
 
-	var results = MatchSimulator.simulate_batch_league_matches(cpu_fixtures, teams_by_id)
+	var importance = get_match_importance()
+	var results = MatchSimulator.simulate_batch_league_matches(cpu_fixtures, teams_by_id, current_season.league, importance)
 
 	# Record results with goal events for stats tracking
 	for result in results:
@@ -344,7 +345,9 @@ func _simulate_league_cpu_matches() -> Array[Dictionary]:
 			result.home_team_id, result.away_team_id,
 			result.home_score, result.away_score,
 			result.get("home_goal_events", []),
-			result.get("away_goal_events", [])
+			result.get("away_goal_events", []),
+			result.get("home_fouls", 0),
+			result.get("away_fouls", 0)
 		)
 
 	league_standings_updated.emit(current_season.league.get_sorted_standings())
@@ -363,7 +366,8 @@ func _simulate_qualifier_cpu_matches() -> Array[Dictionary]:
 	for team in current_season.prefecture_qualifier.teams:
 		teams_by_id[team.id] = team
 
-	var results = MatchSimulator.simulate_batch_knockout_matches(cpu_matches, teams_by_id)
+	var importance = get_match_importance()
+	var results = MatchSimulator.simulate_batch_knockout_matches(cpu_matches, teams_by_id, importance)
 
 	for result in results:
 		current_season.prefecture_qualifier.record_result(
@@ -389,7 +393,8 @@ func _simulate_nationals_cpu_matches() -> Array[Dictionary]:
 	for team in current_season.national_championship.teams:
 		teams_by_id[team.id] = team
 
-	var results = MatchSimulator.simulate_batch_knockout_matches(cpu_matches, teams_by_id)
+	var importance = get_match_importance()
+	var results = MatchSimulator.simulate_batch_knockout_matches(cpu_matches, teams_by_id, importance)
 
 	for result in results:
 		current_season.national_championship.record_result(

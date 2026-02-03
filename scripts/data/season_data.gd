@@ -196,6 +196,7 @@ func get_season_summary() -> Dictionary:
 			var total_matches = league.player_stats.get_total_matches_in_league(league.teams.size())
 			summary["top_scorers"] = league.player_stats.get_top_scorers(5, total_matches)
 			summary["top_assisters"] = league.player_stats.get_top_assisters(5, total_matches)
+		summary["avg_fouls_per_game"] = league.get_avg_fouls_per_game()
 
 	return summary
 

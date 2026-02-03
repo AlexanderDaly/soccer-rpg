@@ -31,6 +31,10 @@ const DAYS_BETWEEN_MATCHDAYS: int = 7  # Weekly matches
 # Computed awards after league completion
 @export var league_awards: Dictionary = {}
 
+# League-wide foul tracking
+@export var total_fouls: int = 0
+@export var total_matches_with_fouls: int = 0
+
 
 func _init() -> void:
 	id = "league_%d" % randi()
@@ -48,6 +52,8 @@ func initialize(league_name: String, league_teams: Array[TeamData], player_idx: 
 
 func _initialize_standings() -> void:
 	standings.clear()
+	total_fouls = 0
+	total_matches_with_fouls = 0
 	for team in teams:
 		standings[team.id] = {
 			"team_id": team.id,
@@ -161,7 +167,7 @@ func get_formatted_date(matchday: int) -> String:
 
 
 func record_result(home_id: String, away_id: String, home_score: int, away_score: int,
-					home_events: Array = [], away_events: Array = []) -> void:
+					home_events: Array = [], away_events: Array = [], home_fouls: int = 0, away_fouls: int = 0) -> void:
 	# Find and update the fixture (check both team orderings)
 	for i in range(fixtures.size()):
 		var fixture = fixtures[i]
@@ -180,6 +186,9 @@ func record_result(home_id: String, away_id: String, home_score: int, away_score
 				# Record player stats for awards
 				_record_player_stats(home_id, away_id, home_score, away_score, home_events, away_events)
 
+				# Track league-wide fouls
+				_record_fouls(home_fouls, away_fouls)
+
 				# Check if all matches for current matchday are played
 				_check_matchday_complete()
 				return
@@ -195,6 +204,9 @@ func record_result(home_id: String, away_id: String, home_score: int, away_score
 
 				# Record player stats (swap events to match fixture ordering)
 				_record_player_stats(away_id, home_id, away_score, home_score, away_events, home_events)
+
+				# Track league-wide fouls (swap order)
+				_record_fouls(away_fouls, home_fouls)
 
 				_check_matchday_complete()
 				return
@@ -261,6 +273,17 @@ func _add_form(team_id: String, result: String) -> void:
 	team_stats.form.append(result)
 	if team_stats.form.size() > 5:
 		team_stats.form.pop_front()
+
+
+func _record_fouls(home_fouls: int, away_fouls: int) -> void:
+	total_fouls += max(home_fouls, 0) + max(away_fouls, 0)
+	total_matches_with_fouls += 1
+
+
+func get_avg_fouls_per_game() -> float:
+	if total_matches_with_fouls <= 0:
+		return 0.0
+	return float(total_fouls) / float(total_matches_with_fouls)
 
 
 func _record_player_stats(home_id: String, away_id: String, home_score: int, away_score: int,
@@ -443,7 +466,9 @@ func to_dict() -> Dictionary:
 		"current_matchday": current_matchday,
 		"is_complete": is_complete,
 		"player_stats": player_stats.to_dict() if player_stats else {},
-		"league_awards": league_awards
+		"league_awards": league_awards,
+		"total_fouls": total_fouls,
+		"total_matches_with_fouls": total_matches_with_fouls
 	}
 
 
@@ -457,6 +482,8 @@ func from_dict(data: Dictionary) -> void:
 	current_matchday = data.get("current_matchday", 1)
 	is_complete = data.get("is_complete", false)
 	league_awards = data.get("league_awards", {})
+	total_fouls = data.get("total_fouls", 0)
+	total_matches_with_fouls = data.get("total_matches_with_fouls", 0)
 
 	# Restore teams
 	teams.clear()

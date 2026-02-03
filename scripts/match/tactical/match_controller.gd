@@ -6,6 +6,7 @@ signal turn_changed(phase: TurnPhase, turn_number: int)
 signal match_minute_changed(minute: int)
 signal score_changed(home: int, away: int)
 signal action_selected(action_type: String)
+signal dribble_move_changed(move_id: String)
 signal match_ended(result: Dictionary)
 
 enum TurnPhase {
@@ -58,6 +59,7 @@ var selected_unit: PlayerUnit = null
 var current_action: String = ""
 var valid_targets: Array[Vector2i] = []
 var action_target_units: Array[PlayerUnit] = []
+var current_dribble_move_id: String = "basic"
 
 # Home team attacks right (toward away goal)
 var home_attacks_right: bool = true
@@ -71,6 +73,9 @@ var minute_label: Label
 # Visual layers
 var highlight_layer: Node2D
 var units_layer: Node2D
+
+const PLAYER_UNIT_SCENE = preload("res://scenes/match/tactical/player_unit.tscn")
+const DribbleMoves = preload("res://scripts/match/tactical/dribble_moves.gd")
 
 
 func _ready() -> void:
@@ -176,7 +181,9 @@ func _spawn_units() -> void:
 
 
 func _create_unit(data: Dictionary, is_home: bool, hex_pos: Vector2i) -> PlayerUnit:
-	var unit = PlayerUnit.new()
+	var unit = PLAYER_UNIT_SCENE.instantiate() as PlayerUnit
+	if not unit:
+		unit = PlayerUnit.new()
 	unit.name = "Unit_" + data.get("name", "Unknown").replace(" ", "_")
 	units_layer.add_child(unit)
 
@@ -296,13 +303,14 @@ func _show_action_range(action: String) -> void:
 					_draw_hex_highlight(opp.hex_position, Color(1, 0, 0, 0.4))  # Red
 
 		"dribble":
-			# Highlight adjacent hexes past defenders
-			var neighbors = HexUtils.get_neighbors(player_unit.hex_position)
+			# Highlight dribble targets based on selected move range
+			var move = DribbleMoves.get_move(current_dribble_move_id)
+			var range_bonus = int(move.get("range_bonus", 0))
+			var range = 1 + range_bonus
 			var occupied = _get_all_occupied_hexes()
-			for hex in neighbors:
-				if hex not in occupied:
-					valid_targets.append(hex)
-					_draw_hex_highlight(hex, Color(1, 1, 0, 0.4))  # Yellow
+			valid_targets = HexUtils.get_reachable_hexes(player_unit.hex_position, range, occupied)
+			for hex in valid_targets:
+				_draw_hex_highlight(hex, Color(1, 1, 0, 0.4))  # Yellow
 
 
 func _execute_action_at_hex(hex: Vector2i) -> void:
@@ -448,19 +456,17 @@ func _execute_dribble(target_hex: Vector2i) -> void:
 				defender = opp
 				break
 
-	if defender:
-		var result = ActionResolver.execute_dribble(player_unit, target_hex, defender, match_data)
+	var result = ActionResolver.execute_dribble(player_unit, target_hex, defender, match_data, current_dribble_move_id)
 
-		if result.success:
-			var occupied = _get_all_occupied_hexes()
-			occupied.erase(player_unit.hex_position)
-			player_unit.move_to_hex([player_unit.hex_position, target_hex])
-		else:
-			ball.give_possession(defender)
-	else:
-		# No defender, just move (still costs AP)
-		player_unit.spend_ap(ActionResolver.AP_COST["dribble"])
-		player_unit.move_to_hex([player_unit.hex_position, target_hex])
+	if result.success:
+		var occupied = _get_all_occupied_hexes()
+		occupied.erase(player_unit.hex_position)
+		var path = HexUtils.find_path(player_unit.hex_position, target_hex, occupied)
+		if path.is_empty():
+			path = [player_unit.hex_position, target_hex]
+		player_unit.move_to_hex(path)
+	elif result.reason == "dispossessed" and defender:
+		ball.give_possession(defender)
 
 	_clear_highlights()
 	_check_turn_end()
@@ -474,6 +480,18 @@ func _cancel_action() -> void:
 
 
 ## Action button handlers (called from UI)
+## Set the current dribble move for player actions.
+func set_dribble_move(move_id: String) -> void:
+	if move_id == current_dribble_move_id:
+		return
+
+	if player_unit and not DribbleMoves.is_move_unlocked(player_unit, move_id):
+		return
+
+	current_dribble_move_id = move_id
+	dribble_move_changed.emit(move_id)
+
+
 func select_action(action: String) -> void:
 	if current_phase != TurnPhase.PLAYER:
 		return
@@ -483,12 +501,23 @@ func select_action(action: String) -> void:
 
 	# Check AP cost
 	var ap_cost = ActionResolver.AP_COST.get(action, 1)
+	if action == "dribble":
+		if not DribbleMoves.is_move_unlocked(player_unit, current_dribble_move_id):
+			return
+		var move = DribbleMoves.get_move(current_dribble_move_id)
+		ap_cost = int(move.get("ap_cost", ap_cost))
+
 	if player_unit.action_points < ap_cost:
 		return
 
 	# Check if player has ball (for ball actions)
 	if action in ["pass", "through_ball", "shoot", "dribble"] and not player_unit.has_ball:
 		return
+
+	if action == "dribble":
+		var stamina_cost = int(DribbleMoves.get_move(current_dribble_move_id).get("stamina_cost", 0))
+		if player_unit.stamina < stamina_cost:
+			return
 
 	current_action = action
 	action_selected.emit(action)
@@ -772,16 +801,18 @@ func _execute_ai_decision(unit: PlayerUnit, decision: Dictionary) -> void:
 			if unit.has_ball:
 				var target = decision.get("target")
 				var defender = decision.get("defender")
-				if defender:
-					var result = ActionResolver.execute_dribble(unit, target, defender, match_data)
-					if result.success:
-						unit.move_to_hex([unit.hex_position, target])
-						await unit.move_completed
-					else:
-						ball.give_possession(defender)
-				else:
-					unit.move_to_hex([unit.hex_position, target])
+				var move_id = decision.get("move_id", "basic")
+				var result = ActionResolver.execute_dribble(unit, target, defender, match_data, move_id)
+				if result.success:
+					var occupied = _get_all_occupied_hexes()
+					occupied.erase(unit.hex_position)
+					var path = HexUtils.find_path(unit.hex_position, target, occupied)
+					if path.is_empty():
+						path = [unit.hex_position, target]
+					unit.move_to_hex(path)
 					await unit.move_completed
+				elif result.reason == "dispossessed" and defender:
+					ball.give_possession(defender)
 
 
 ## Event handlers
@@ -800,6 +831,7 @@ func _on_goal_scored(is_home_goal: bool) -> void:
 	if scorer:
 		goal_event["scorer_id"] = scorer.unit_id
 		goal_event["scorer_name"] = scorer.unit_name
+		goal_event["minute"] = max(match_minute, 1)
 
 		# Add assist if last passer was from the same team and different from scorer
 		if last_passer and last_passer != scorer and last_passer.is_home_team == scorer.is_home_team:
@@ -809,9 +841,15 @@ func _on_goal_scored(is_home_goal: bool) -> void:
 	# Store goal event for season tracking
 	if is_home_goal:
 		# Away team scored
+		if match_data and match_data.away_team:
+			goal_event["team_id"] = match_data.away_team.id
+			goal_event["team_name"] = match_data.away_team.name
 		away_goal_events.append(goal_event)
 	else:
 		# Home team scored
+		if match_data and match_data.home_team:
+			goal_event["team_id"] = match_data.home_team.id
+			goal_event["team_name"] = match_data.home_team.name
 		home_goal_events.append(goal_event)
 
 	# Reset last passer after goal

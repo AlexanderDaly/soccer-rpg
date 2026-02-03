@@ -56,6 +56,13 @@ theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
 text = "vs Opponent FC"
 horizontal_alignment = 1
 
+[node name="TeamStatsLabel" type="Label" parent="MainContainer/ResultSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+text = "Team stats unavailable"
+horizontal_alignment = 1
+
 [node name="HSeparator" type="HSeparator" parent="MainContainer"]
 layout_mode = 2
 
@@ -197,6 +204,31 @@ layout_mode = 2
 theme_override_constants/separation = 5
 
 [node name="HSeparator3" type="HSeparator" parent="MainContainer"]
+layout_mode = 2
+
+[node name="EventSection" type="VBoxContainer" parent="MainContainer"]
+layout_mode = 2
+size_flags_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="EventTitle" type="Label" parent="MainContainer/EventSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "Event Timeline"
+horizontal_alignment = 1
+
+[node name="EventScroll" type="ScrollContainer" parent="MainContainer/EventSection"]
+layout_mode = 2
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 120)
+
+[node name="EventList" type="VBoxContainer" parent="MainContainer/EventSection/EventScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="HSeparator4" type="HSeparator" parent="MainContainer"]
 layout_mode = 2
 
 [node name="NarrativeSection" type="VBoxContainer" parent="MainContainer"]

@@ -5,6 +5,7 @@ class_name PostMatchScreen
 @onready var result_label: Label = $MainContainer/ResultSection/ResultLabel
 @onready var score_label: Label = $MainContainer/ResultSection/ScoreLabel
 @onready var opponent_label: Label = $MainContainer/ResultSection/OpponentLabel
+@onready var team_stats_label: Label = $MainContainer/ResultSection/TeamStatsLabel
 
 @onready var rating_label: Label = $MainContainer/PerformanceSection/RatingContainer/RatingValue
 @onready var goals_label: Label = $MainContainer/PerformanceSection/StatsGrid/GoalsValue
@@ -16,6 +17,8 @@ class_name PostMatchScreen
 
 @onready var xp_gained_label: Label = $MainContainer/RewardsSection/XPGained
 @onready var milestones_container: VBoxContainer = $MainContainer/RewardsSection/MilestonesContainer
+
+@onready var event_list: VBoxContainer = $MainContainer/EventSection/EventScroll/EventList
 
 @onready var narrative_label: Label = $MainContainer/NarrativeSection/NarrativeText
 
@@ -33,9 +36,9 @@ func _ready() -> void:
 	# Get the result from the last match
 	if not CareerManager.match_history.is_empty():
 		match_result = CareerManager.match_history.back()
+		_roll_for_injuries()
 		_display_result()
 		_update_season_standings()
-		_roll_for_injuries()
 
 
 func _display_result() -> void:
@@ -57,6 +60,7 @@ func _display_result() -> void:
 
 	# Opponent name
 	opponent_label.text = "vs %s" % match_result.get("opponent_name", "Unknown")
+	_update_team_stats_label()
 
 	# Player rating
 	var rating = match_result.get("rating", 6.0)
@@ -85,6 +89,9 @@ func _display_result() -> void:
 	if match_result.get("red_card", false):
 		_add_card_display(1, true)
 
+	# Event timeline
+	_display_event_timeline()
+
 	# Generate narrative
 	_display_narrative()
 
@@ -100,6 +107,40 @@ func _color_rating(rating: float) -> void:
 		rating_label.add_theme_color_override("font_color", Color(0.9, 0.6, 0.2))  # Orange
 	else:
 		rating_label.add_theme_color_override("font_color", Color(0.9, 0.2, 0.2))  # Red
+
+
+func _update_team_stats_label() -> void:
+	if not team_stats_label:
+		return
+
+	var home_stats = match_result.get("home_stats", {})
+	var away_stats = match_result.get("away_stats", {})
+
+	if home_stats.is_empty() or away_stats.is_empty():
+		team_stats_label.text = "Team stats unavailable"
+		return
+
+	var current_match = GameManager.current_match
+	var home_name = current_match.home_team.name if current_match and current_match.home_team else "Home"
+	var away_name = current_match.away_team.name if current_match and current_match.away_team else "Away"
+
+	var home_shots = int(home_stats.get("shots", 0))
+	var home_on_target = int(home_stats.get("shots_on_target", 0))
+	var home_xg = float(home_stats.get("xg", 0.0))
+	var home_passes = int(home_stats.get("passes_completed", 0))
+	var home_attempts = int(home_stats.get("passes_attempted", 0))
+	var home_poss = float(home_stats.get("possession", 0.0)) * 100.0
+
+	var away_shots = int(away_stats.get("shots", 0))
+	var away_on_target = int(away_stats.get("shots_on_target", 0))
+	var away_xg = float(away_stats.get("xg", 0.0))
+	var away_passes = int(away_stats.get("passes_completed", 0))
+	var away_attempts = int(away_stats.get("passes_attempted", 0))
+	var away_poss = float(away_stats.get("possession", 0.0)) * 100.0
+
+	var home_line = "%s %d(%d) xG %.2f | %d%% %d/%d" % [home_name, home_shots, home_on_target, home_xg, roundi(home_poss), home_passes, home_attempts]
+	var away_line = "%s %d(%d) xG %.2f | %d%% %d/%d" % [away_name, away_shots, away_on_target, away_xg, roundi(away_poss), away_passes, away_attempts]
+	team_stats_label.text = "%s  |  %s" % [home_line, away_line]
 
 
 func _calculate_xp_display() -> int:
@@ -152,6 +193,193 @@ func _display_narrative() -> void:
 	# Generate a simple narrative based on performance
 	var narrative = _generate_match_narrative()
 	narrative_label.text = narrative
+
+
+func _display_event_timeline() -> void:
+	if not event_list:
+		return
+
+	# Clear existing
+	for child in event_list.get_children():
+		child.queue_free()
+
+	var timeline_events = _collect_timeline_events()
+	if timeline_events.is_empty():
+		var empty_label = Label.new()
+		empty_label.text = "No major events recorded."
+		empty_label.add_theme_font_size_override("font_size", 14)
+		empty_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		event_list.add_child(empty_label)
+		return
+
+	timeline_events.sort_custom(func(a, b): return a.minute < b.minute)
+
+	for event in timeline_events:
+		_add_timeline_entry(event)
+
+
+func _collect_timeline_events() -> Array[Dictionary]:
+	var events: Array[Dictionary] = []
+
+	var current_match = GameManager.current_match
+	var home_name = current_match.home_team.name if current_match and current_match.home_team else "Home"
+	var away_name = current_match.away_team.name if current_match and current_match.away_team else "Away"
+	var player_team_id = GameManager.current_team.id if GameManager.current_team else ""
+	var player_id = GameManager.player_data.id if GameManager.player_data else ""
+
+	var home_goal_events = match_result.get("home_goal_events", [])
+	var away_goal_events = match_result.get("away_goal_events", [])
+	var card_events = match_result.get("card_events", [])
+	var key_events = match_result.get("key_events", [])
+	var injury_events = match_result.get("injury_events", [])
+
+	for event in home_goal_events:
+		events.append(_build_timeline_event(event, home_name, player_team_id, player_id))
+
+	for event in away_goal_events:
+		events.append(_build_timeline_event(event, away_name, player_team_id, player_id))
+
+	for event in card_events:
+		events.append(_build_sim_card_event(event, player_team_id, player_id))
+
+	for event in key_events:
+		var event_type = event.get("type", "")
+		if event_type == "yellow_card" or event_type == "red_card":
+			events.append(_build_card_event(event, home_name, away_name, player_team_id, player_id))
+
+	for event in injury_events:
+		events.append(_build_injury_event(event, home_name, player_team_id))
+
+	return events
+
+
+func _build_timeline_event(event: Dictionary, fallback_team_name: String, player_team_id: String, player_id: String) -> Dictionary:
+	var team_name = event.get("team_name", fallback_team_name)
+	var team_id = event.get("team_id", "")
+	var is_player_team = team_id != "" and team_id == player_team_id
+	if not is_player_team and team_id == "" and GameManager.current_team:
+		is_player_team = team_name == GameManager.current_team.name
+
+	return {
+		"type": "goal",
+		"minute": int(event.get("minute", 0)),
+		"team_name": team_name,
+		"scorer_name": event.get("scorer_name", "Unknown"),
+		"scorer_id": event.get("scorer_id", ""),
+		"assister_name": event.get("assister_name", ""),
+		"is_player_team": is_player_team,
+		"is_player_scorer": event.get("scorer_id", "") == player_id
+	}
+
+
+func _add_timeline_entry(event: Dictionary) -> void:
+	var label = Label.new()
+	var minute = event.get("minute", 0)
+	var minute_text = "%d'" % minute if minute > 0 else "--'"
+	var team_name = event.get("team_name", "Team")
+	var event_type = event.get("type", "goal")
+	var line = ""
+
+	match event_type:
+		"goal":
+			var scorer = event.get("scorer_name", "Unknown")
+			var assister = event.get("assister_name", "")
+			line = "%s %s - %s" % [minute_text, team_name, scorer]
+			if assister != "":
+				line += " (A: %s)" % assister
+			if event.get("is_player_scorer", false):
+				line += " (YOU)"
+		"card":
+			var card_color = event.get("card_color", "yellow").to_upper()
+			var card_player = event.get("player_name", "Player")
+			line = "%s %s - %s CARD (%s)" % [minute_text, team_name, card_color, card_player]
+		"injury":
+			var injury_player = event.get("player_name", "Player")
+			var description = event.get("description", "injury")
+			var matches_out = int(event.get("matches_out", 0))
+			line = "%s %s - Injury: %s (%s)" % [minute_text, team_name, injury_player, description]
+			if matches_out > 0:
+				line += " - %d match%s" % [matches_out, "es" if matches_out != 1 else ""]
+		_:
+			line = "%s %s - Event" % [minute_text, team_name]
+
+	label.text = line
+	label.add_theme_font_size_override("font_size", 14)
+	if event.get("is_player_team", false):
+		label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	else:
+		label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+
+	event_list.add_child(label)
+
+
+func _build_card_event(event: Dictionary, home_name: String, away_name: String, player_team_id: String, player_id: String) -> Dictionary:
+	var data = event.get("data", {})
+	var minute = int(event.get("minute", 0))
+	var is_player = data.get("is_player", false)
+	var team_name = data.get("team_name", "")
+	var team_id = data.get("team_id", "")
+	var player_name = data.get("player_name", "")
+
+	if team_name == "":
+		var is_player_home = GameManager.current_match and GameManager.current_match.is_home
+		if is_player:
+			team_name = home_name if is_player_home else away_name
+		else:
+			team_name = away_name if is_player_home else home_name
+
+	if team_id == "" and is_player:
+		team_id = player_team_id
+
+	if player_name == "":
+		player_name = GameManager.player_data.name if is_player and GameManager.player_data else "Player"
+	var card_color = "red" if event.get("type", "") == "red_card" else "yellow"
+
+	return {
+		"type": "card",
+		"minute": minute,
+		"team_name": team_name,
+		"team_id": team_id,
+		"player_name": player_name,
+		"card_color": card_color,
+		"is_player_team": team_id != "" and team_id == player_team_id,
+		"is_player_scorer": false
+	}
+
+
+func _build_sim_card_event(event: Dictionary, player_team_id: String, player_id: String) -> Dictionary:
+	var team_id = event.get("team_id", "")
+	var team_name = event.get("team_name", "Team")
+	var player_id_event = event.get("player_id", "")
+
+	return {
+		"type": "card",
+		"minute": int(event.get("minute", 0)),
+		"team_name": team_name,
+		"team_id": team_id,
+		"player_name": event.get("player_name", "Player"),
+		"card_color": event.get("card_color", "yellow"),
+		"is_player_team": team_id != "" and team_id == player_team_id,
+		"is_player_scorer": player_id_event != "" and player_id_event == player_id
+	}
+
+
+func _build_injury_event(event: Dictionary, fallback_team_name: String, player_team_id: String) -> Dictionary:
+	var team_name = event.get("team_name", fallback_team_name)
+	var team_id = event.get("team_id", player_team_id)
+
+	return {
+		"type": "injury",
+		"minute": int(event.get("minute", 90)),
+		"team_name": team_name,
+		"team_id": team_id,
+		"player_name": event.get("player_name", "Player"),
+		"description": event.get("description", "injury"),
+		"matches_out": int(event.get("matches_out", 0)),
+		"is_player_team": true,
+		"is_player_scorer": false
+	}
 
 
 func _generate_match_narrative() -> String:
@@ -226,10 +454,28 @@ func _update_season_standings() -> void:
 		opponent_goal_events = home_goal_events
 
 	# Record the result in the season manager with goal events
+	var extra_time = match_result.get("extra_time", false)
+	var penalties = match_result.get("penalties", false)
+	var pen_player = 0
+	var pen_opponent = 0
+	var home_fouls = int(match_result.get("home_fouls", 0))
+	var away_fouls = int(match_result.get("away_fouls", 0))
+
+	if penalties:
+		var pen_home = match_result.get("penalty_score_home", 0)
+		var pen_away = match_result.get("penalty_score_away", 0)
+		if is_home:
+			pen_player = pen_home
+			pen_opponent = pen_away
+		else:
+			pen_player = pen_away
+			pen_opponent = pen_home
+
 	SeasonManager.record_player_match_result(
 		opponent_id, player_score, opponent_score, is_home,
-		false, false, 0, 0,  # extra_time, penalties, pen_player, pen_opponent
-		player_goal_events, opponent_goal_events
+		extra_time, penalties, pen_player, pen_opponent,
+		player_goal_events, opponent_goal_events,
+		home_fouls, away_fouls
 	)
 
 	# Simulate CPU matches for this matchday
@@ -239,6 +485,8 @@ func _update_season_standings() -> void:
 func _roll_for_injuries() -> void:
 	"""Roll for injuries after the match and apply them."""
 	if not GameManager.current_team:
+		if match_result:
+			match_result["injury_events"] = []
 		return
 
 	# Determine match intensity based on current competition
@@ -253,7 +501,11 @@ func _roll_for_injuries() -> void:
 	# Roll for injuries on the player's team
 	var injuries = InjurySystem.roll_for_injuries(GameManager.current_team, intensity)
 
+	# Store injury events for timeline display
+	var injury_events: Array[Dictionary] = []
+
 	if injuries.is_empty():
+		match_result["injury_events"] = injury_events
 		return
 
 	# Apply injuries to NPC registry
@@ -288,6 +540,18 @@ func _roll_for_injuries() -> void:
 
 		# Add to milestones display
 		_add_injury_display(player_name, description, injury_type)
+
+		injury_events.append({
+			"minute": 90,
+			"team_id": GameManager.current_team.id,
+			"team_name": GameManager.current_team.name,
+			"player_name": player_name,
+			"description": description,
+			"matches_out": matches_out,
+			"injury_type": injury_type
+		})
+
+	match_result["injury_events"] = injury_events
 
 
 func _add_injury_display(player_name: String, description: String, injury_type: String) -> void:

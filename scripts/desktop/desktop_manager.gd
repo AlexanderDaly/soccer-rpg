@@ -67,49 +67,49 @@ func _connect_game_signals() -> void:
 func _register_default_apps() -> void:
 	register_app("player_stats", {
 		"title": "Player Stats",
-		"icon": "res://assets/ui/icons/icon_stats.png",
+		"icon": "res://assets/ui/icons/icon_stats.svg",
 		"scene": "res://scenes/desktop/apps/app_player_stats.tscn",
 		"min_size": Vector2(400, 500)
 	})
 	register_app("email", {
 		"title": "ProMail",
-		"icon": "res://assets/ui/icons/icon_email.png",
+		"icon": "res://assets/ui/icons/icon_email.svg",
 		"scene": "res://scenes/desktop/apps/app_email.tscn",
 		"min_size": Vector2(500, 400)
 	})
 	register_app("save_load", {
 		"title": "Save Manager",
-		"icon": "res://assets/ui/icons/icon_save.png",
+		"icon": "res://assets/ui/icons/icon_save.svg",
 		"scene": "res://scenes/desktop/apps/app_save_load.tscn",
 		"min_size": Vector2(400, 350)
 	})
 	register_app("settings", {
 		"title": "Settings",
-		"icon": "res://assets/ui/icons/icon_settings.png",
+		"icon": "res://assets/ui/icons/icon_settings.svg",
 		"scene": "res://scenes/desktop/apps/app_settings.tscn",
 		"min_size": Vector2(350, 300)
 	})
 	register_app("team", {
 		"title": "Team Roster",
-		"icon": "res://assets/ui/icons/icon_team.png",
+		"icon": "res://assets/ui/icons/icon_team.svg",
 		"scene": "res://scenes/desktop/apps/app_team.tscn",
 		"min_size": Vector2(450, 500)
 	})
 	register_app("social_media", {
 		"title": "FanZone",
-		"icon": "res://assets/ui/icons/icon_social.png",
+		"icon": "res://assets/ui/icons/icon_social.svg",
 		"scene": "res://scenes/desktop/apps/app_social_media.tscn",
 		"min_size": Vector2(400, 450)
 	})
 	register_app("schedule", {
 		"title": "Calendar",
-		"icon": "res://assets/ui/icons/icon_calendar.png",
+		"icon": "res://assets/ui/icons/icon_calendar.svg",
 		"scene": "res://scenes/desktop/apps/app_schedule.tscn",
 		"min_size": Vector2(400, 400)
 	})
 	register_app("training", {
 		"title": "Training Center",
-		"icon": "res://assets/ui/icons/icon_training.png",
+		"icon": "res://assets/ui/icons/icon_training.svg",
 		"scene": "res://scenes/desktop/apps/app_training.tscn",
 		"min_size": Vector2(450, 400)
 	})
@@ -223,6 +223,13 @@ func get_open_windows() -> Array[String]:
 	return windows
 
 
+func reset_window_state() -> void:
+	active_windows.clear()
+	window_z_order.clear()
+	minimized_windows.clear()
+	focused_window_id = ""
+
+
 func _update_window_z_indices() -> void:
 	var z_index = 100
 	for window_id in window_z_order:
@@ -275,7 +282,7 @@ func _on_scout_interest(scout_data: Dictionary) -> void:
 	show_notification(
 		"Scout Spotted!",
 		"A scout from %s was watching!" % scout_data.get("team_name", "Unknown"),
-		"res://assets/ui/icons/icon_email.png",
+		"res://assets/ui/icons/icon_email.svg",
 		"email"
 	)
 
@@ -285,7 +292,7 @@ func _on_milestone_reached(milestone_id: String) -> void:
 	show_notification(
 		"Milestone Achieved!",
 		milestone.get("name", "Unknown") + " - " + milestone.get("description", ""),
-		"res://assets/ui/icons/icon_stats.png",
+		"res://assets/ui/icons/icon_stats.svg",
 		"player_stats"
 	)
 
@@ -294,7 +301,7 @@ func _on_contract_offer(offer: Dictionary) -> void:
 	show_notification(
 		"New Contract Offer!",
 		"You've received a contract offer!",
-		"res://assets/ui/icons/icon_email.png",
+		"res://assets/ui/icons/icon_email.svg",
 		"email"
 	)
 
@@ -303,7 +310,7 @@ func _on_news_article(article: Dictionary) -> void:
 	show_notification(
 		"FanZone Update",
 		article.get("headline", "New article published"),
-		"res://assets/ui/icons/icon_social.png",
+		"res://assets/ui/icons/icon_social.svg",
 		"social_media"
 	)
 
@@ -313,7 +320,7 @@ func _on_level_up(player_id: String, new_level: int) -> void:
 		show_notification(
 			"Level Up!",
 			"You've reached level %d!" % new_level,
-			"res://assets/ui/icons/icon_stats.png",
+			"res://assets/ui/icons/icon_stats.svg",
 			"player_stats"
 		)
 
@@ -323,7 +330,7 @@ func _on_save_completed(slot: int, success: bool) -> void:
 		show_notification(
 			"Game Saved",
 			"Progress saved to slot %d" % (slot + 1),
-			"res://assets/ui/icons/icon_save.png",
+			"res://assets/ui/icons/icon_save.svg",
 			""
 		)
 

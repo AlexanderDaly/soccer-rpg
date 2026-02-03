@@ -3,15 +3,18 @@ class_name ConsoleDashboard
 ## ConsoleDashboard - Main FIFA/Pro Evo style console dashboard
 
 const TILE_CONFIG: Array[Dictionary] = [
-	{"id": "training", "title": "Training", "icon": "res://assets/ui/icons/icon_training.png", "panel": "res://scenes/dashboard/panels/panel_training.tscn"},
-	{"id": "schedule", "title": "Schedule", "icon": "res://assets/ui/icons/icon_calendar.png", "panel": "res://scenes/dashboard/panels/panel_schedule.tscn"},
-	{"id": "league", "title": "League", "icon": "res://assets/ui/icons/icon_league.png", "panel": "res://scenes/dashboard/panels/panel_league_table.tscn"},
-	{"id": "tournament", "title": "Tournament", "icon": "res://assets/ui/icons/icon_trophy.png", "panel": "res://scenes/dashboard/panels/panel_tournament_bracket.tscn"},
-	{"id": "team", "title": "Team", "icon": "res://assets/ui/icons/icon_team.png", "panel": "res://scenes/dashboard/panels/panel_team.tscn"},
-	{"id": "stats", "title": "Stats", "icon": "res://assets/ui/icons/icon_stats.png", "panel": "res://scenes/dashboard/panels/panel_player_stats.tscn"},
-	{"id": "email", "title": "Email", "icon": "res://assets/ui/icons/icon_email.png", "panel": "res://scenes/dashboard/panels/panel_email.tscn"},
-	{"id": "save", "title": "Save", "icon": "res://assets/ui/icons/icon_save.png", "panel": "res://scenes/dashboard/panels/panel_save_load.tscn"},
-	{"id": "settings", "title": "Settings", "icon": "res://assets/ui/icons/icon_settings.png", "panel": "res://scenes/dashboard/panels/panel_settings.tscn"}
+	{"id": "training", "title": "Training", "icon": "res://assets/ui/icons/icon_training.svg", "panel": "res://scenes/dashboard/panels/panel_training.tscn"},
+	{"id": "schedule", "title": "Schedule", "icon": "res://assets/ui/icons/icon_calendar.svg", "panel": "res://scenes/dashboard/panels/panel_schedule.tscn"},
+	{"id": "league", "title": "League", "icon": "res://assets/ui/icons/icon_league.svg", "panel": "res://scenes/dashboard/panels/panel_league_table.tscn"},
+	{"id": "tournament", "title": "Tournament", "icon": "res://assets/ui/icons/icon_trophy.svg", "panel": "res://scenes/dashboard/panels/panel_tournament_bracket.tscn"},
+	{"id": "awards", "title": "Awards", "icon": "res://assets/ui/icons/icon_trophy.svg", "panel": "res://scenes/dashboard/panels/panel_season_awards.tscn"},
+	{"id": "team", "title": "Team", "icon": "res://assets/ui/icons/icon_team.svg", "panel": "res://scenes/dashboard/panels/panel_team.tscn"},
+	{"id": "stats", "title": "Stats", "icon": "res://assets/ui/icons/icon_stats.svg", "panel": "res://scenes/dashboard/panels/panel_player_stats.tscn"},
+	{"id": "email", "title": "Email", "icon": "res://assets/ui/icons/icon_email.svg", "panel": "res://scenes/dashboard/panels/panel_email.tscn"},
+	{"id": "desktop", "title": "Desktop", "icon": "res://assets/ui/icons/icon_settings.svg", "scene": "res://scenes/desktop/desktop_shell.tscn"},
+	{"id": "career_hub", "title": "Career Hub", "icon": "res://assets/ui/icons/icon_team.svg", "scene": "res://scenes/career/career_hub.tscn"},
+	{"id": "save", "title": "Save", "icon": "res://assets/ui/icons/icon_save.svg", "panel": "res://scenes/dashboard/panels/panel_save_load.tscn"},
+	{"id": "settings", "title": "Settings", "icon": "res://assets/ui/icons/icon_settings.svg", "panel": "res://scenes/dashboard/panels/panel_settings.tscn"}
 ]
 
 @onready var background: ColorRect = $Background
@@ -98,7 +101,7 @@ func _setup_tiles() -> void:
 
 	# Setup navigation
 	tile_navigation = TileNavigation.new()
-	tile_navigation.columns = 3  # 3 columns for 9 tiles
+	tile_navigation.columns = tile_grid.columns if tile_grid else 2
 	add_child(tile_navigation)
 	tile_navigation.register_tiles(tiles)
 
@@ -164,7 +167,10 @@ func _on_tile_pressed(tile_id: String) -> void:
 	# Find the panel path for this tile
 	for config in TILE_CONFIG:
 		if config.id == tile_id:
-			_open_panel(config.panel)
+			if config.has("panel"):
+				_open_panel(config.panel)
+			elif config.has("scene"):
+				_open_scene(config.scene)
 			return
 
 
@@ -189,6 +195,13 @@ func _open_panel(panel_path: String) -> void:
 	# Disable tile navigation while panel is open
 	if tile_navigation:
 		tile_navigation.set_navigation_enabled(false)
+
+
+func _open_scene(scene_path: String) -> void:
+	if scene_path.is_empty():
+		return
+
+	get_tree().change_scene_to_file(scene_path)
 
 
 func _on_panel_closed() -> void:

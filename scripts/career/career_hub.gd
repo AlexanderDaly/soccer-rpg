@@ -5,10 +5,13 @@ extends Control
 @onready var position_label: Label = $MainContainer/PlayerCard/Position
 @onready var overall_label: Label = $MainContainer/PlayerCard/Overall
 @onready var phase_label: Label = $MainContainer/PhaseLabel
+@onready var back_button: Button = $MainContainer/BackButton
 
 
 func _ready() -> void:
 	GameManager.change_state(GameManager.GameState.CAREER_HUB)
+	if back_button:
+		back_button.text = "Back to Dashboard"
 	_update_display()
 
 
@@ -24,4 +27,4 @@ func _update_display() -> void:
 
 func _on_back_pressed() -> void:
 	AudioManager.play_ui_click()
-	get_tree().change_scene_to_file("res://scenes/menus/main_menu.tscn")
+	get_tree().change_scene_to_file("res://scenes/dashboard/console_dashboard.tscn")

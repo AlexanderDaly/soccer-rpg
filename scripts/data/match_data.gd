@@ -245,6 +245,8 @@ func calculate_match_rating() -> float:
 
 func generate_result() -> Dictionary:
 	calculate_match_rating()
+
+	var foul_counts = _count_team_fouls()
 	
 	return {
 		"match_id": id,
@@ -277,6 +279,10 @@ func generate_result() -> Dictionary:
 		# Cards
 		"yellow_cards": player_stats.yellow_cards,
 		"red_card": player_stats.red_card,
+
+		# Team fouls
+		"home_fouls": foul_counts.home,
+		"away_fouls": foul_counts.away,
 		
 		# Events
 		"key_events": _get_key_events()
@@ -292,6 +298,29 @@ func _get_key_events() -> Array[Dictionary]:
 			key_events.append(event)
 	
 	return key_events
+
+
+func _count_team_fouls() -> Dictionary:
+	var home_fouls = 0
+	var away_fouls = 0
+
+	for event in events:
+		if event.type != "foul_committed":
+			continue
+
+		var data = event.get("data", {})
+		if data.has("is_home_team"):
+			if data.is_home_team:
+				home_fouls += 1
+			else:
+				away_fouls += 1
+		elif data.has("team_id"):
+			if data.team_id == home_team.id:
+				home_fouls += 1
+			elif data.team_id == away_team.id:
+				away_fouls += 1
+
+	return {"home": home_fouls, "away": away_fouls}
 
 
 func to_dict() -> Dictionary:

@@ -17,6 +17,7 @@ const AP_COST = {
 
 const SPRINT_STAMINA_COST: int = 10
 const FOUL_BASE_CHANCE: float = 0.15
+const DribbleMoves = preload("res://scripts/match/tactical/dribble_moves.gd")
 
 
 ## Execute a move action
@@ -281,26 +282,58 @@ static func execute_shot(shooter: PlayerUnit, goal_hex: Vector2i,
 
 ## Execute a dribble (contested move past a defender)
 static func execute_dribble(dribbler: PlayerUnit, target_hex: Vector2i,
-							 defender: PlayerUnit, match_data: MatchData) -> Dictionary:
-	var ap_cost = AP_COST["dribble"]
+							 defender: PlayerUnit, match_data: MatchData,
+							 move_id: String = "basic") -> Dictionary:
+	var move = DribbleMoves.get_move(move_id)
+	var ap_cost = int(move.get("ap_cost", AP_COST["dribble"]))
+	var stamina_cost = int(move.get("stamina_cost", 0))
 
 	if dribbler.action_points < ap_cost:
-		return {"success": false, "reason": "insufficient_ap"}
+		return {"success": false, "reason": "insufficient_ap", "needed": ap_cost, "have": dribbler.action_points}
+
+	if dribbler.stamina < stamina_cost:
+		return {"success": false, "reason": "insufficient_stamina", "needed": stamina_cost, "have": dribbler.stamina}
 
 	if not dribbler.has_ball:
 		return {"success": false, "reason": "no_ball"}
 
 	dribbler.spend_ap(ap_cost)
+	if stamina_cost > 0:
+		dribbler.spend_stamina(stamina_cost)
 
-	var dribble_stat = dribbler.get_dribbling_stat()
-	var defend_stat = defender.get_tackling_stat() if defender else 30
+	if defender == null:
+		if match_data:
+			match_data.record_event("dribble", {
+				"is_player": dribbler.is_player_controlled,
+				"successful": true,
+				"move_id": move_id,
+				"move_name": move.get("name", ""),
+				"uncontested": true
+			})
+
+		return {
+			"success": true,
+			"target_hex": target_hex,
+			"move_id": move_id,
+			"move_name": move.get("name", ""),
+			"ap_spent": ap_cost,
+			"stamina_spent": stamina_cost,
+			"uncontested": true
+		}
+
+	var dribble_stat = dribbler.get_dribbling_stat() + int(move.get("dribble_bonus", 0))
+	var defend_stat = (defender.get_tackling_stat() if defender else 30) + int(move.get("defender_bonus", 0))
+	dribble_stat = clampi(dribble_stat, 1, 99)
+	defend_stat = clampi(defend_stat, 1, 99)
 
 	var roll = StatSystem.roll_action_success(dribble_stat, defend_stat)
 
 	if match_data:
 		match_data.record_event("dribble", {
 			"is_player": dribbler.is_player_controlled,
-			"successful": roll.success
+			"successful": roll.success,
+			"move_id": move_id,
+			"move_name": move.get("name", "")
 		})
 
 	if not roll.success:
@@ -309,14 +342,20 @@ static func execute_dribble(dribbler: PlayerUnit, target_hex: Vector2i,
 			"success": false,
 			"reason": "dispossessed",
 			"defender": defender,
-			"roll": roll
+			"roll": roll,
+			"move_id": move_id,
+			"move_name": move.get("name", "")
 		}
 
 	return {
 		"success": true,
 		"target_hex": target_hex,
 		"roll": roll,
-		"beat_defender": true
+		"beat_defender": true,
+		"move_id": move_id,
+		"move_name": move.get("name", ""),
+		"ap_spent": ap_cost,
+		"stamina_spent": stamina_cost
 	}
 
 
@@ -360,17 +399,21 @@ static func execute_tackle(tackler: PlayerUnit, target: PlayerUnit,
 			card = "yellow"
 
 		if match_data:
-			match_data.record_event("foul_committed", {
-				"is_player": tackler.is_player_controlled
-			})
+			var team_id = match_data.home_team.id if tackler.is_home_team else match_data.away_team.id
+			var team_name = match_data.home_team.name if tackler.is_home_team else match_data.away_team.name
+			var event_data = {
+				"is_player": tackler.is_player_controlled,
+				"player_id": tackler.unit_id,
+				"player_name": tackler.unit_name,
+				"team_id": team_id,
+				"team_name": team_name,
+				"is_home_team": tackler.is_home_team
+			}
+			match_data.record_event("foul_committed", event_data)
 			if card == "yellow":
-				match_data.record_event("yellow_card", {
-					"is_player": tackler.is_player_controlled
-				})
+				match_data.record_event("yellow_card", event_data)
 			elif card == "red":
-				match_data.record_event("red_card", {
-					"is_player": tackler.is_player_controlled
-				})
+				match_data.record_event("red_card", event_data)
 
 	if match_data:
 		match_data.record_event("tackle", {
