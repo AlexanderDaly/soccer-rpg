@@ -1,33 +1,32 @@
-extends Control
+extends TrainingDrillBase
 ## RondoDrill - Rondo (keep-ball) passing training mini-game
 ## Features pentagon teammate layout, defender AI, timing mechanics, and skill checks
 
-signal drill_completed(results: Dictionary)
 
 # Static function for simulating rewards without playing
-static func calculate_simulated_rewards(successes: int, attempts: int = 10) -> Dictionary:
-	var total_xp = XP_PER_ATTEMPT * attempts
-	total_xp += XP_PER_SUCCESS * successes
+static func calculate_simulated_rewards(successes_count: int, attempts: int = 10) -> Dictionary:
+	var total_xp = TrainingConstants.XP_PER_ATTEMPT * attempts
+	total_xp += XP_PER_SUCCESS * successes_count
 
 	# Quick pass bonuses (assume 30% were quick in simulation)
-	var quick_passes = roundi(successes * 0.3)
+	var quick_passes = roundi(successes_count * 0.3)
 	total_xp += XP_QUICK_PASS_BONUS * quick_passes
 
-	if successes >= 7:
-		total_xp += XP_GOOD_SESSION_BONUS
-	if successes >= 10:
-		total_xp += XP_PERFECT_SESSION_BONUS
+	if successes_count >= 7:
+		total_xp += TrainingConstants.XP_GOOD_SESSION_BONUS
+	if successes_count >= 10:
+		total_xp += TrainingConstants.XP_PERFECT_SESSION_BONUS
 
-	var pas_xp = (STAT_XP_PER_SUCCESS * successes) + (STAT_XP_PER_FAIL * (attempts - successes))
+	var pas_xp = (TrainingConstants.STAT_XP_PER_SUCCESS * successes_count) + (TrainingConstants.STAT_XP_PER_FAIL * (attempts - successes_count))
 	var tec_xp = TEC_XP_PER_ATTEMPT * attempts
 
 	return {
-		"successes": successes,
+		"successes": successes_count,
 		"attempts": attempts,
 		"total_xp": total_xp,
 		"pas_xp": pas_xp,
 		"tec_xp": tec_xp,
-		"stamina_cost": STAMINA_COST
+		"stamina_cost": TrainingConstants.STAMINA_COST
 	}
 
 
@@ -48,64 +47,47 @@ const DIFFICULTY_SETTINGS: Dictionary = {
 }
 
 # Teammate adjacency for pentagon layout
-# Position 0 is top, then clockwise: 1=top-right, 2=bottom-right, 3=bottom-left, 4=top-left
 const TEAMMATE_ADJACENCY: Dictionary = {
-	0: [1, 4],  # Top connects to upper sides
-	1: [0, 2],  # Right side
-	2: [1, 3],  # Bottom right
-	3: [2, 4],  # Bottom left
-	4: [3, 0]   # Left side
+	0: [1, 4],
+	1: [0, 2],
+	2: [1, 3],
+	3: [2, 4],
+	4: [3, 0]
 }
 
 # Pass distances - diagonal passes are "far"
 const FAR_PASSES: Array = [
-	[0, 2], [0, 3],  # Top to bottom corners
-	[1, 3], [1, 4],  # Right side to left corners
-	[2, 4]           # Bottom right to top left
+	[0, 2], [0, 3],
+	[1, 3], [1, 4],
+	[2, 4]
 ]
 
 # Distance modifiers
 const DISTANCE_MODIFIERS: Dictionary = {
-	"adjacent": 5,   # Near pass: +5%
-	"across": 0,     # Not used in pentagon (all are adjacent or far)
-	"far": -10       # Diagonal: -10%
+	"adjacent": 5,
+	"across": 0,
+	"far": -10
 }
 
 # Pressure modifiers
 const PRESSURE_MODIFIERS: Dictionary = {
-	"open": 10,       # No pressure: +10%
-	"contested": -5,  # Adjacent to defender target: -5%
-	"covered": -25    # Defender's target: -25% (risky pass!)
+	"open": 10,
+	"contested": -5,
+	"covered": -25
 }
 
 # Timing modifiers
 const TIMING_MODIFIERS: Dictionary = {
-	"quick": 10,      # >66% time remaining: +10%
-	"normal": 0,      # 33-66% time remaining: 0%
-	"late": -10       # <33% time remaining: -10%
+	"quick": 10,
+	"normal": 0,
+	"late": -10
 }
 
-# XP rewards
-const XP_PER_ATTEMPT: int = 5
+# Drill-specific XP rewards
 const XP_PER_SUCCESS: int = 8
 const XP_QUICK_PASS_BONUS: int = 3
-const XP_GOOD_SESSION_BONUS: int = 25   # 7+ successes
-const XP_PERFECT_SESSION_BONUS: int = 50  # 10/10
-const STAT_XP_PER_SUCCESS: int = 3
-const STAT_XP_PER_FAIL: int = 1
 const TEC_XP_PER_ATTEMPT: int = 2
-const STAMINA_COST: int = 15
-const ROUNDS_PER_SESSION: int = 10
-const DEFENDER_MOVE_DELAY: float = 0.8  # Time for defender to "move" to target
-
-# Console Dashboard Colors
-const BG_DARK = Color(0.039, 0.086, 0.157)
-const PANEL_BG = Color(0.06, 0.1, 0.18, 0.95)
-const BORDER_COLOR = Color(0.15, 0.25, 0.4)
-const ACCENT_GREEN = Color(0, 1, 0.5)
-const TEXT_PRIMARY = Color(0.9, 0.95, 1)
-const TEXT_SECONDARY = Color(0.6, 0.65, 0.7)
-const TEXT_MUTED = Color(0.5, 0.55, 0.6)
+const DEFENDER_MOVE_DELAY: float = 0.8
 
 # Node references
 @onready var difficulty_selector: OptionButton = $VBoxContainer/HeaderSection/DifficultyContainer/DifficultySelector
@@ -132,58 +114,84 @@ const TEXT_MUTED = Color(0.5, 0.55, 0.6)
 
 # State
 var current_state: DrillState = DrillState.SETUP
-var current_difficulty: String = "youth"
-var defender_target: int = -1  # Teammate index being covered
+var defender_target: int = -1
 var time_remaining: float = 0.0
 var max_time: float = 3.0
 
-# Session tracking
-var rounds_played: int = 0
-var successful_passes: int = 0
+# Session tracking (additional to base class)
 var quick_passes: int = 0
-var session_results: Array[Dictionary] = []
 
-# Defender pattern learning (for Pro/Elite)
+# Defender pattern learning
 var player_pass_history: Array[int] = []
 var defender_weights: Array[float] = [1.0, 1.0, 1.0, 1.0, 1.0]
 
 # Teammate button references
 var teammate_buttons: Array[Button] = []
 
-# State Colors (console theme)
-const COLOR_DEFAULT_BUTTON = Color(0.1, 0.15, 0.25)   # Dark panel
-const COLOR_COVERED = Color(0.6, 0.2, 0.2)            # Red - covered by defender
-const COLOR_CONTESTED_BUTTON = Color(0.8, 0.5, 0.2)   # Orange - contested
-const COLOR_SELECTED_BUTTON = Color(0, 0.6, 0.3)      # Green - selected
-const COLOR_SUCCESS_BUTTON = Color(0, 0.8, 0.4)       # Bright green - success
-const COLOR_FAIL_BUTTON = Color(0.3, 0.3, 0.35)       # Dark gray - fail
 
+# ===== OVERRIDES =====
+
+func _get_drill_name() -> String:
+	return "rondo"
+
+
+func _get_primary_stat() -> String:
+	return "PAS"
+
+
+func _get_secondary_stat() -> String:
+	return "TEC"
+
+
+func _get_difficulty_settings() -> Dictionary:
+	return DIFFICULTY_SETTINGS
+
+
+func _get_xp_per_success() -> int:
+	return XP_PER_SUCCESS
+
+
+func _get_success_label() -> String:
+	return "Successful Passes"
+
+
+func _is_drill_complete() -> bool:
+	return current_state == DrillState.DRILL_COMPLETE
+
+
+func _get_completion_title() -> String:
+	return "Rondo Training Complete"
+
+
+func _get_completion_message(total_xp: int) -> String:
+	return "Passed %d/%d! Earned %d XP" % [successes, attempts_taken, total_xp]
+
+
+func _calculate_bonus_xp() -> int:
+	return XP_QUICK_PASS_BONUS * quick_passes
+
+
+func _get_bonus_xp_breakdown() -> String:
+	if quick_passes > 0:
+		return "Quick Bonus: +%d XP (%d × %d)\n" % [XP_QUICK_PASS_BONUS * quick_passes, quick_passes, XP_QUICK_PASS_BONUS]
+	return ""
+
+
+func _calculate_secondary_stat_xp(_xp_per_attempt: int = 2) -> int:
+	return TEC_XP_PER_ATTEMPT * attempts_taken
+
+
+# ===== SETUP =====
 
 func _ready() -> void:
-	_setup_difficulty_selector()
+	_setup_difficulty_selector(difficulty_selector)
 	_setup_teammate_buttons()
 	_setup_signals()
-	_style_footer_buttons()
+	_style_footer_buttons(continue_button, exit_button)
 	_update_player_stats_display()
-	_show_session_start_narration()
+	_show_session_start_narration(narration_label)
 	_set_state(DrillState.DEFENDING)
 	_start_new_round()
-
-
-func _setup_difficulty_selector() -> void:
-	difficulty_selector.clear()
-	var idx = 0
-	for diff_id in DIFFICULTY_SETTINGS:
-		var diff = DIFFICULTY_SETTINGS[diff_id]
-		var text = diff.name
-		if not diff.unlocked:
-			text += " (Locked)"
-		difficulty_selector.add_item(text, idx)
-		if not diff.unlocked:
-			difficulty_selector.set_item_disabled(idx, true)
-		idx += 1
-	difficulty_selector.selected = 0
-	difficulty_selector.item_selected.connect(_on_difficulty_changed)
 
 
 func _setup_teammate_buttons() -> void:
@@ -193,55 +201,13 @@ func _setup_teammate_buttons() -> void:
 		if btn:
 			teammate_buttons.append(btn)
 			btn.pressed.connect(_on_teammate_pressed.bind(i))
-			_set_button_color(btn, COLOR_DEFAULT_BUTTON)
+			_set_button_style(btn, TrainingConstants.COLOR_DEFAULT)
 
 
 func _setup_signals() -> void:
 	continue_button.pressed.connect(_on_continue_pressed)
 	exit_button.pressed.connect(_on_exit_pressed)
 	round_timer.timeout.connect(_on_timer_tick)
-
-
-func _style_footer_buttons() -> void:
-	# Style Continue button with console green accent
-	var continue_style = StyleBoxFlat.new()
-	continue_style.bg_color = Color(0, 0.6, 0.3)
-	continue_style.border_width_left = 2
-	continue_style.border_width_top = 2
-	continue_style.border_width_right = 2
-	continue_style.border_width_bottom = 2
-	continue_style.border_color = Color(0, 0.8, 0.4)
-	continue_style.set_corner_radius_all(6)
-	continue_button.add_theme_stylebox_override("normal", continue_style)
-	continue_button.add_theme_color_override("font_color", TEXT_PRIMARY)
-
-	var continue_hover = continue_style.duplicate()
-	continue_hover.bg_color = Color(0, 0.7, 0.35)
-	continue_button.add_theme_stylebox_override("hover", continue_hover)
-
-	var continue_pressed = continue_style.duplicate()
-	continue_pressed.bg_color = Color(0, 0.5, 0.25)
-	continue_button.add_theme_stylebox_override("pressed", continue_pressed)
-
-	# Style Exit button with dark panel style
-	var exit_style = StyleBoxFlat.new()
-	exit_style.bg_color = COLOR_DEFAULT_BUTTON
-	exit_style.border_width_left = 2
-	exit_style.border_width_top = 2
-	exit_style.border_width_right = 2
-	exit_style.border_width_bottom = 2
-	exit_style.border_color = BORDER_COLOR
-	exit_style.set_corner_radius_all(6)
-	exit_button.add_theme_stylebox_override("normal", exit_style)
-	exit_button.add_theme_color_override("font_color", TEXT_PRIMARY)
-
-	var exit_hover = exit_style.duplicate()
-	exit_hover.bg_color = Color(0.15, 0.2, 0.3)
-	exit_button.add_theme_stylebox_override("hover", exit_hover)
-
-	var exit_pressed = exit_style.duplicate()
-	exit_pressed.bg_color = Color(0.08, 0.12, 0.2)
-	exit_button.add_theme_stylebox_override("pressed", exit_pressed)
 
 
 func _update_player_stats_display() -> void:
@@ -261,6 +227,8 @@ func _update_player_stats_display() -> void:
 func _calculate_base_chance(pas: int, tec: int) -> float:
 	return (pas * 0.7) + (tec * 0.3)
 
+
+# ===== STATE MANAGEMENT =====
 
 func _set_state(new_state: DrillState) -> void:
 	current_state = new_state
@@ -294,28 +262,25 @@ func _enable_teammate_buttons(enabled: bool) -> void:
 		btn.disabled = not enabled
 
 
-func _start_new_round() -> void:
-	# Reset button colors
-	for i in range(teammate_buttons.size()):
-		_set_button_color(teammate_buttons[i], COLOR_DEFAULT_BUTTON)
+# ===== ROUND MANAGEMENT =====
 
-	# Pick defender target
+func _start_new_round() -> void:
+	for i in range(teammate_buttons.size()):
+		_set_button_style(teammate_buttons[i], TrainingConstants.COLOR_DEFAULT)
+
 	_select_defender_target()
 
-	# Update UI to show defender moving
 	defender_indicator.text = "[DEF]"
 	target_label.text = "Defender moving..."
 	pressure_label.text = "..."
 	_clear_modifiers_display()
 
-	# Move to defending state with delay
 	_set_state(DrillState.DEFENDING)
 
-	# After delay, start the passing phase
 	await get_tree().create_timer(DEFENDER_MOVE_DELAY).timeout
 
 	if current_state != DrillState.DEFENDING:
-		return  # State changed (e.g., exited)
+		return
 
 	_position_defender()
 	_update_teammate_colors()
@@ -326,10 +291,8 @@ func _select_defender_target() -> void:
 	var diff = DIFFICULTY_SETTINGS[current_difficulty]
 
 	if diff.learning_rate <= 0.0 or player_pass_history.is_empty():
-		# Random target for Youth difficulty or first round
 		defender_target = randi() % 5
 	else:
-		# Weighted selection based on player patterns
 		var total_weight = 0.0
 		for w in defender_weights:
 			total_weight += w
@@ -345,12 +308,10 @@ func _select_defender_target() -> void:
 
 
 func _position_defender() -> void:
-	# Move defender indicator near the target teammate button
 	var target_btn = teammate_buttons[defender_target]
 	var btn_pos = target_btn.position
 	var btn_size = target_btn.size
 
-	# Position defender indicator near the target (offset slightly toward center)
 	var center = Vector2(160, 140)
 	var direction_to_center = (center - (btn_pos + btn_size / 2)).normalized()
 	var defender_pos = btn_pos + btn_size / 2 + direction_to_center * 30 - Vector2(30, 15)
@@ -368,13 +329,12 @@ func _update_teammate_colors() -> void:
 
 		match pressure:
 			"covered":
-				_set_button_color(btn, COLOR_COVERED)
+				_set_button_style(btn, TrainingConstants.COLOR_BLOCKED)
 			"contested":
-				_set_button_color(btn, COLOR_CONTESTED_BUTTON)
+				_set_button_style(btn, TrainingConstants.COLOR_CONTESTED)
 			_:
-				_set_button_color(btn, COLOR_DEFAULT_BUTTON)
+				_set_button_style(btn, TrainingConstants.COLOR_DEFAULT)
 
-	# Update info panel
 	target_label.text = "Defender on: T%d" % (defender_target + 1)
 	var contested_list = _get_contested_teammates(diff)
 	if contested_list.is_empty():
@@ -391,12 +351,10 @@ func _get_contested_teammates(diff: Dictionary) -> Array:
 	if radius <= 0:
 		return contested
 
-	# Get adjacent teammates to defender target
 	var adjacent = TEAMMATE_ADJACENCY.get(defender_target, [])
 	for adj in adjacent:
 		contested.append(adj)
 
-		# Elite difficulty: also pressure teammates adjacent to adjacent
 		if radius >= 2:
 			var second_level = TEAMMATE_ADJACENCY.get(adj, [])
 			for sl in second_level:
@@ -424,11 +382,13 @@ func _start_passing_phase() -> void:
 
 	timer_label.text = "Time: %.1fs" % time_remaining
 	timer_bar.value = 100.0
-	_update_timer_bar_color()
+	_update_timer_bar_color(timer_bar, time_remaining, max_time)
 
 	_set_state(DrillState.PASSING)
 	round_timer.start()
 
+
+# ===== TIMER =====
 
 func _on_timer_tick() -> void:
 	if current_state != DrillState.PASSING:
@@ -444,38 +404,8 @@ func _on_timer_tick() -> void:
 	timer_label.text = "Time: %.1fs" % time_remaining
 	var pct = (time_remaining / max_time) * 100.0
 	timer_bar.value = pct
-	_update_timer_bar_color()
-
-	# Update timing modifier display
+	_update_timer_bar_color(timer_bar, time_remaining, max_time)
 	_update_timing_display()
-
-
-func _update_timer_bar_color() -> void:
-	var pct = time_remaining / max_time
-	var color: Color
-
-	if pct > 0.66:
-		color = Color(0, 0.8, 0.4)  # Console green
-	elif pct > 0.33:
-		color = Color(0.9, 0.7, 0.2)  # Amber
-	else:
-		color = Color(0.8, 0.3, 0.3)  # Darker red
-
-	var fill_style = StyleBoxFlat.new()
-	fill_style.bg_color = color
-	fill_style.set_corner_radius_all(4)
-	timer_bar.add_theme_stylebox_override("fill", fill_style)
-
-	# Set dark background for timer bar
-	var bg_style = StyleBoxFlat.new()
-	bg_style.bg_color = Color(0.1, 0.15, 0.25)
-	bg_style.border_width_left = 1
-	bg_style.border_width_top = 1
-	bg_style.border_width_right = 1
-	bg_style.border_width_bottom = 1
-	bg_style.border_color = BORDER_COLOR
-	bg_style.set_corner_radius_all(4)
-	timer_bar.add_theme_stylebox_override("background", bg_style)
 
 
 func _get_timing_level() -> String:
@@ -512,17 +442,19 @@ func _handle_timeout() -> void:
 		"roll": 0
 	}
 
-	rounds_played += 1
+	attempts_taken += 1
 	session_results.append(result)
 
 	_display_timeout_result()
-	_update_score_display()
+	_update_score()
 
-	if rounds_played >= ROUNDS_PER_SESSION:
+	if attempts_taken >= TrainingConstants.ATTEMPTS_PER_SESSION:
 		_complete_drill()
 	else:
 		_set_state(DrillState.SHOWING_RESULT)
 
+
+# ===== EVENT HANDLERS =====
 
 func _on_teammate_pressed(teammate_idx: int) -> void:
 	if current_state != DrillState.PASSING:
@@ -535,6 +467,33 @@ func _on_teammate_pressed(teammate_idx: int) -> void:
 	_resolve_pass(teammate_idx)
 
 
+func _on_continue_pressed() -> void:
+	if current_state == DrillState.SHOWING_RESULT:
+		AudioManager.play_ui_click()
+		skill_check_details.text = "Click a teammate to pass..."
+		_clear_modifiers_display()
+		_start_new_round()
+
+
+func _on_exit_pressed() -> void:
+	_handle_exit()
+
+
+# ===== UI HELPERS =====
+
+func _clear_modifiers_display() -> void:
+	distance_mod_label.text = "Distance: --"
+	pressure_mod_label.text = "Pressure: --"
+	timing_mod_label.text = "Timing: --"
+	final_chance_label.text = "Final: --%"
+
+
+func _update_score() -> void:
+	_update_score_display(score_label, round_counter, "Round")
+
+
+# ===== RESOLUTION =====
+
 func _resolve_pass(teammate_idx: int) -> void:
 	var player = GameManager.player_data
 	if not player:
@@ -544,7 +503,6 @@ func _resolve_pass(teammate_idx: int) -> void:
 	var pas = player.get_effective_stat("PAS")
 	var tec = player.get_effective_stat("TEC")
 
-	# Calculate success chance
 	var base_chance = _calculate_base_chance(pas, tec)
 	var distance_mod = _get_distance_modifier(teammate_idx)
 	var pressure = _get_pressure_level(teammate_idx, diff)
@@ -555,7 +513,6 @@ func _resolve_pass(teammate_idx: int) -> void:
 	var final_chance = base_chance + distance_mod + pressure_mod + timing_mod
 	final_chance = clampf(final_chance, 5.0, 95.0)
 
-	# Roll for success
 	var roll = randf() * 100.0
 	var success = roll <= final_chance
 
@@ -576,44 +533,32 @@ func _resolve_pass(teammate_idx: int) -> void:
 		"risky_pass": pressure == "covered"
 	}
 
-	# Update learning for Pro/Elite difficulty
 	player_pass_history.append(teammate_idx)
 	_update_defender_weights(diff.learning_rate)
 
-	# Track results
-	rounds_played += 1
+	attempts_taken += 1
 	if success:
-		successful_passes += 1
+		successes += 1
 		if timing == "quick":
 			quick_passes += 1
 	session_results.append(result)
 
-	# Show result
 	_display_pass_result(result, teammate_idx)
-	_update_score_display()
+	_update_score()
 
-	if rounds_played >= ROUNDS_PER_SESSION:
+	if attempts_taken >= TrainingConstants.ATTEMPTS_PER_SESSION:
 		_complete_drill()
 	else:
 		_set_state(DrillState.SHOWING_RESULT)
 
 
 func _get_distance_type(teammate_idx: int) -> String:
-	# Check if it's a far (diagonal) pass
 	for pair in FAR_PASSES:
-		if (pair[0] == 0 and pair[1] == teammate_idx) or (pair[1] == 0 and pair[0] == teammate_idx):
-			# This simplified check assumes player is at center, all passes originate from center
-			pass
-		# Actually check if target is far from any starting position
-		# In rondo, we consider diagonal across pentagon as "far"
 		if teammate_idx in [pair[0], pair[1]]:
-			# Check if this is a diagonal relationship
 			var other = pair[0] if pair[1] == teammate_idx else pair[1]
-			# Far passes are non-adjacent in the pentagon
 			if other not in TEAMMATE_ADJACENCY.get(teammate_idx, []):
 				return "far"
 
-	# If not far, check adjacency (all positions are "adjacent" to the center player)
 	return "adjacent"
 
 
@@ -626,7 +571,6 @@ func _update_defender_weights(learning_rate: float) -> void:
 	if learning_rate <= 0.0 or player_pass_history.is_empty():
 		return
 
-	# Count pass frequencies
 	var counts: Array[int] = [0, 0, 0, 0, 0]
 	for target in player_pass_history:
 		if target >= 0 and target < 5:
@@ -634,7 +578,6 @@ func _update_defender_weights(learning_rate: float) -> void:
 
 	var total = player_pass_history.size()
 
-	# Update weights based on frequency
 	for i in range(5):
 		var frequency = float(counts[i]) / total
 		var target_weight = 1.0 + (frequency * 3.0)
@@ -645,11 +588,10 @@ func _display_pass_result(result: Dictionary, teammate_idx: int) -> void:
 	var btn = teammate_buttons[teammate_idx]
 
 	if result.success:
-		_set_button_color(btn, COLOR_SUCCESS_BUTTON)
+		_set_button_style(btn, TrainingConstants.COLOR_SUCCESS)
 	else:
-		_set_button_color(btn, COLOR_FAIL_BUTTON)
+		_set_button_style(btn, Color(0.3, 0.3, 0.35))
 
-	# Build skill check breakdown
 	var breakdown = ""
 	breakdown += "[b]Pass Calculation:[/b]\n"
 	breakdown += "Base: (PAS x 0.7) + (TEC x 0.3) = %.1f%%\n" % result.base_chance
@@ -668,15 +610,12 @@ func _display_pass_result(result: Dictionary, teammate_idx: int) -> void:
 		breakdown += "\n[color=red][b]INTERCEPTED![/b][/color]"
 
 	skill_check_details.text = breakdown
-
-	# Show narration
 	_show_pass_narration(result)
 
 
 func _display_timeout_result() -> void:
-	# Gray out all buttons
 	for btn in teammate_buttons:
-		_set_button_color(btn, COLOR_FAIL_BUTTON)
+		_set_button_style(btn, Color(0.3, 0.3, 0.35))
 
 	var breakdown = "[b]TIMEOUT![/b]\n\n"
 	breakdown += "You held onto the ball too long.\n"
@@ -685,7 +624,6 @@ func _display_timeout_result() -> void:
 
 	skill_check_details.text = breakdown
 
-	# Show timeout narration
 	var narrative = NarrativeEngine.generate_dialogue("rondo", "timeout", {})
 	narration_label.text = "[i]%s[/i]" % narrative.text
 
@@ -710,171 +648,27 @@ func _show_pass_narration(result: Dictionary) -> void:
 	narration_label.text = "[i]%s[/i]" % narrative.text
 
 
-func _clear_modifiers_display() -> void:
-	distance_mod_label.text = "Distance: --"
-	pressure_mod_label.text = "Pressure: --"
-	timing_mod_label.text = "Timing: --"
-	final_chance_label.text = "Final: --%"
-
-
-func _update_score_display() -> void:
-	score_label.text = "%d / %d" % [successful_passes, ROUNDS_PER_SESSION]
-	round_counter.text = "Round %d of %d" % [mini(rounds_played + 1, ROUNDS_PER_SESSION), ROUNDS_PER_SESSION]
-
-
 func _complete_drill() -> void:
 	_set_state(DrillState.DRILL_COMPLETE)
 
-	# Calculate rewards
-	var total_xp = XP_PER_ATTEMPT * rounds_played
-	total_xp += XP_PER_SUCCESS * successful_passes
-	total_xp += XP_QUICK_PASS_BONUS * quick_passes
-
-	if successful_passes >= 7:
-		total_xp += XP_GOOD_SESSION_BONUS
-	if successful_passes >= 10:
-		total_xp += XP_PERFECT_SESSION_BONUS
-
-	var pas_xp = (STAT_XP_PER_SUCCESS * successful_passes) + (STAT_XP_PER_FAIL * (rounds_played - successful_passes))
-	var tec_xp = TEC_XP_PER_ATTEMPT * rounds_played
-
-	# Build summary
-	var summary = "[b]Drill Complete![/b]\n\n"
-	summary += "Successful Passes: %d / %d (%.0f%%)\n" % [successful_passes, rounds_played, (float(successful_passes) / rounds_played) * 100]
-	summary += "Quick Passes: %d\n\n" % quick_passes
-	summary += "[b]XP Earned:[/b]\n"
-	summary += "Base: %d XP (%d attempts x %d)\n" % [XP_PER_ATTEMPT * rounds_played, rounds_played, XP_PER_ATTEMPT]
-	summary += "Successes: +%d XP (%d x %d)\n" % [XP_PER_SUCCESS * successful_passes, successful_passes, XP_PER_SUCCESS]
-	summary += "Quick Bonus: +%d XP (%d x %d)\n" % [XP_QUICK_PASS_BONUS * quick_passes, quick_passes, XP_QUICK_PASS_BONUS]
-
-	if successful_passes >= 10:
-		summary += "Perfect Session: +%d XP\n" % XP_PERFECT_SESSION_BONUS
-	elif successful_passes >= 7:
-		summary += "Good Session: +%d XP\n" % XP_GOOD_SESSION_BONUS
-
-	summary += "[b]Total: %d XP[/b]\n\n" % total_xp
-	summary += "[b]Stat XP:[/b]\n"
-	summary += "PAS: +%d\n" % pas_xp
-	summary += "TEC: +%d\n" % tec_xp
+	var summary = _build_xp_summary()
+	summary = summary.replace("Successful Passes: %d / %d" % [successes, attempts_taken],
+		"Successful Passes: %d / %d (%.0f%%)\nQuick Passes: %d" % [
+			successes, attempts_taken,
+			(float(successes) / attempts_taken) * 100,
+			quick_passes
+		])
 
 	skill_check_details.text = summary
-
-	# Show session end narration
-	var context = {"successes": str(successful_passes), "total": str(rounds_played)}
-	var narrative = NarrativeEngine.generate_dialogue("rondo", "session_end", context)
-	narration_label.text = "[i]%s[/i]" % narrative.text
-
-	# Store results
-	var results = {
-		"rounds_played": rounds_played,
-		"successful_passes": successful_passes,
-		"quick_passes": quick_passes,
-		"accuracy": float(successful_passes) / rounds_played,
-		"total_xp": total_xp,
-		"pas_xp": pas_xp,
-		"tec_xp": tec_xp,
-		"session_results": session_results
-	}
-
-	# Save best score
+	_show_session_end_narration(narration_label)
 	_save_best_score()
-
-	drill_completed.emit(results)
-
-
-func _save_best_score() -> void:
-	var player = GameManager.player_data
-	if not player:
-		return
-
-	var current_record = player.training_records.get("rondo_drill", {})
-	var previous_best = current_record.get("best_score", 0)
-
-	if successful_passes > previous_best:
-		player.training_records["rondo_drill"] = {
-			"best_score": successful_passes,
-			"attempts": ROUNDS_PER_SESSION,
-			"best_accuracy": float(successful_passes) / ROUNDS_PER_SESSION
-		}
-
-
-func _show_session_start_narration() -> void:
-	var narrative = NarrativeEngine.generate_dialogue("rondo", "session_start", {})
-	narration_label.text = "[i]%s[/i]" % narrative.text
-
-
-func _set_button_color(btn: Button, color: Color) -> void:
-	var style = StyleBoxFlat.new()
-	style.bg_color = color
-	style.border_width_left = 2
-	style.border_width_top = 2
-	style.border_width_right = 2
-	style.border_width_bottom = 2
-	style.border_color = BORDER_COLOR
-	style.set_corner_radius_all(6)
-	btn.add_theme_stylebox_override("normal", style)
-	btn.add_theme_stylebox_override("hover", style)
-	btn.add_theme_stylebox_override("pressed", style)
-	btn.add_theme_color_override("font_color", TEXT_PRIMARY)
-
-
-func _on_difficulty_changed(index: int) -> void:
-	var keys = DIFFICULTY_SETTINGS.keys()
-	if index < keys.size():
-		current_difficulty = keys[index]
-	AudioManager.play_ui_click()
-
-
-func _on_continue_pressed() -> void:
-	if current_state == DrillState.SHOWING_RESULT:
-		AudioManager.play_ui_click()
-		skill_check_details.text = "Click a teammate to pass..."
-		_clear_modifiers_display()
-		_start_new_round()
-
-
-func _on_exit_pressed() -> void:
-	AudioManager.play_ui_click()
-
-	# Apply rewards if drill was completed
-	if current_state == DrillState.DRILL_COMPLETE:
-		_apply_rewards()
-
-	# Return to console dashboard
-	get_tree().change_scene_to_file("res://scenes/dashboard/console_dashboard.tscn")
-
-
-func _apply_rewards() -> void:
-	var player = GameManager.player_data
-	if not player:
-		return
-
-	# Calculate rewards
-	var total_xp = XP_PER_ATTEMPT * rounds_played
-	total_xp += XP_PER_SUCCESS * successful_passes
-	total_xp += XP_QUICK_PASS_BONUS * quick_passes
-
-	if successful_passes >= 7:
-		total_xp += XP_GOOD_SESSION_BONUS
-	if successful_passes >= 10:
-		total_xp += XP_PERFECT_SESSION_BONUS
-
-	var pas_xp = (STAT_XP_PER_SUCCESS * successful_passes) + (STAT_XP_PER_FAIL * (rounds_played - successful_passes))
-	var tec_xp = TEC_XP_PER_ATTEMPT * rounds_played
-
-	# Apply to player
-	player.stamina_current = maxi(player.stamina_current - STAMINA_COST, 0)
-	player.add_xp(total_xp)
-	player.add_stat_xp("PAS", pas_xp)
-	player.add_stat_xp("TEC", tec_xp)
-
-	# Advance time
-	DesktopManager.advance_time(1)
-
-	# Show notification
-	DesktopManager.show_notification(
-		"Rondo Training Complete",
-		"Passed %d/%d! Earned %d XP" % [successful_passes, rounds_played, total_xp],
-		"",
-		"training"
-	)
+	drill_completed.emit({
+		"rounds_played": attempts_taken,
+		"successful_passes": successes,
+		"quick_passes": quick_passes,
+		"accuracy": float(successes) / attempts_taken,
+		"total_xp": _calculate_total_xp(),
+		"pas_xp": _calculate_primary_stat_xp(),
+		"tec_xp": _calculate_secondary_stat_xp(),
+		"session_results": session_results
+	})

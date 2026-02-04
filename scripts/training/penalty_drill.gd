@@ -1,20 +1,19 @@
-extends Control
+extends TrainingDrillBase
 ## PenaltyDrill - Penalty kick training mini-game
 ## Features 3x3 goal targeting, power charging, skill checks, and adaptive GK
 
-signal drill_completed(results: Dictionary)
 
 # Static function for simulating rewards without playing
 static func calculate_simulated_rewards(goals: int, attempts: int = 10) -> Dictionary:
-	var total_xp = XP_PER_ATTEMPT * attempts
+	var total_xp = TrainingConstants.XP_PER_ATTEMPT * attempts
 	total_xp += XP_PER_GOAL * goals
 
 	if goals >= 7:
-		total_xp += XP_GOOD_SESSION_BONUS
+		total_xp += TrainingConstants.XP_GOOD_SESSION_BONUS
 	if goals >= 10:
-		total_xp += XP_PERFECT_SESSION_BONUS
+		total_xp += TrainingConstants.XP_PERFECT_SESSION_BONUS
 
-	var sho_xp = (STAT_XP_PER_GOAL * goals) + (STAT_XP_PER_MISS * (attempts - goals))
+	var sho_xp = (TrainingConstants.STAT_XP_PER_SUCCESS * goals) + (TrainingConstants.STAT_XP_PER_FAIL * (attempts - goals))
 	var men_xp = MEN_XP_PER_ATTEMPT * attempts
 
 	return {
@@ -23,7 +22,7 @@ static func calculate_simulated_rewards(goals: int, attempts: int = 10) -> Dicti
 		"total_xp": total_xp,
 		"sho_xp": sho_xp,
 		"men_xp": men_xp,
-		"stamina_cost": STAMINA_COST
+		"stamina_cost": TrainingConstants.STAMINA_COST
 	}
 
 
@@ -43,13 +42,6 @@ const DIFFICULTY_SETTINGS: Dictionary = {
 	"elite": {"name": "Elite GK", "gk_stat": 75, "learning_rate": 0.5, "unlocked": false}
 }
 
-# Zone modifiers
-const ZONE_MODIFIERS: Dictionary = {
-	"TOP_LEFT": -20, "TOP_CENTER": -15, "TOP_RIGHT": -20,
-	"MID_LEFT": -10, "MID_CENTER": 5, "MID_RIGHT": -10,
-	"LOW_LEFT": -10, "LOW_CENTER": -5, "LOW_RIGHT": -10
-}
-
 # Zone adjacency for GK saves
 const ZONE_ADJACENCY: Dictionary = {
 	"TOP_LEFT": ["TOP_CENTER", "MID_LEFT"],
@@ -63,44 +55,9 @@ const ZONE_ADJACENCY: Dictionary = {
 	"LOW_RIGHT": ["MID_RIGHT", "LOW_CENTER"]
 }
 
-# Power modifiers
-const POWER_RANGES: Array[Dictionary] = [
-	{"min": 0, "max": 39, "name": "Weak", "modifier": -15},
-	{"min": 40, "max": 69, "name": "Good", "modifier": 0},
-	{"min": 70, "max": 85, "name": "Optimal", "modifier": 5},
-	{"min": 86, "max": 100, "name": "Overpowered", "modifier": -10}
-]
-
-# XP rewards
-const XP_PER_ATTEMPT: int = 5
+# Drill-specific XP rewards
 const XP_PER_GOAL: int = 10
-const XP_GOOD_SESSION_BONUS: int = 25  # 7+ goals
-const XP_PERFECT_SESSION_BONUS: int = 50  # 10/10
-const STAT_XP_PER_GOAL: int = 3
-const STAT_XP_PER_MISS: int = 1
 const MEN_XP_PER_ATTEMPT: int = 2
-const STAMINA_COST: int = 15
-const PENALTIES_PER_SESSION: int = 10
-const CHARGE_RATE: float = 66.67  # 100% in 1.5 seconds
-
-# Console Dashboard Colors
-const BG_DARK = Color(0.039, 0.086, 0.157)
-const PANEL_BG = Color(0.06, 0.1, 0.18, 0.95)
-const BORDER_COLOR = Color(0.15, 0.25, 0.4)
-const ACCENT_GREEN = Color(0, 1, 0.5)
-const TEXT_PRIMARY = Color(0.9, 0.95, 1)
-const TEXT_SECONDARY = Color(0.6, 0.65, 0.7)
-const TEXT_MUTED = Color(0.5, 0.55, 0.6)
-
-# State Colors
-const COLOR_DEFAULT = Color(0.1, 0.15, 0.25)
-const COLOR_SELECTED = Color(0, 0.6, 0.3)
-const COLOR_SUCCESS = Color(0, 0.8, 0.4)
-const COLOR_FAIL = Color(0.8, 0.3, 0.3)
-const COLOR_WARNING = Color(0.9, 0.7, 0.2)
-const COLOR_BLOCKED = Color(0.6, 0.2, 0.2)
-const COLOR_CONTESTED = Color(0.8, 0.5, 0.2)
-const COLOR_OPEN = Color(0.2, 0.5, 0.8)
 
 # Node references
 @onready var difficulty_selector: OptionButton = $VBoxContainer/HeaderSection/DifficultyContainer/DifficultySelector
@@ -125,15 +82,9 @@ const COLOR_OPEN = Color(0.2, 0.5, 0.8)
 
 # State
 var current_state: DrillState = DrillState.SETUP
-var current_difficulty: String = "youth"
 var selected_zone: String = ""
 var current_power: float = 0.0
 var is_charging: bool = false
-
-# Session tracking
-var penalties_taken: int = 0
-var goals_scored: int = 0
-var session_results: Array[Dictionary] = []
 
 # GK pattern learning
 var player_zone_history: Array[String] = []
@@ -143,45 +94,63 @@ var gk_zone_weights: Dictionary = {}
 var zone_buttons: Dictionary = {}
 
 
+# ===== OVERRIDES =====
+
+func _get_drill_name() -> String:
+	return "penalty"
+
+
+func _get_primary_stat() -> String:
+	return "SHO"
+
+
+func _get_secondary_stat() -> String:
+	return "MEN"
+
+
+func _get_difficulty_settings() -> Dictionary:
+	return DIFFICULTY_SETTINGS
+
+
+func _get_xp_per_success() -> int:
+	return XP_PER_GOAL
+
+
+func _get_success_label() -> String:
+	return "Goals"
+
+
+func _is_drill_complete() -> bool:
+	return current_state == DrillState.DRILL_COMPLETE
+
+
+func _get_completion_title() -> String:
+	return "Penalty Practice Complete"
+
+
+func _calculate_secondary_stat_xp(_xp_per_attempt: int = 2) -> int:
+	return MEN_XP_PER_ATTEMPT * attempts_taken
+
+
+# ===== SETUP =====
+
 func _ready() -> void:
-	_setup_difficulty_selector()
+	_setup_difficulty_selector(difficulty_selector)
 	_setup_zone_buttons()
 	_setup_signals()
-	_style_footer_buttons()
+	_style_footer_buttons(continue_button, exit_button)
+	_style_shoot_button(shoot_button)
 	_init_gk_weights()
 	_update_player_stats_display()
 	_set_state(DrillState.SELECTING_ZONE)
-	_show_session_start_narration()
-
-
-func _setup_difficulty_selector() -> void:
-	difficulty_selector.clear()
-	var idx = 0
-	for diff_id in DIFFICULTY_SETTINGS:
-		var diff = DIFFICULTY_SETTINGS[diff_id]
-		var text = diff.name
-		if not diff.unlocked:
-			text += " (Locked)"
-		difficulty_selector.add_item(text, idx)
-		if not diff.unlocked:
-			difficulty_selector.set_item_disabled(idx, true)
-		idx += 1
-	difficulty_selector.selected = 0
-	difficulty_selector.item_selected.connect(_on_difficulty_changed)
+	_show_session_start_narration(narration_label)
 
 
 func _setup_zone_buttons() -> void:
-	var zone_names = ["TOP_LEFT", "TOP_CENTER", "TOP_RIGHT",
-					  "MID_LEFT", "MID_CENTER", "MID_RIGHT",
-					  "LOW_LEFT", "LOW_CENTER", "LOW_RIGHT"]
-	var button_names = ["TopLeft", "TopCenter", "TopRight",
-						"MidLeft", "MidCenter", "MidRight",
-						"LowLeft", "LowCenter", "LowRight"]
-
-	for i in range(zone_names.size()):
-		var btn = zone_grid.get_node(button_names[i])
-		zone_buttons[zone_names[i]] = btn
-		btn.pressed.connect(_on_zone_selected.bind(zone_names[i]))
+	for i in range(TrainingConstants.ZONE_NAMES.size()):
+		var btn = zone_grid.get_node(TrainingConstants.ZONE_BUTTON_NAMES[i])
+		zone_buttons[TrainingConstants.ZONE_NAMES[i]] = btn
+		btn.pressed.connect(_on_zone_selected.bind(TrainingConstants.ZONE_NAMES[i]))
 
 
 func _setup_signals() -> void:
@@ -191,76 +160,8 @@ func _setup_signals() -> void:
 	charge_timer.timeout.connect(_on_charge_tick)
 
 
-func _style_footer_buttons() -> void:
-	# Style Continue button with console green accent
-	var continue_style = StyleBoxFlat.new()
-	continue_style.bg_color = Color(0, 0.6, 0.3)
-	continue_style.border_width_left = 2
-	continue_style.border_width_top = 2
-	continue_style.border_width_right = 2
-	continue_style.border_width_bottom = 2
-	continue_style.border_color = Color(0, 0.8, 0.4)
-	continue_style.set_corner_radius_all(6)
-	continue_button.add_theme_stylebox_override("normal", continue_style)
-	continue_button.add_theme_color_override("font_color", TEXT_PRIMARY)
-
-	var continue_hover = continue_style.duplicate()
-	continue_hover.bg_color = Color(0, 0.7, 0.35)
-	continue_button.add_theme_stylebox_override("hover", continue_hover)
-
-	var continue_pressed = continue_style.duplicate()
-	continue_pressed.bg_color = Color(0, 0.5, 0.25)
-	continue_button.add_theme_stylebox_override("pressed", continue_pressed)
-
-	# Style Exit button with dark panel style
-	var exit_style = StyleBoxFlat.new()
-	exit_style.bg_color = COLOR_DEFAULT
-	exit_style.border_width_left = 2
-	exit_style.border_width_top = 2
-	exit_style.border_width_right = 2
-	exit_style.border_width_bottom = 2
-	exit_style.border_color = BORDER_COLOR
-	exit_style.set_corner_radius_all(6)
-	exit_button.add_theme_stylebox_override("normal", exit_style)
-	exit_button.add_theme_color_override("font_color", TEXT_PRIMARY)
-
-	var exit_hover = exit_style.duplicate()
-	exit_hover.bg_color = Color(0.15, 0.2, 0.3)
-	exit_button.add_theme_stylebox_override("hover", exit_hover)
-
-	var exit_pressed = exit_style.duplicate()
-	exit_pressed.bg_color = Color(0.08, 0.12, 0.2)
-	exit_button.add_theme_stylebox_override("pressed", exit_pressed)
-
-	# Style Shoot button with console theme
-	var shoot_style = StyleBoxFlat.new()
-	shoot_style.bg_color = COLOR_DEFAULT
-	shoot_style.border_width_left = 2
-	shoot_style.border_width_top = 2
-	shoot_style.border_width_right = 2
-	shoot_style.border_width_bottom = 2
-	shoot_style.border_color = ACCENT_GREEN
-	shoot_style.set_corner_radius_all(6)
-	shoot_button.add_theme_stylebox_override("normal", shoot_style)
-	shoot_button.add_theme_color_override("font_color", TEXT_PRIMARY)
-
-	var shoot_hover = shoot_style.duplicate()
-	shoot_hover.bg_color = Color(0.15, 0.2, 0.3)
-	shoot_button.add_theme_stylebox_override("hover", shoot_hover)
-
-	var shoot_pressed = shoot_style.duplicate()
-	shoot_pressed.bg_color = Color(0, 0.5, 0.25)
-	shoot_button.add_theme_stylebox_override("pressed", shoot_pressed)
-
-	var shoot_disabled = shoot_style.duplicate()
-	shoot_disabled.bg_color = Color(0.08, 0.1, 0.15)
-	shoot_disabled.border_color = Color(0.2, 0.25, 0.35)
-	shoot_button.add_theme_stylebox_override("disabled", shoot_disabled)
-	shoot_button.add_theme_color_override("font_disabled_color", TEXT_MUTED)
-
-
 func _init_gk_weights() -> void:
-	for zone in ZONE_MODIFIERS:
+	for zone in TrainingConstants.ZONE_MODIFIERS:
 		gk_zone_weights[zone] = 1.0
 
 
@@ -281,6 +182,8 @@ func _update_player_stats_display() -> void:
 func _calculate_base_chance(sho: int, men: int) -> float:
 	return (sho * 0.7) + (men * 0.3)
 
+
+# ===== STATE MANAGEMENT =====
 
 func _set_state(new_state: DrillState) -> void:
 	current_state = new_state
@@ -318,9 +221,11 @@ func _enable_zone_selection(enabled: bool) -> void:
 		zone_buttons[zone].disabled = not enabled
 
 
+# ===== INPUT HANDLING =====
+
 func _input(event: InputEvent) -> void:
 	if current_state == DrillState.SELECTING_ZONE or current_state == DrillState.CHARGING_POWER:
-		if event.is_action_pressed("ui_select"):  # SPACE
+		if event.is_action_pressed("ui_select"):
 			if selected_zone.is_empty():
 				return
 			_start_charging()
@@ -345,39 +250,10 @@ func _on_charge_tick() -> void:
 		charge_timer.stop()
 		return
 
-	current_power = minf(current_power + CHARGE_RATE * charge_timer.wait_time, 100.0)
+	current_power = minf(current_power + TrainingConstants.CHARGE_RATE * charge_timer.wait_time, 100.0)
 	power_bar.value = current_power
-	_update_power_bar_color()
+	_update_power_bar_color(power_bar, current_power)
 	_update_modifiers_display()
-
-
-func _update_power_bar_color() -> void:
-	var color: Color
-	if current_power < 40:
-		color = COLOR_FAIL  # Darker red - weak
-	elif current_power < 70:
-		color = COLOR_WARNING  # Amber - good
-	elif current_power <= 85:
-		color = COLOR_SUCCESS  # Console green - optimal
-	else:
-		color = COLOR_CONTESTED  # Orange - overpowered
-
-	# Apply color via stylebox override
-	var fill_style = StyleBoxFlat.new()
-	fill_style.bg_color = color
-	fill_style.set_corner_radius_all(4)
-	power_bar.add_theme_stylebox_override("fill", fill_style)
-
-	# Set dark background for power bar
-	var bg_style = StyleBoxFlat.new()
-	bg_style.bg_color = COLOR_DEFAULT
-	bg_style.border_width_left = 1
-	bg_style.border_width_top = 1
-	bg_style.border_width_right = 1
-	bg_style.border_width_bottom = 1
-	bg_style.border_color = BORDER_COLOR
-	bg_style.set_corner_radius_all(4)
-	power_bar.add_theme_stylebox_override("background", bg_style)
 
 
 func _release_shot() -> void:
@@ -387,17 +263,19 @@ func _release_shot() -> void:
 	_resolve_penalty()
 
 
+# ===== EVENT HANDLERS =====
+
 func _on_zone_selected(zone: String) -> void:
 	if current_state != DrillState.SELECTING_ZONE:
 		return
 
-	# Clear previous selection - reset all to default dark
+	# Clear previous selection
 	for z in zone_buttons:
-		_set_zone_button_color(z, COLOR_DEFAULT, BORDER_COLOR)
+		_set_zone_button_color(z, TrainingConstants.COLOR_DEFAULT, TrainingConstants.BORDER_COLOR)
 
-	# Highlight new selection with green
+	# Highlight new selection
 	selected_zone = zone
-	_set_zone_button_color(zone, COLOR_SELECTED, ACCENT_GREEN)
+	_set_zone_button_color(zone, TrainingConstants.COLOR_SELECTED, TrainingConstants.ACCENT_GREEN)
 
 	shoot_button.disabled = false
 	shoot_button.text = "Hold SPACE to Charge Power"
@@ -406,20 +284,39 @@ func _on_zone_selected(zone: String) -> void:
 	AudioManager.play_ui_click()
 
 
-func _set_zone_button_color(zone: String, bg_color: Color, border_color: Color = BORDER_COLOR) -> void:
+func _set_zone_button_color(zone: String, bg_color: Color, border_color: Color = TrainingConstants.BORDER_COLOR) -> void:
 	var btn = zone_buttons.get(zone)
 	if btn:
-		var style = StyleBoxFlat.new()
-		style.bg_color = bg_color
-		style.border_width_left = 2
-		style.border_width_top = 2
-		style.border_width_right = 2
-		style.border_width_bottom = 2
-		style.border_color = border_color
-		style.set_corner_radius_all(6)
-		btn.add_theme_stylebox_override("normal", style)
-		btn.add_theme_color_override("font_color", TEXT_PRIMARY)
+		_set_button_style(btn, bg_color, border_color)
 
+
+func _on_shoot_pressed() -> void:
+	if current_state == DrillState.SELECTING_ZONE and not selected_zone.is_empty():
+		_start_charging()
+
+
+func _on_continue_pressed() -> void:
+	if current_state == DrillState.SHOWING_RESULT:
+		selected_zone = ""
+		current_power = 0.0
+		power_bar.value = 0
+
+		for zone in zone_buttons:
+			_set_zone_button_color(zone, TrainingConstants.COLOR_DEFAULT, TrainingConstants.BORDER_COLOR)
+
+		_update_modifiers_display()
+		skill_check_details.text = "Take a shot to see the skill check math..."
+		narration_label.text = "[i]Step up to the spot again. The goalkeeper sets himself...[/i]"
+
+		_set_state(DrillState.SELECTING_ZONE)
+		AudioManager.play_ui_click()
+
+
+func _on_exit_pressed() -> void:
+	_handle_exit()
+
+
+# ===== UI HELPERS =====
 
 func _update_modifiers_display() -> void:
 	if selected_zone.is_empty():
@@ -429,9 +326,9 @@ func _update_modifiers_display() -> void:
 		final_chance_label.text = "Final: --%"
 		return
 
-	var zone_mod = ZONE_MODIFIERS.get(selected_zone, 0)
-	var power_mod = _get_power_modifier(current_power)
-	var power_name = _get_power_name(current_power)
+	var zone_mod = TrainingConstants.ZONE_MODIFIERS.get(selected_zone, 0)
+	var power_mod = TrainingConstants.get_power_modifier(current_power)
+	var power_name = TrainingConstants.get_power_name(current_power)
 
 	zone_mod_label.text = "Zone: %+d%%" % zone_mod
 	power_mod_label.text = "Power: %s (%+d%%)" % [power_name, power_mod]
@@ -444,19 +341,11 @@ func _update_modifiers_display() -> void:
 		final_chance_label.text = "Final: %.1f%%" % final
 
 
-func _get_power_modifier(power: float) -> int:
-	for range_data in POWER_RANGES:
-		if power >= range_data.min and power <= range_data.max:
-			return range_data.modifier
-	return 0
+func _update_score() -> void:
+	_update_score_display(score_label, penalty_counter, "Penalty")
 
 
-func _get_power_name(power: float) -> String:
-	for range_data in POWER_RANGES:
-		if power >= range_data.min and power <= range_data.max:
-			return range_data.name
-	return "Unknown"
-
+# ===== RESOLUTION =====
 
 func _resolve_penalty() -> void:
 	var player = GameManager.player_data
@@ -467,20 +356,18 @@ func _resolve_penalty() -> void:
 	var men = player.get_effective_stat("MEN")
 	var diff = DIFFICULTY_SETTINGS[current_difficulty]
 
-	# Calculate success chance
 	var base_chance = _calculate_base_chance(sho, men)
-	var zone_mod = ZONE_MODIFIERS.get(selected_zone, 0)
-	var power_mod = _get_power_modifier(current_power)
+	var zone_mod = TrainingConstants.ZONE_MODIFIERS.get(selected_zone, 0)
+	var power_mod = TrainingConstants.get_power_modifier(current_power)
 	var success_chance = base_chance + zone_mod + power_mod
 
-	# Roll for shot on target
 	var roll = randf() * 100.0
 	var shot_on_target = roll <= success_chance
 
 	var result: Dictionary = {
 		"zone": selected_zone,
 		"power": current_power,
-		"power_name": _get_power_name(current_power),
+		"power_name": TrainingConstants.get_power_name(current_power),
 		"base_chance": base_chance,
 		"zone_mod": zone_mod,
 		"power_mod": power_mod,
@@ -494,7 +381,6 @@ func _resolve_penalty() -> void:
 	}
 
 	if shot_on_target:
-		# GK attempts save
 		var gk_result = _resolve_gk_save(selected_zone, diff)
 		result.gk_dived = gk_result.dive_zone
 		result.gk_save_chance = gk_result.save_chance
@@ -505,38 +391,29 @@ func _resolve_penalty() -> void:
 	player_zone_history.append(selected_zone)
 	_update_gk_weights(diff.learning_rate)
 
-	# Track result
-	penalties_taken += 1
+	attempts_taken += 1
 	if result.scored:
-		goals_scored += 1
+		successes += 1
 	session_results.append(result)
 
-	# Show result
 	_display_result(result)
-	_update_score_display()
+	_update_score()
 
-	# Check for drill completion
-	if penalties_taken >= PENALTIES_PER_SESSION:
+	if attempts_taken >= TrainingConstants.ATTEMPTS_PER_SESSION:
 		_complete_drill()
 	else:
 		_set_state(DrillState.SHOWING_RESULT)
 
 
 func _resolve_gk_save(target_zone: String, diff: Dictionary) -> Dictionary:
-	# Select GK dive zone based on learned weights
 	var dive_zone = _select_gk_dive_zone()
-
-	# Calculate save chance based on dive accuracy
-	var base_save_chance = diff.gk_stat * 0.5  # Base from GK stat
+	var base_save_chance = diff.gk_stat * 0.5
 
 	if dive_zone == target_zone:
-		# Correct guess - high save chance
 		base_save_chance += 40.0
 	elif dive_zone in ZONE_ADJACENCY.get(target_zone, []):
-		# Adjacent zone - moderate save chance
 		base_save_chance += 15.0
 	else:
-		# Wrong side - low save chance
 		base_save_chance -= 20.0
 
 	base_save_chance = clampf(base_save_chance, 5.0, 95.0)
@@ -553,7 +430,6 @@ func _resolve_gk_save(target_zone: String, diff: Dictionary) -> Dictionary:
 
 
 func _select_gk_dive_zone() -> String:
-	# Weighted random selection based on player patterns
 	var total_weight = 0.0
 	for zone in gk_zone_weights:
 		total_weight += gk_zone_weights[zone]
@@ -566,16 +442,15 @@ func _select_gk_dive_zone() -> String:
 		if roll <= cumulative:
 			return zone
 
-	return "MID_CENTER"  # Fallback
+	return "MID_CENTER"
 
 
 func _update_gk_weights(learning_rate: float) -> void:
 	if player_zone_history.is_empty():
 		return
 
-	# Count zone frequencies
 	var zone_counts: Dictionary = {}
-	for zone in ZONE_MODIFIERS:
+	for zone in TrainingConstants.ZONE_MODIFIERS:
 		zone_counts[zone] = 0
 
 	for zone in player_zone_history:
@@ -583,21 +458,18 @@ func _update_gk_weights(learning_rate: float) -> void:
 
 	var total = player_zone_history.size()
 
-	# Update weights based on frequency
 	for zone in gk_zone_weights:
 		var frequency = float(zone_counts[zone]) / total
-		var target_weight = 1.0 + (frequency * 3.0)  # More frequent = higher weight
+		var target_weight = 1.0 + (frequency * 3.0)
 		gk_zone_weights[zone] = lerpf(gk_zone_weights[zone], target_weight, learning_rate)
 
 
 func _display_result(result: Dictionary) -> void:
-	# Update zone button colors
 	if result.scored:
-		_set_zone_button_color(selected_zone, COLOR_SUCCESS, Color(0, 0.6, 0.3))  # Green - goal
+		_set_zone_button_color(selected_zone, TrainingConstants.COLOR_SUCCESS, Color(0, 0.6, 0.3))
 	else:
-		_set_zone_button_color(selected_zone, COLOR_FAIL, Color(0.6, 0.2, 0.2))  # Red - miss/save
+		_set_zone_button_color(selected_zone, TrainingConstants.COLOR_FAIL, Color(0.6, 0.2, 0.2))
 
-	# Build skill check breakdown
 	var breakdown = ""
 	breakdown += "[b]Shot Calculation:[/b]\n"
 	breakdown += "Base: (SHO × 0.7) + (MEN × 0.3) = %.1f%%\n" % result.base_chance
@@ -623,8 +495,6 @@ func _display_result(result: Dictionary) -> void:
 		breakdown += "[color=red]Shot off target! MISSED![/color]"
 
 	skill_check_details.text = breakdown
-
-	# Show narration
 	_show_result_narration(result)
 
 
@@ -645,160 +515,17 @@ func _show_result_narration(result: Dictionary) -> void:
 	narration_label.text = "[i]%s[/i]" % narrative.text
 
 
-func _show_session_start_narration() -> void:
-	var narrative = NarrativeEngine.generate_dialogue("penalty", "session_start", {})
-	narration_label.text = "[i]%s[/i]" % narrative.text
-
-
-func _update_score_display() -> void:
-	score_label.text = "%d / %d" % [goals_scored, PENALTIES_PER_SESSION]
-	penalty_counter.text = "Penalty %d of %d" % [mini(penalties_taken + 1, PENALTIES_PER_SESSION), PENALTIES_PER_SESSION]
-
-
 func _complete_drill() -> void:
 	_set_state(DrillState.DRILL_COMPLETE)
-
-	# Calculate rewards
-	var total_xp = XP_PER_ATTEMPT * penalties_taken
-	total_xp += XP_PER_GOAL * goals_scored
-
-	if goals_scored >= 7:
-		total_xp += XP_GOOD_SESSION_BONUS
-	if goals_scored >= 10:
-		total_xp += XP_PERFECT_SESSION_BONUS
-
-	var sho_xp = (STAT_XP_PER_GOAL * goals_scored) + (STAT_XP_PER_MISS * (penalties_taken - goals_scored))
-	var men_xp = MEN_XP_PER_ATTEMPT * penalties_taken
-
-	# Build summary
-	var summary = "[b]Drill Complete![/b]\n\n"
-	summary += "Goals: %d / %d (%.0f%%)\n\n" % [goals_scored, penalties_taken, (float(goals_scored) / penalties_taken) * 100]
-	summary += "[b]XP Earned:[/b]\n"
-	summary += "Base: %d XP (%d attempts × %d)\n" % [XP_PER_ATTEMPT * penalties_taken, penalties_taken, XP_PER_ATTEMPT]
-	summary += "Goals: +%d XP (%d goals × %d)\n" % [XP_PER_GOAL * goals_scored, goals_scored, XP_PER_GOAL]
-
-	if goals_scored >= 10:
-		summary += "Perfect Session: +%d XP\n" % XP_PERFECT_SESSION_BONUS
-	elif goals_scored >= 7:
-		summary += "Good Session: +%d XP\n" % XP_GOOD_SESSION_BONUS
-
-	summary += "[b]Total: %d XP[/b]\n\n" % total_xp
-	summary += "[b]Stat XP:[/b]\n"
-	summary += "SHO: +%d\n" % sho_xp
-	summary += "MEN: +%d\n" % men_xp
-
-	skill_check_details.text = summary
-
-	# Show session end narration
-	var context = {"goals": str(goals_scored), "total": str(penalties_taken)}
-	var narrative = NarrativeEngine.generate_dialogue("penalty", "session_end", context)
-	narration_label.text = "[i]%s[/i]" % narrative.text
-
-	# Store results for when drill is exited
-	var results = {
-		"penalties_taken": penalties_taken,
-		"goals_scored": goals_scored,
-		"accuracy": float(goals_scored) / penalties_taken,
-		"total_xp": total_xp,
-		"sho_xp": sho_xp,
-		"men_xp": men_xp,
-		"session_results": session_results
-	}
-
-	# Save best score for simulation feature
+	skill_check_details.text = _build_xp_summary()
+	_show_session_end_narration(narration_label)
 	_save_best_score()
-
-	drill_completed.emit(results)
-
-
-func _save_best_score() -> void:
-	var player = GameManager.player_data
-	if not player:
-		return
-
-	var current_record = player.training_records.get("penalty_drill", {})
-	var previous_best = current_record.get("best_score", 0)
-
-	if goals_scored > previous_best:
-		player.training_records["penalty_drill"] = {
-			"best_score": goals_scored,
-			"attempts": PENALTIES_PER_SESSION,
-			"best_accuracy": float(goals_scored) / PENALTIES_PER_SESSION
-		}
-
-
-func _on_difficulty_changed(index: int) -> void:
-	var keys = DIFFICULTY_SETTINGS.keys()
-	if index < keys.size():
-		current_difficulty = keys[index]
-	AudioManager.play_ui_click()
-
-
-func _on_shoot_pressed() -> void:
-	if current_state == DrillState.SELECTING_ZONE and not selected_zone.is_empty():
-		_start_charging()
-
-
-func _on_continue_pressed() -> void:
-	if current_state == DrillState.SHOWING_RESULT:
-		# Reset for next penalty
-		selected_zone = ""
-		current_power = 0.0
-		power_bar.value = 0
-
-		# Reset zone button colors to dark theme
-		for zone in zone_buttons:
-			_set_zone_button_color(zone, COLOR_DEFAULT, BORDER_COLOR)
-
-		_update_modifiers_display()
-		skill_check_details.text = "Take a shot to see the skill check math..."
-		narration_label.text = "[i]Step up to the spot again. The goalkeeper sets himself...[/i]"
-
-		_set_state(DrillState.SELECTING_ZONE)
-		AudioManager.play_ui_click()
-
-
-func _on_exit_pressed() -> void:
-	AudioManager.play_ui_click()
-
-	# Apply rewards if drill was completed
-	if current_state == DrillState.DRILL_COMPLETE:
-		_apply_rewards()
-
-	# Return to console dashboard
-	get_tree().change_scene_to_file("res://scenes/dashboard/console_dashboard.tscn")
-
-
-func _apply_rewards() -> void:
-	var player = GameManager.player_data
-	if not player:
-		return
-
-	# Calculate rewards
-	var total_xp = XP_PER_ATTEMPT * penalties_taken
-	total_xp += XP_PER_GOAL * goals_scored
-
-	if goals_scored >= 7:
-		total_xp += XP_GOOD_SESSION_BONUS
-	if goals_scored >= 10:
-		total_xp += XP_PERFECT_SESSION_BONUS
-
-	var sho_xp = (STAT_XP_PER_GOAL * goals_scored) + (STAT_XP_PER_MISS * (penalties_taken - goals_scored))
-	var men_xp = MEN_XP_PER_ATTEMPT * penalties_taken
-
-	# Apply to player
-	player.stamina_current = maxi(player.stamina_current - STAMINA_COST, 0)
-	player.add_xp(total_xp)
-	player.add_stat_xp("SHO", sho_xp)
-	player.add_stat_xp("MEN", men_xp)
-
-	# Advance time
-	DesktopManager.advance_time(1)
-
-	# Show notification
-	DesktopManager.show_notification(
-		"Penalty Practice Complete",
-		"Scored %d/%d! Earned %d XP" % [goals_scored, penalties_taken, total_xp],
-		"",
-		"training"
-	)
+	drill_completed.emit({
+		"penalties_taken": attempts_taken,
+		"goals_scored": successes,
+		"accuracy": float(successes) / attempts_taken,
+		"total_xp": _calculate_total_xp(),
+		"sho_xp": _calculate_primary_stat_xp(),
+		"men_xp": _calculate_secondary_stat_xp(),
+		"session_results": session_results
+	})
