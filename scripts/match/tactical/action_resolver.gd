@@ -249,13 +249,13 @@ static func execute_shot(shooter: PlayerUnit, goal_hex: Vector2i,
 
 	var save_roll = StatSystem.roll_action_success(gk_stat, 0, save_difficulty)
 
-	if match_data:
-		match_data.record_event("shot", {
-			"is_player": shooter.is_player_controlled,
-			"on_target": true
-		})
-
 	if save_roll.success:
+		if match_data:
+			match_data.record_event("shot", {
+				"is_player": shooter.is_player_controlled,
+				"on_target": true,
+				"saved": true
+			})
 		return {
 			"success": false,
 			"reason": "saved",

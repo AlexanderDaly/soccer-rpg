@@ -36,6 +36,7 @@ var away_score: int = 0
 var home_goal_events: Array[Dictionary] = []
 var away_goal_events: Array[Dictionary] = []
 var last_passer: PlayerUnit = null  # Track who made the last pass for assist attribution
+var last_shooter: PlayerUnit = null  # Track shooter for goal attribution (possession is cleared during flight)
 
 # Turn settings
 const TURNS_PER_HALF: int = 45
@@ -403,6 +404,7 @@ func _execute_shot(target_hex: Vector2i) -> void:
 	var result = ActionResolver.execute_shot(player_unit, target_hex, goalkeeper, blockers, match_data)
 
 	if result.success:
+		last_shooter = player_unit
 		ball.start_shot(player_unit, target_hex)
 	else:
 		match result.reason:
@@ -771,13 +773,15 @@ func _execute_ai_decision(unit: PlayerUnit, decision: Dictionary) -> void:
 
 		"shoot":
 			if unit.has_ball:
-				var target = decision.get("target")
+				var attacking_right = home_attacks_right if unit.is_home_team else not home_attacks_right
+				var target = decision.get("target", HexUtils.get_goal_hex(attacking_right))
 				var opponents = away_units if unit.is_home_team else home_units
 				var goalkeeper = _find_goalkeeper(opponents)
 				var blockers = _get_units_between(unit.hex_position, target, opponents)
 				var result = ActionResolver.execute_shot(unit, target, goalkeeper, blockers, match_data)
 
 				if result.success:
+					last_shooter = unit
 					ball.start_shot(unit, target)
 				else:
 					if result.reason == "blocked":
@@ -823,8 +827,8 @@ func _on_goal_scored(is_home_goal: bool) -> void:
 	else:
 		home_score += 1
 
-	# Determine scorer (last unit with possession)
-	var scorer = ball.get_possessing_unit()
+	# Possession is cleared while the ball is in flight, so track the shooter explicitly.
+	var scorer = last_shooter if last_shooter else ball.get_possessing_unit()
 
 	# Create goal event for season tracking
 	var goal_event: Dictionary = {}
@@ -854,17 +858,12 @@ func _on_goal_scored(is_home_goal: bool) -> void:
 
 	# Reset last passer after goal
 	last_passer = null
+	last_shooter = null
 
 	# Update match data
 	if match_data:
 		match_data.home_score = home_score
 		match_data.away_score = away_score
-
-		var is_player_goal = scorer and scorer == player_unit
-		var team_scored = not is_home_goal == (player_unit and player_unit.is_home_team)
-
-		if team_scored and is_player_goal:
-			match_data.record_event("goal", {"is_player": true})
 
 	score_changed.emit(home_score, away_score)
 
