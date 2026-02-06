@@ -23,7 +23,7 @@ Goal: track match stats across the season to award titles like Top Goal Scorer a
 
 ## Match Recording
 - [x] Extend `MatchData` result payload to include scorer/assist events for both teams.
-- [ ] Tactical matches: record goal events for all scorers (not just player) so season totals can be updated.
+- [x] Tactical matches: record goal events for all scorers (not just player) so season totals can be updated.
 - [x] Simulated matches (`MatchSimulator`) generate per-team and per-player goal/assist distributions:
   - [x] Use team roster from `TeamData.players[]`
   - [x] Weight by position (ST > WNG > CAM > CM for goals)
@@ -95,5 +95,5 @@ This feature should be implemented **before** NPC Persona Generator as it:
 - UI panel created for viewing awards
 
 ### Remaining Work
-- Tactical match goal attribution (currently only simulated matches track stats)
+- ~~Tactical match goal attribution (currently only simulated matches track stats)~~
 - Unit tests

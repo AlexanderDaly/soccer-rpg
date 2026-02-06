@@ -381,6 +381,7 @@ func _execute_through_ball(target_hex: Vector2i) -> void:
 	var result = ActionResolver.execute_through_ball(player_unit, target_hex, opponents, match_data)
 
 	if result.success:
+		last_passer = player_unit  # Track passer for potential assist
 		ball.start_pass(player_unit, target_hex)
 	else:
 		match result.reason:
@@ -841,6 +842,9 @@ func _on_goal_scored(is_home_goal: bool) -> void:
 		if last_passer and last_passer != scorer and last_passer.is_home_team == scorer.is_home_team:
 			goal_event["assister_id"] = last_passer.unit_id
 			goal_event["assister_name"] = last_passer.unit_name
+			# Record assist in match_data for player career stats and rating
+			if last_passer.is_player_controlled and match_data:
+				match_data.record_event("assist", {"is_player": true})
 
 	# Store goal event for season tracking
 	if is_home_goal:
