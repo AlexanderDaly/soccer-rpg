@@ -304,7 +304,8 @@ func get_injured_players() -> Array[Dictionary]:
 			var injury = npc.get("injury", {})
 			injured.append({
 				"player": player,
-				"injury_type": injury.get("type", ""),
+				"injury_type": injury.get("injury_type", injury.get("type", "")),
+				"injury_severity": injury.get("type", ""),
 				"matches_remaining": injury.get("matches_remaining", 0),
 				"description": injury.get("description", "")
 			})

@@ -235,12 +235,13 @@ func get_active_team_npcs(stable_team_id: String) -> Array[Dictionary]:
 
 
 ## Apply an injury to an NPC
-func apply_injury(npc_id: String, injury_type: String, matches_out: int, description: String = "") -> void:
+func apply_injury(npc_id: String, injury_type: String, matches_out: int, description: String = "", specific_injury_type: String = "") -> void:
 	if npc_id not in npc_registry:
 		return
 
 	var injury = {
 		"type": injury_type,
+		"injury_type": specific_injury_type,
 		"matches_remaining": matches_out,
 		"description": description
 	}
@@ -264,6 +265,7 @@ func recover_from_injury(npc_id: String) -> void:
 
 	npc["injury"] = {
 		"type": "",
+		"injury_type": "",
 		"matches_remaining": 0,
 		"description": ""
 	}

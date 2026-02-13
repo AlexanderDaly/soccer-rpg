@@ -293,6 +293,13 @@ func _on_train_pressed(training: Dictionary) -> void:
 		player.stamina_current -= training.stamina_cost
 		player.add_stat_xp(training.stat, training.xp_gain)
 		player.add_xp(training.xp_gain)
+		_apply_training_injuries({
+			"training_type": training.id,
+			"attempts": TrainingConstants.ATTEMPTS_PER_SESSION,
+			"accuracy": 1.0,
+			"player_stamina": player.stamina_current + training.stamina_cost,
+			"stamina_cost": training.stamina_cost
+		})
 
 		if status_label:
 			status_label.text = "Completed %s training! %s +XP" % [training.name, training.stat]
@@ -370,5 +377,40 @@ func _on_simulate_pressed(training: Dictionary, best_score: int, attempts: int) 
 		"training"
 	)
 
+	var stamina_after = player.stamina_current
+	var accuracy = float(best_score) / float(maxi(attempts, 1))
+	var stamina_before = stamina_after + rewards.stamina_cost
+	_apply_training_injuries({
+		"training_type": training.id,
+		"attempts": attempts,
+		"accuracy": accuracy,
+		"player_stamina": stamina_before,
+		"stamina_cost": rewards.stamina_cost
+	})
+
 	_refresh_display()
 	_build_training_options()
+
+
+func _apply_training_injuries(training_context: Dictionary) -> void:
+	var injuries = InjurySystem.process_training_injuries(GameManager.current_team, training_context)
+	if injuries.is_empty():
+		return
+
+	for injury in injuries:
+		var player_name = injury.get("player_name", "Player")
+		var description = injury.get("description", "injury")
+		var matches_out = int(injury.get("matches_out", 0))
+		var severity = injury.get("type", "minor")
+		var injury_type = injury.get("injury_type", "")
+		var severity_text = InjurySystem.get_severity_text(severity)
+		var match_suffix = "es" if matches_out != 1 else ""
+		var match_out_text = " - %d match%s out" % [matches_out, match_suffix] if matches_out > 0 else ""
+		var detail = description if injury_type == "" else "%s (%s)" % [description, injury_type]
+
+		DesktopManager.show_notification(
+			"Injury Report",
+			"%s suffered a %s (%s)%s." % [player_name, severity_text, detail, match_out_text],
+			"",
+			"training"
+		)

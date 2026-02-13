@@ -483,75 +483,9 @@ func _update_season_standings() -> void:
 
 
 func _roll_for_injuries() -> void:
-	"""Roll for injuries after the match and apply them."""
-	if not GameManager.current_team:
-		if match_result:
-			match_result["injury_events"] = []
-		return
-
-	# Determine match intensity based on current competition
-	var match_type = SeasonManager.get_match_type()
-	var competition_stage = ""
-	var tournament = SeasonManager.get_current_tournament()
-	if tournament:
-		competition_stage = TournamentData.Stage.keys()[tournament.current_stage].to_lower()
-
-	var intensity = InjurySystem.get_match_intensity(match_type, competition_stage)
-
-	# Roll for injuries on the player's team
-	var injuries = InjurySystem.roll_for_injuries(GameManager.current_team, intensity)
-
-	# Store injury events for timeline display
-	var injury_events: Array[Dictionary] = []
-
-	if injuries.is_empty():
-		match_result["injury_events"] = injury_events
-		return
-
-	# Apply injuries to NPC registry
-	InjurySystem.apply_injuries(injuries)
-
-	# Display injury notifications
-	for injury in injuries:
-		var npc_id = injury.get("npc_id", "")
-		var npc = NpcRegistry.get_npc(npc_id)
-		var player_name = npc.get("name", "Unknown Player")
-		var description = injury.get("description", "injury")
-		var matches_out = injury.get("matches_out", 1)
-		var injury_type = injury.get("type", "minor")
-
-		# Record severe injuries as career events for persona evolution tracking
-		if injury_type == "severe":
-			NpcRegistry.record_career_event(npc_id, "severe_injury")
-
-		# Show notification
-		var severity_text = InjurySystem.get_severity_text(injury_type)
-		DesktopManager.show_notification(
-			"Injury Report",
-			"%s suffered a %s (%s). Out for %d match%s." % [
-				player_name,
-				description,
-				severity_text,
-				matches_out,
-				"es" if matches_out > 1 else ""
-			],
-			"", ""
-		)
-
-		# Add to milestones display
-		_add_injury_display(player_name, description, injury_type)
-
-		injury_events.append({
-			"minute": 90,
-			"team_id": GameManager.current_team.id,
-			"team_name": GameManager.current_team.name,
-			"player_name": player_name,
-			"description": description,
-			"matches_out": matches_out,
-			"injury_type": injury_type
-		})
-
-	match_result["injury_events"] = injury_events
+	"""No injury rolls in post-match flow. Training is now the only source."""
+	if match_result:
+		match_result["injury_events"] = []
 
 
 func _add_injury_display(player_name: String, description: String, injury_type: String) -> void:

@@ -254,11 +254,21 @@ func _apply_rewards() -> void:
 	var total_xp = _calculate_total_xp()
 	var primary_xp = _calculate_primary_stat_xp()
 	var secondary_xp = _calculate_secondary_stat_xp()
+	var stamina_before = player.stamina_current
 
 	player.stamina_current = maxi(player.stamina_current - TrainingConstants.STAMINA_COST, 0)
 	player.add_xp(total_xp)
 	player.add_stat_xp(_get_primary_stat(), primary_xp)
 	player.add_stat_xp(_get_secondary_stat(), secondary_xp)
+
+	_apply_training_injuries({
+		"training_type": _get_drill_name(),
+		"training_intensity": 1.0,
+		"attempts": attempts_taken,
+		"accuracy": float(successes) / float(maxi(attempts_taken, 1)),
+		"player_stamina": stamina_before,
+		"stamina_cost": TrainingConstants.STAMINA_COST
+	})
 
 	DesktopManager.advance_time(1)
 
@@ -268,6 +278,35 @@ func _apply_rewards() -> void:
 		"",
 		"training"
 	)
+
+
+func _apply_training_injuries(training_context: Dictionary) -> void:
+	var team = GameManager.current_team
+	var injury_events = InjurySystem.process_training_injuries(team, training_context)
+
+	for injury in injury_events:
+		var player_name = injury.get("player_name", "Player")
+		var description = injury.get("description", "injury")
+		var matches_out = int(injury.get("matches_out", 0))
+		var severity = injury.get("type", "minor")
+		var specific_type = injury.get("injury_type", "")
+		var severity_text = InjurySystem.get_severity_text(severity)
+
+		var match_suffix = "es" if matches_out != 1 else ""
+		var match_out_text = " (%d match%s out)" % [matches_out, match_suffix] if matches_out > 0 else ""
+		var detail = description if specific_type == "" else "%s (%s)" % [description, specific_type]
+
+		DesktopManager.show_notification(
+			"Injury Report",
+			"%s sustained a %s injury: %s%s." % [
+				player_name,
+				severity_text,
+				detail,
+				match_out_text
+			],
+			"",
+			"training"
+		)
 
 
 ## Saves the best score to player training records

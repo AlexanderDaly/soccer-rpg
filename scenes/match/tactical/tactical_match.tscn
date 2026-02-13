@@ -166,6 +166,11 @@ custom_minimum_size = Vector2(120, 35)
 layout_mode = 2
 text = "End Turn"
 
+[node name="SubstituteBtn" type="Button" parent="UI/ActionPanel/VBoxContainer/ButtonGrid"]
+custom_minimum_size = Vector2(120, 35)
+layout_mode = 2
+text = "Substitute"
+
 [node name="InfoPanel" type="PanelContainer" parent="UI"]
 anchors_preset = 1
 anchor_left = 1.0
@@ -204,3 +209,4 @@ script = ExtResource("2_ui_controller")
 [connection signal="pressed" from="UI/ActionPanel/VBoxContainer/ButtonGrid/DribbleBtn" to="UI/UIController" method="_on_dribble_btn_pressed"]
 [connection signal="pressed" from="UI/ActionPanel/VBoxContainer/ButtonGrid/TackleBtn" to="UI/UIController" method="_on_tackle_btn_pressed"]
 [connection signal="pressed" from="UI/ActionPanel/VBoxContainer/ButtonGrid/EndTurnBtn" to="UI/UIController" method="_on_end_turn_btn_pressed"]
+[connection signal="pressed" from="UI/ActionPanel/VBoxContainer/ButtonGrid/SubstituteBtn" to="UI/UIController" method="_on_substitute_btn_pressed"]

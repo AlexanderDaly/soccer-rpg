@@ -8,6 +8,7 @@ signal score_changed(home: int, away: int)
 signal action_selected(action_type: String)
 signal dribble_move_changed(move_id: String)
 signal match_ended(result: Dictionary)
+signal substitution_executed(is_home_team: bool, out_name: String, in_name: String)
 
 enum TurnPhase {
 	PLAYER,    # Human controls their character
@@ -47,6 +48,7 @@ var last_shooter: PlayerUnit = null  # Track shooter for goal attribution (posse
 const TURNS_PER_HALF: int = 45
 const MINUTES_PER_TURN: int = 1  # 45 turns * 1 minute = 45 min per half = 90 min total
 const INITIATIVE_RANDOM_BONUS: int = 12
+const MAX_SUBSTITUTIONS_PER_SIDE: int = 3  # Per team, per match
 
 # Grid and units
 var hex_grid: TileMapLayer
@@ -54,6 +56,10 @@ var all_units: Array[PlayerUnit] = []
 var home_units: Array[PlayerUnit] = []
 var away_units: Array[PlayerUnit] = []
 var player_unit: PlayerUnit = null
+var home_lineup: Array[Dictionary] = []
+var away_lineup: Array[Dictionary] = []
+var home_substitutions_used: int = 0
+var away_substitutions_used: int = 0
 
 # Ball
 var ball: BallController
@@ -165,6 +171,7 @@ func _spawn_units() -> void:
 
 	# Spawn home team
 	var home_starting = home_team.get_starting_eleven()
+	home_lineup = home_starting.duplicate(true)
 	for i in range(mini(home_starting.size(), home_formation.size())):
 		var player_data = home_starting[i]
 		var formation_pos = home_formation[i]
@@ -178,6 +185,7 @@ func _spawn_units() -> void:
 
 	# Spawn away team
 	var away_starting = away_team.get_starting_eleven()
+	away_lineup = away_starting.duplicate(true)
 	for i in range(mini(away_starting.size(), away_formation.size())):
 		var player_data = away_starting[i]
 		var formation_pos = away_formation[i]
@@ -185,6 +193,161 @@ func _spawn_units() -> void:
 		var unit = _create_unit(player_data, false, formation_pos.hex)
 		away_units.append(unit)
 		all_units.append(unit)
+
+
+func _team_roster_data(is_home: bool) -> Array[Dictionary]:
+	var team = match_data.home_team if is_home else match_data.away_team
+	var roster: Array[Dictionary] = []
+
+	if not team:
+		return roster
+
+	for player in team.players:
+		roster.append(player)
+
+	# Ensure player character data is present in home roster
+	if is_home and GameManager.player_data:
+		var player_exists = false
+		for player in roster:
+			if player.get("id", "") == GameManager.player_data.id:
+				player_exists = true
+				break
+		if not player_exists:
+			roster.append({
+				"id": GameManager.player_data.id,
+				"name": GameManager.player_data.name,
+				"position": GameManager.player_data.position,
+				"stats": GameManager.player_data.stats,
+				"overall": GameManager.player_data.get_overall(),
+				"is_player": true
+			})
+
+	return roster
+
+
+func _player_key(data: Dictionary) -> String:
+	var player_id = data.get("id", "")
+	if player_id != "":
+		return player_id
+	return "%s|%s" % [str(data.get("name", "")), str(data.get("position", ""))]
+
+
+func _is_active_player_record(data: Dictionary) -> bool:
+	var player_id = data.get("id", "")
+	if player_id == "":
+		return true
+	if not NpcRegistry:
+		return true
+	if not NpcRegistry.has_npc(player_id):
+		return true
+	var npc = NpcRegistry.get_npc(player_id)
+	return npc.get("status", "active") == "active"
+
+
+func _lineup_for_team(is_home: bool) -> Array[Dictionary]:
+	return home_lineup if is_home else away_lineup
+
+
+func _substitutions_used(is_home: bool) -> int:
+	return home_substitutions_used if is_home else away_substitutions_used
+
+
+func _inc_substitutions(is_home: bool) -> void:
+	if is_home:
+		home_substitutions_used = min(home_substitutions_used + 1, MAX_SUBSTITUTIONS_PER_SIDE)
+	else:
+		away_substitutions_used = min(away_substitutions_used + 1, MAX_SUBSTITUTIONS_PER_SIDE)
+
+
+func get_substitution_candidates_for_player_team() -> Array[Dictionary]:
+	if not player_unit:
+		return []
+
+	var is_home = player_unit.is_home_team
+	var used_keys: Array[String] = []
+	for entry in _lineup_for_team(is_home):
+		used_keys.append(_player_key(entry))
+
+	var candidates: Array[Dictionary] = []
+	for player_data in _team_roster_data(is_home):
+		var key = _player_key(player_data)
+		if key in used_keys:
+			continue
+		if not _is_active_player_record(player_data):
+			continue
+		candidates.append(player_data)
+
+	return candidates
+
+
+func get_remaining_substitutions() -> int:
+	if not player_unit:
+		return 0
+	return MAX_SUBSTITUTIONS_PER_SIDE - _substitutions_used(player_unit.is_home_team)
+
+
+func can_player_substitute() -> bool:
+	if not player_unit:
+		return false
+	if not match_data:
+		return false
+	if match_phase != MatchPhase.PLAYING:
+		return false
+	if current_phase != TurnPhase.PLAYER:
+		return false
+	if not is_player_turn_active:
+		return false
+	if player_unit.action_points < player_unit.max_action_points:
+		return false
+	if _substitutions_used(player_unit.is_home_team) >= MAX_SUBSTITUTIONS_PER_SIDE:
+		return false
+	if get_substitution_candidates_for_player_team().is_empty():
+		return false
+	return true
+
+
+func perform_substitution() -> bool:
+	if not can_player_substitute():
+		return false
+
+	var is_home = player_unit.is_home_team
+	var outgoing = _pick_outgoing_unit_for_substitution(is_home)
+	if not outgoing:
+		return false
+
+	var candidates = get_substitution_candidates_for_player_team()
+	if candidates.is_empty():
+		return false
+
+	var incoming = _pick_best_substitute_candidate(candidates)
+	return _apply_substitution(outgoing, incoming)
+
+
+func _pick_outgoing_unit_for_substitution(is_home: bool) -> PlayerUnit:
+	var team_units = home_units if is_home else away_units
+	var non_player_lowest: PlayerUnit = null
+	var fallback: PlayerUnit = null
+
+	for unit in team_units:
+		if not unit:
+			continue
+		if fallback == null:
+			fallback = unit
+		if not unit.is_player_controlled and (non_player_lowest == null or unit.overall < non_player_lowest.overall):
+			non_player_lowest = unit
+
+	return non_player_lowest if non_player_lowest else fallback
+
+
+func _pick_best_substitute_candidate(candidates: Array[Dictionary]) -> Dictionary:
+	var best: Dictionary = {}
+	var best_score = -1
+	for player_data in candidates:
+		var score = int(player_data.get("overall", 0))
+		if score > best_score:
+			best_score = score
+			best = player_data
+	return best
 
 
 func _create_unit(data: Dictionary, is_home: bool, hex_pos: Vector2i) -> PlayerUnit:
@@ -531,6 +694,98 @@ func select_action(action: String) -> void:
 	current_action = action
 	action_selected.emit(action)
 	_show_action_range(action)
+
+
+func _find_lineup_entry_index(lineup: Array[Dictionary], unit: PlayerUnit) -> int:
+	var unit_key = _player_key({
+		"id": unit.unit_id,
+		"name": unit.unit_name,
+		"position": unit.position_role
+	})
+	for i in range(lineup.size()):
+		if _player_key(lineup[i]) == unit_key:
+			return i
+	return -1
+
+
+func _replace_unit_in_array_with(container: Array, old_unit: PlayerUnit, new_unit: PlayerUnit) -> bool:
+	var index = container.find(old_unit)
+	if index == -1:
+		return false
+	container[index] = new_unit
+	return true
+
+
+func _apply_substitution(outgoing_unit: PlayerUnit, incoming_data: Dictionary) -> bool:
+	if not outgoing_unit or incoming_data.is_empty():
+		return false
+	if not all_units.has(outgoing_unit):
+		return false
+
+	var is_home = outgoing_unit.is_home_team
+	var team_units = home_units if is_home else away_units
+	var had_ball = outgoing_unit.has_ball
+	var outgoing_name = outgoing_unit.unit_name
+	var outgoing_id = outgoing_unit.unit_id
+	var outgoing_is_player = outgoing_unit.is_player_controlled
+	var spawn_hex = outgoing_unit.hex_position
+	var outgoing_is_current_actor = outgoing_unit == player_unit
+
+	var incoming_unit = _create_unit(incoming_data, is_home, spawn_hex)
+	incoming_unit.reset_turn()
+
+	if not _replace_unit_in_array_with(team_units, outgoing_unit, incoming_unit):
+		incoming_unit.queue_free()
+		return false
+
+	if not _replace_unit_in_array_with(all_units, outgoing_unit, incoming_unit):
+		incoming_unit.queue_free()
+		return false
+
+	var team_lineup = _lineup_for_team(is_home)
+	var lineup_index = _find_lineup_entry_index(team_lineup, outgoing_unit)
+	if lineup_index >= 0:
+		team_lineup[lineup_index] = incoming_data
+	else:
+		team_lineup.append(incoming_data)
+
+	for i in range(initiative_order.size()):
+		if initiative_order[i] == outgoing_unit:
+			initiative_order[i] = incoming_unit
+
+	if outgoing_is_player:
+		player_unit = incoming_unit
+	if outgoing_is_current_actor:
+		current_phase = TurnPhase.PLAYER
+		is_player_turn_active = true
+		selected_unit = incoming_unit
+		_select_unit(incoming_unit)
+	elif selected_unit == outgoing_unit:
+		selected_unit = incoming_unit
+		_select_unit(incoming_unit)
+
+	outgoing_unit.queue_free()
+
+	if had_ball:
+		ball.give_possession(incoming_unit)
+
+	_inc_substitutions(is_home)
+	current_action = ""
+	_clear_highlights()
+
+	substitution_executed.emit(is_home, outgoing_name, str(incoming_data.get("name", "Unknown")))
+
+	if match_data:
+		match_data.record_event("substitution", {
+			"is_player": outgoing_is_player,
+			"outgoing_id": outgoing_id,
+			"outgoing_name": outgoing_name,
+			"incoming_id": incoming_data.get("id", ""),
+			"incoming_name": incoming_data.get("name", "Unknown"),
+			"team": "home" if is_home else "away"
+		})
+
+	return true
 
 
 func end_player_turn() -> void:

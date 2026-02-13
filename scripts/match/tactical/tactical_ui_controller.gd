@@ -20,6 +20,7 @@ const DribbleMoves = preload("res://scripts/match/tactical/dribble_moves.gd")
 @onready var dribble_btn: Button = get_node("../ActionPanel/VBoxContainer/ButtonGrid/DribbleBtn")
 @onready var tackle_btn: Button = get_node("../ActionPanel/VBoxContainer/ButtonGrid/TackleBtn")
 @onready var end_turn_btn: Button = get_node("../ActionPanel/VBoxContainer/ButtonGrid/EndTurnBtn")
+@onready var substitute_btn: Button = get_node("../ActionPanel/VBoxContainer/ButtonGrid/SubstituteBtn")
 
 @onready var dribble_move_panel: PanelContainer = get_node("../ActionPanel/VBoxContainer/DribbleMovePanel")
 @onready var dribble_move_container: HBoxContainer = get_node("../ActionPanel/VBoxContainer/DribbleMovePanel/VBoxContainer/MoveButtons")
@@ -130,6 +131,7 @@ func _update_button_states() -> void:
 
 	if match_controller.current_phase != MatchController.TurnPhase.PLAYER:
 		_enable_buttons(false)
+		substitute_btn.text = "Substitute"
 		_update_dribble_move_buttons_state()
 		return
 
@@ -153,6 +155,9 @@ func _update_button_states() -> void:
 	tackle_btn.disabled = ap < 1 or not can_tackle
 
 	end_turn_btn.disabled = false
+	substitute_btn.disabled = not match_controller.can_player_substitute()
+	var remaining_subs = match_controller.get_remaining_substitutions()
+	substitute_btn.text = "Substitute (%d)" % remaining_subs
 	_update_dribble_move_buttons_state()
 
 
@@ -177,6 +182,7 @@ func _enable_buttons(enabled: bool) -> void:
 	dribble_btn.disabled = not enabled
 	tackle_btn.disabled = not enabled
 	end_turn_btn.disabled = not enabled
+	substitute_btn.disabled = not enabled
 
 
 func _reset_button_highlights() -> void:
@@ -185,6 +191,7 @@ func _reset_button_highlights() -> void:
 	shoot_btn.modulate = Color.WHITE
 	dribble_btn.modulate = Color.WHITE
 	tackle_btn.modulate = Color.WHITE
+	substitute_btn.modulate = Color.WHITE
 
 
 ## Build dribble move buttons once the player unit is available.
@@ -340,3 +347,10 @@ func _on_end_turn_btn_pressed() -> void:
 	AudioManager.play_ui_click()
 	if match_controller:
 		match_controller.end_player_turn()
+
+
+func _on_substitute_btn_pressed() -> void:
+	AudioManager.play_ui_click()
+	if match_controller and match_controller.can_player_substitute():
+		match_controller.perform_substitution()
+		_update_button_states()
