@@ -32,6 +32,11 @@ var match_minute: int = 0
 var home_score: int = 0
 var away_score: int = 0
 
+# Initiative order (player-level queue for this turn)
+var initiative_order: Array[PlayerUnit] = []
+var initiative_cursor: int = -1
+var is_player_turn_active: bool = false
+
 # Goal tracking for season awards
 var home_goal_events: Array[Dictionary] = []
 var away_goal_events: Array[Dictionary] = []
@@ -41,6 +46,7 @@ var last_shooter: PlayerUnit = null  # Track shooter for goal attribution (posse
 # Turn settings
 const TURNS_PER_HALF: int = 45
 const MINUTES_PER_TURN: int = 1  # 45 turns * 1 minute = 45 min per half = 90 min total
+const INITIATIVE_RANDOM_BONUS: int = 12
 
 # Grid and units
 var hex_grid: TileMapLayer
@@ -528,46 +534,145 @@ func select_action(action: String) -> void:
 
 
 func end_player_turn() -> void:
-	if current_phase != TurnPhase.PLAYER:
+	if not is_player_turn_active:
 		return
 
-	_advance_to_team_phase()
+	is_player_turn_active = false
+	_process_next_initiative_actor()
 
 
 ## Turn management
 func _start_player_turn() -> void:
+	_clear_highlights()
 	current_phase = TurnPhase.PLAYER
 
-	# Reset player AP
-	if player_unit:
-		player_unit.reset_turn()
-		_select_unit(player_unit)
+	# Reset all units for this turn.
+	for unit in all_units:
+		unit.reset_turn()
 
-	turn_changed.emit(current_phase, current_turn)
+	# Build initiative order for this minute and start the queue.
+	_build_initiative_order()
+	initiative_cursor = -1
+	is_player_turn_active = false
+	_process_next_initiative_actor()
 
 
-func _advance_to_team_phase() -> void:
-	_clear_highlights()
+func _process_next_initiative_actor() -> void:
+	var actor: PlayerUnit = _get_next_initiative_actor()
+
+	# All actors completed
+	if not actor:
+		is_player_turn_active = false
+		_end_turn()
+		return
+
+	# Clear any stale player selection/highlights between actor switches.
 	selected_unit = null
+	_clear_highlights()
 	current_action = ""
+	_update_active_player_selection(actor)
 
-	current_phase = TurnPhase.TEAM
+	if actor == player_unit:
+		current_phase = TurnPhase.PLAYER
+		is_player_turn_active = true
+		turn_changed.emit(current_phase, current_turn)
+		_select_unit(actor)
+		return
+
+	current_phase = TurnPhase.TEAM if _is_player_team_unit(actor) else TurnPhase.OPPONENT
 	turn_changed.emit(current_phase, current_turn)
 
-	# Process teammate AI
-	await _process_team_ai()
-
-	_advance_to_opponent_phase()
+	await _process_ai_unit_turn(actor)
+	_process_next_initiative_actor()
 
 
-func _advance_to_opponent_phase() -> void:
-	current_phase = TurnPhase.OPPONENT
-	turn_changed.emit(current_phase, current_turn)
+func _build_initiative_order() -> void:
+	var initiative_entries: Array[Dictionary] = []
 
-	# Process opponent AI
-	await _process_opponent_ai()
+	for unit in all_units:
+		if unit == null:
+			continue
 
-	_end_turn()
+		initiative_entries.append({
+			"unit": unit,
+			"initiative": _calculate_unit_initiative(unit)
+		})
+
+	initiative_entries.sort_custom(_sort_initiative_entries)
+
+	initiative_order.clear()
+	for entry in initiative_entries:
+		initiative_order.append(entry.get("unit", null))
+
+
+func _get_next_initiative_actor() -> PlayerUnit:
+	initiative_cursor += 1
+
+	while initiative_cursor < initiative_order.size():
+		var candidate = initiative_order[initiative_cursor]
+		if candidate and candidate.action_points > 0:
+			return candidate
+		initiative_cursor += 1
+
+	return null
+
+
+func _calculate_unit_initiative(unit: PlayerUnit) -> int:
+	var speed = unit.get_stat("SPD")
+	var role_penalty = -3 if unit.is_goalkeeper() else 0
+	var player_bonus = 2 if unit.is_player_controlled else 0
+	return (speed * 2) + player_bonus + role_penalty + randi_range(0, INITIATIVE_RANDOM_BONUS)
+
+
+func _sort_initiative_entries(a: Dictionary, b: Dictionary) -> bool:
+	var a_initiative = int(a.get("initiative", 0))
+	var b_initiative = int(b.get("initiative", 0))
+
+	if a_initiative == b_initiative:
+		var a_unit = a.get("unit", null)
+		var b_unit = b.get("unit", null)
+		if a_unit == null or b_unit == null:
+			return false
+
+		if a_unit.overall == b_unit.overall:
+			return int(a_unit.get_stat("PAS")) > int(b_unit.get_stat("PAS"))
+		return a_unit.overall > b_unit.overall
+
+	return a_initiative > b_initiative
+
+
+func _is_player_team_unit(unit: PlayerUnit) -> bool:
+	return player_unit != null and unit.is_home_team == player_unit.is_home_team
+
+
+func _update_active_player_selection(unit: PlayerUnit) -> void:
+	if player_unit:
+		player_unit.set_selected(false)
+	
+	if unit == player_unit and unit:
+		player_unit.set_selected(true)
+
+
+func _process_ai_unit_turn(unit: PlayerUnit) -> void:
+	var actions_per_turn = mini(unit.max_action_points, 3)
+	var is_player_team = _is_player_team_unit(unit)
+	var attacking_right = home_attacks_right if unit.is_home_team else not home_attacks_right
+	var tactics = match_data.home_team.tactics if unit.is_home_team else match_data.away_team.tactics
+
+	for _i in range(actions_per_turn):
+		if unit.action_points <= 0:
+			break
+
+		var decision: Dictionary = {}
+		if is_player_team:
+			decision = TeammateAI.take_turn(unit, ball, all_units, match_data, attacking_right)
+		else:
+			decision = OpponentAI.take_turn(unit, ball, all_units, match_data, tactics, attacking_right)
+
+		await _execute_ai_decision(unit, decision)
+
+		# Small delay for visibility
+		await get_tree().create_timer(0.1).timeout
 
 
 func _end_turn() -> void:
@@ -688,46 +793,6 @@ func _reset_positions() -> void:
 
 
 ## AI Processing
-func _process_team_ai() -> void:
-	var team = home_units if player_unit and player_unit.is_home_team else away_units
-	var attacking_right = home_attacks_right if player_unit and player_unit.is_home_team else not home_attacks_right
-
-	for unit in team:
-		if unit == player_unit:
-			continue  # Skip player-controlled unit
-
-		unit.reset_turn()
-
-		# Take up to 3 actions
-		for _i in range(3):
-			if unit.action_points <= 0:
-				break
-
-			var decision = TeammateAI.take_turn(unit, ball, all_units, match_data, attacking_right)
-			await _execute_ai_decision(unit, decision)
-
-			# Small delay for visibility
-			await get_tree().create_timer(0.1).timeout
-
-
-func _process_opponent_ai() -> void:
-	var opponents = away_units if player_unit and player_unit.is_home_team else home_units
-	var attacking_right = not home_attacks_right if player_unit and player_unit.is_home_team else home_attacks_right
-	var tactics = match_data.away_team.tactics if player_unit and player_unit.is_home_team else match_data.home_team.tactics
-
-	for unit in opponents:
-		unit.reset_turn()
-
-		for _i in range(3):
-			if unit.action_points <= 0:
-				break
-
-			var decision = OpponentAI.take_turn(unit, ball, all_units, match_data, tactics, attacking_right)
-			await _execute_ai_decision(unit, decision)
-
-			await get_tree().create_timer(0.1).timeout
-
-
 func _execute_ai_decision(unit: PlayerUnit, decision: Dictionary) -> void:
 	var action = decision.get("action", "none")
 
@@ -901,7 +966,7 @@ func _on_unit_move_completed(unit: PlayerUnit) -> void:
 
 
 func _check_turn_end() -> void:
-	if not player_unit:
+	if not is_player_turn_active or not player_unit:
 		return
 
 	if player_unit.action_points <= 0:
