@@ -203,7 +203,8 @@ func _team_roster_data(is_home: bool) -> Array[Dictionary]:
 		return roster
 
 	for player in team.players:
-		roster.append(player)
+		if team.is_player_available_for_match(player):
+			roster.append(team.get_match_ready_player_record(player))
 
 	# Ensure player character data is present in home roster
 	if is_home and GameManager.player_data:
@@ -240,8 +241,7 @@ func _is_active_player_record(data: Dictionary) -> bool:
 		return true
 	if not NpcRegistry.has_npc(player_id):
 		return true
-	var npc = NpcRegistry.get_npc(player_id)
-	return npc.get("status", "active") == "active"
+	return NpcRegistry.is_npc_match_eligible(player_id)
 
 
 func _lineup_for_team(is_home: bool) -> Array[Dictionary]:

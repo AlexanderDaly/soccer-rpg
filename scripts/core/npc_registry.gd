@@ -103,7 +103,9 @@ func get_or_create_npc(stable_team_id: String, position: String, roster_index: i
 	# Injury tracking
 	new_npc["injury"] = npc_data.get("injury", {
 		"type": "",
+		"injury_type": "",
 		"matches_remaining": 0,
+		"matches_total": 0,
 		"description": ""
 	})
 
@@ -243,6 +245,7 @@ func apply_injury(npc_id: String, injury_type: String, matches_out: int, descrip
 		"type": injury_type,
 		"injury_type": specific_injury_type,
 		"matches_remaining": matches_out,
+		"matches_total": matches_out,
 		"description": description
 	}
 
@@ -267,6 +270,7 @@ func recover_from_injury(npc_id: String) -> void:
 		"type": "",
 		"injury_type": "",
 		"matches_remaining": 0,
+		"matches_total": 0,
 		"description": ""
 	}
 	npc["status"] = "active"
@@ -379,6 +383,25 @@ func is_npc_available(npc_id: String) -> bool:
 
 	var npc = npc_registry[npc_id]
 	return npc.get("status", "active") == "active"
+
+
+## Check if an NPC can be selected for match play.
+## Minor injuries are playable; all other injuries are unavailable.
+func is_npc_match_eligible(npc_id: String) -> bool:
+	if npc_id not in npc_registry:
+		return true  # Unknown NPCs are assumed available
+
+	var npc = npc_registry[npc_id]
+	var status = npc.get("status", "active")
+	if status == "active":
+		return true
+	if status != "injured":
+		return false
+
+	var injury = npc.get("injury", {})
+	var severity = injury.get("type", "")
+	var matches_remaining = int(injury.get("matches_remaining", 0))
+	return severity == "minor" and matches_remaining > 0
 
 
 ## Get the current season year from the season ID

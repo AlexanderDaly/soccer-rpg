@@ -28,6 +28,14 @@ class_name TeamData
 # Prefecture for stable ID generation
 var _prefecture: String = ""
 
+const MINOR_INJURY_STAT_PENALTIES: Dictionary = {
+	"muscle_tightness": {"STA": 6, "SPD": 4, "TEC": 2},
+	"light_bruising": {"PHY": 5, "DEF": 2, "MEN": 2},
+	"ankle_niggle": {"SPD": 6, "TEC": 4, "PAS": 2},
+	"minor_cramp": {"STA": 7, "SPD": 3, "PHY": 2},
+	"_default": {"STA": 4, "SPD": 2, "MEN": 1}
+}
+
 
 func _init() -> void:
 	# Default to random ID; will be overwritten by set_stable_id() when name/prefecture are known
@@ -246,8 +254,8 @@ func get_player_by_position(pos: String) -> Dictionary:
 
 
 func get_starting_eleven() -> Array[Dictionary]:
-	# Returns the best 11 available players (including user's player)
-	# Filters out injured and graduated players
+	# Returns the best 11 match-eligible players (including user's player)
+	# Minor injuries can play through with stat penalties.
 	var eleven: Array[Dictionary] = []
 
 	# Add user's player
@@ -264,20 +272,8 @@ func get_starting_eleven() -> Array[Dictionary]:
 	# Filter to only available players (not injured or graduated)
 	var available_players: Array[Dictionary] = []
 	for player in players:
-		var player_id = player.get("id", "")
-		if player_id == "":
-			available_players.append(player)
-			continue
-
-		# Check NPC status in registry
-		if NpcRegistry.has_npc(player_id):
-			var npc = NpcRegistry.get_npc(player_id)
-			var status = npc.get("status", "active")
-			if status == "active":
-				available_players.append(player)
-		else:
-			# Unknown NPCs are assumed available
-			available_players.append(player)
+		if is_player_available_for_match(player):
+			available_players.append(get_match_ready_player_record(player))
 
 	# Sort by overall rating
 	available_players.sort_custom(func(a, b): return a.overall > b.overall)
@@ -288,6 +284,84 @@ func get_starting_eleven() -> Array[Dictionary]:
 		eleven.append(player)
 
 	return eleven
+
+
+func is_player_available_for_match(player: Dictionary) -> bool:
+	var player_id = player.get("id", "")
+	if player_id == "":
+		return true
+
+	if not NpcRegistry.has_npc(player_id):
+		return true  # Unknown NPCs are assumed available
+
+	return NpcRegistry.is_npc_match_eligible(player_id)
+
+
+func get_match_ready_player_record(player: Dictionary) -> Dictionary:
+	var player_id = player.get("id", "")
+	if player_id == "":
+		return player
+	if not NpcRegistry.has_npc(player_id):
+		return player
+
+	var npc = NpcRegistry.get_npc(player_id)
+	var status = npc.get("status", "active")
+	if status != "injured":
+		return player
+
+	var injury = npc.get("injury", {})
+	var severity = injury.get("type", "")
+	var matches_remaining = int(injury.get("matches_remaining", 0))
+	if severity == "minor" and matches_remaining > 0:
+		return _apply_minor_injury_penalty(player, injury)
+
+	return player
+
+
+func _apply_minor_injury_penalty(player: Dictionary, injury: Dictionary) -> Dictionary:
+	var adjusted = player.duplicate(true)
+	var injury_type = str(injury.get("injury_type", ""))
+	var penalties: Dictionary = MINOR_INJURY_STAT_PENALTIES.get(
+		injury_type,
+		MINOR_INJURY_STAT_PENALTIES["_default"]
+	)
+	var penalty_scale = _minor_injury_penalty_scale(injury)
+
+	var stats: Dictionary = adjusted.get("stats", {}).duplicate(true)
+	if stats.is_empty():
+		var overall_penalty = maxi(1, roundi(4.0 * penalty_scale))
+		adjusted["overall"] = maxi(int(adjusted.get("overall", 50)) - overall_penalty, 1)
+	else:
+		for stat_key in penalties:
+			if stats.has(stat_key):
+				var base_penalty = int(penalties[stat_key])
+				var scaled_penalty = maxi(1, roundi(float(base_penalty) * penalty_scale))
+				stats[stat_key] = clampi(int(stats[stat_key]) - scaled_penalty, 1, 99)
+
+		adjusted["stats"] = stats
+		adjusted["overall"] = StatSystem.calculate_overall(stats, adjusted.get("position", "CM"))
+
+	adjusted["playing_through_injury"] = true
+	adjusted["injury_severity"] = "minor"
+	adjusted["injury_type"] = injury_type
+	adjusted["injury_matches_remaining"] = int(injury.get("matches_remaining", 0))
+	adjusted["injury_penalty_scale"] = penalty_scale
+	return adjusted
+
+
+func _minor_injury_penalty_scale(injury: Dictionary) -> float:
+	var matches_remaining = maxi(int(injury.get("matches_remaining", 0)), 0)
+	if matches_remaining <= 0:
+		return 0.0
+
+	var matches_total = maxi(int(injury.get("matches_total", matches_remaining)), 1)
+	if matches_total <= 1:
+		return 1.0
+
+	var numerator = float(matches_remaining - 1)
+	var denominator = float(maxi(matches_total - 1, 1))
+	var progress = clampf(numerator / denominator, 0.0, 1.0)
+	return lerpf(0.55, 1.0, progress)
 
 
 func get_injured_players() -> Array[Dictionary]:
