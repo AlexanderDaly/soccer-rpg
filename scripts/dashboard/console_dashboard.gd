@@ -13,6 +13,7 @@ const TILE_CONFIG: Array[Dictionary] = [
 	{"id": "email", "title": "Email", "icon": "res://assets/ui/icons/icon_email.svg", "panel": "res://scenes/dashboard/panels/panel_email.tscn"},
 	{"id": "desktop", "title": "Desktop", "icon": "res://assets/ui/icons/icon_settings.svg", "scene": "res://scenes/desktop/desktop_shell.tscn"},
 	{"id": "career_hub", "title": "Career Hub", "icon": "res://assets/ui/icons/icon_team.svg", "scene": "res://scenes/career/career_hub.tscn"},
+	{"id": "social", "title": "FanZone", "icon": "res://assets/ui/icons/icon_team.svg", "panel": "res://scenes/dashboard/panels/panel_social.tscn"},
 	{"id": "save", "title": "Save", "icon": "res://assets/ui/icons/icon_save.svg", "panel": "res://scenes/dashboard/panels/panel_save_load.tscn"},
 	{"id": "settings", "title": "Settings", "icon": "res://assets/ui/icons/icon_settings.svg", "panel": "res://scenes/dashboard/panels/panel_settings.tscn"}
 ]

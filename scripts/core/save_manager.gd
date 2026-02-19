@@ -208,6 +208,9 @@ func _collect_save_data() -> Dictionary:
 		# NPC Registry (persistent NPC identities)
 		"npc_registry": NpcRegistry.to_dict(),
 
+		# Social feed
+		"social_feed": SocialFeedManager.to_dict(),
+
 		# Settings
 		"settings": _serialize_settings()
 	}
@@ -309,9 +312,13 @@ func _apply_save_data(data: Dictionary) -> void:
 	if "personas" in data:
 		PersonaManager.load_personas_from_dict(data.personas)
 
-	# Restore NPC Registry (must be before team restoration for cross-reference)
+	# Restore NPC Registry
 	if "npc_registry" in data:
 		NpcRegistry.from_dict(data.npc_registry)
+
+	# Restore social feed
+	if "social_feed" in data:
+		SocialFeedManager.from_dict(data.social_feed)
 
 	# Restore settings
 	if "settings" in data:
