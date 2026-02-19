@@ -18,7 +18,7 @@ const V2_SORT_TOP := "top"
 const V2_SORT_LATEST := "latest"
 const V2_RECENCY_HALFLIFE_HOURS := 72.0
 const V2_REPLY_DEDUPE_WINDOW_SECONDS := 180.0
-const V2_MAX_SOCIAL_REP_PER_DAY := 2
+const V2_MAX_SOCIAL_REP_PER_DAY := 4
 const V2_THREAD_MIN_LIKES := 2
 const V2_THREAD_MIN_NPC_REPLIES := 2
 
@@ -424,6 +424,8 @@ func create_player_post(content: String) -> Dictionary:
 		{"likes": randi_range(10, 80)}
 	)
 
+	_apply_social_reputation_event("player_post", {"post_id": post.get("post_id", "")})
+
 	# Queue NPC auto-replies
 	_queue_npc_replies(post.post_id, "player_post")
 	return post
@@ -463,6 +465,7 @@ func add_player_reply(parent_post_id: String, content: String) -> Dictionary:
 		player_name = GameManager.player_data.name if GameManager.player_data.name != "" else "You"
 
 	var reply = add_reply(parent_post_id, "player", player_name, "player", content)
+	_apply_social_reputation_event("player_reply", {"parent_post_id": parent_post_id})
 
 	# Queue NPC auto-replies to the thread
 	_queue_npc_replies(parent_post_id, "player_post")
@@ -485,6 +488,8 @@ func toggle_like(post_id: String) -> void:
 
 	post.player_liked = !post.player_liked
 	post.likes += 1 if post.player_liked else -1
+	if post.player_liked:
+		_apply_social_reputation_event("like", {"post_type": str(post.get("post_type", "")), "liked": true})
 
 
 # ─── Feed Access ─────────────────────────────────────────────────
@@ -601,6 +606,7 @@ func create_player_post_v2(content: String) -> Dictionary:
 		"player", player_name, "player", content,
 		{"likes": randi_range(10, 80), "priority": 58, "tags": ["player", "thread"]}
 	)
+	_apply_social_reputation_event("player_post", {"post_id": post.get("post_id", "")})
 
 	_queue_npc_replies_v2(post.post_id, "player_post")
 	return post
@@ -644,6 +650,7 @@ func add_player_reply_v2(parent_post_id: String, content: String) -> Dictionary:
 		player_name = GameManager.player_data.name if GameManager.player_data.name != "" else "You"
 
 	var reply = add_reply_v2(parent_post_id, "player", player_name, "player", content)
+	_apply_social_reputation_event("player_reply", {"parent_post_id": parent_post_id})
 	var post = get_post_by_id_v2(parent_post_id)
 	if not post.is_empty():
 		post.player_replied_in_thread = true
@@ -665,6 +672,8 @@ func toggle_like_v2(post_id: String) -> void:
 
 	post.player_liked = !post.player_liked
 	post.likes += 1 if post.player_liked else -1
+	if post.player_liked:
+		_apply_social_reputation_event("like", {"post_type": str(post.get("post_type", "")), "liked": true})
 	_evaluate_v2_thread_engagement(post)
 
 
@@ -713,6 +722,7 @@ func on_match_ended_v2(result: Dictionary) -> void:
 	var result_type = normalized.result_type
 	var mood = normalized.mood
 	var event_key = "match_" + result_type
+	var presence_bonus = _get_reputation_presence_bonus()
 
 	var summary_content = "%s %s %s" % [player_team_name, score_str, opponent_name]
 	if result_type == "win":
@@ -729,16 +739,19 @@ func on_match_ended_v2(result: Dictionary) -> void:
 			"event_type": event_key,
 			"mood": mood,
 			"score": score_str,
-			"likes": randi_range(30, 150),
+			"likes": randi_range(30 + (presence_bonus * 8), 150 + (presence_bonus * 15)),
 			"priority": 84,
 			"tags": ["match", result_type, "summary"],
 			"social_rep_eligible": false
 		}
 	)
 
-	_generate_npc_event_posts_v2(event_key, mood, randi_range(2, 4))
+	var npc_min = 2 + (1 if presence_bonus > 0 else 0)
+	var npc_max = 4 + presence_bonus
+	_generate_npc_event_posts_v2(event_key, mood, randi_range(npc_min, npc_max))
 
-	var fan_count = randi_range(0, 2)
+	var fan_count = randi_range(0, 2 + presence_bonus)
+	var fan_like_range = _scaled_like_range(2, 20)
 	for i in range(fan_count):
 		var fan_templates = FAN_TEMPLATES.get(event_key, FAN_TEMPLATES["general"])
 		var fan_text = fan_templates[randi() % fan_templates.size()]
@@ -748,12 +761,13 @@ func on_match_ended_v2(result: Dictionary) -> void:
 			{
 				"event_type": event_key,
 				"mood": mood,
-				"likes": randi_range(2, 20),
+				"likes": randi_range(fan_like_range.x, fan_like_range.y),
 				"priority": 48,
 				"tags": ["fan", result_type]
 			}
 		)
 
+	var news_like_range = _scaled_like_range(20, 100)
 	var news_list = NEWS_TEMPLATES.get(event_key, [])
 	if not news_list.is_empty():
 		var template = news_list[randi() % news_list.size()]
@@ -778,7 +792,7 @@ func on_match_ended_v2(result: Dictionary) -> void:
 				"body": body,
 				"source": "FanZone Sports Desk",
 				"event_type": event_key,
-				"likes": randi_range(20, 100),
+				"likes": randi_range(news_like_range.x, news_like_range.y),
 				"priority": 78,
 				"tags": ["news", "match", result_type],
 				"social_rep_eligible": false
@@ -1050,15 +1064,24 @@ func _grant_v2_social_reputation(delta: int, reason: String) -> bool:
 		return false
 	_sync_v2_social_rep_day()
 	var remaining = maxi(V2_MAX_SOCIAL_REP_PER_DAY - _v2_social_rep_awarded_today, 0)
-	var applied = mini(delta, remaining)
-	if applied <= 0:
+	if remaining <= 0:
 		return false
 
-	if CareerManager and CareerManager.has_method("apply_social_reputation_delta"):
-		CareerManager.apply_social_reputation_delta(applied, reason)
-		_v2_social_rep_awarded_today += applied
-		return true
-	return false
+	var requested = mini(delta, remaining)
+	var result := {}
+	if CareerManager and CareerManager.has_method("apply_social_reputation"):
+		result = CareerManager.apply_social_reputation("legacy_bonus", {"base_delta": requested, "reason": reason})
+	elif CareerManager and CareerManager.has_method("apply_social_reputation_delta"):
+		CareerManager.apply_social_reputation_delta(requested, reason)
+		result = {"applied_delta": requested}
+	else:
+		return false
+
+	var applied = int(result.get("applied_delta", 0))
+	if applied <= 0:
+		return false
+	_v2_social_rep_awarded_today += applied
+	return true
 
 
 func _sync_v2_social_rep_day() -> void:
@@ -1245,28 +1268,51 @@ func _to_string_array(value: Variant) -> Array[String]:
 	return output
 
 
+func _apply_social_reputation_event(action_type: String, payload: Dictionary = {}) -> Dictionary:
+	if not CareerManager:
+		return {}
+	if CareerManager.has_method("apply_social_reputation"):
+		return CareerManager.apply_social_reputation(action_type, payload)
+	if CareerManager.has_method("apply_social_reputation_delta"):
+		var legacy_delta = int(payload.get("base_delta", 0))
+		if legacy_delta > 0:
+			CareerManager.apply_social_reputation_delta(legacy_delta, action_type)
+		return {"applied_delta": legacy_delta}
+	return {}
+
+
+func _get_reputation_score() -> int:
+	if CareerManager:
+		return int(CareerManager.reputation)
+	return 10
+
+
+func _get_reputation_presence_bonus() -> int:
+	var score = _get_reputation_score()
+	if score >= 85:
+		return 2
+	if score >= 50:
+		return 1
+	return 0
+
+
+func _scaled_like_range(min_likes: int, max_likes: int) -> Vector2i:
+	var bonus = _get_reputation_presence_bonus()
+	return Vector2i(min_likes + (bonus * 4), max_likes + (bonus * 12))
+
+
 # ─── Event Handlers ──────────────────────────────────────────────
 
 func on_match_ended(result: Dictionary) -> void:
-	var player_team_name = result.get("player_team", "Our Team")
-	var opponent_name = result.get("opponent", "Opponent")
-	var home_score = result.get("home_score", 0)
-	var away_score = result.get("away_score", 0)
-	var is_home = result.get("is_home", true)
-
-	var player_score = home_score if is_home else away_score
-	var opponent_score = away_score if is_home else home_score
+	var normalized = _normalize_match_result_for_feed(result)
+	var player_team_name = normalized.player_team_name
+	var opponent_name = normalized.opponent_name
+	var player_score = normalized.player_score
+	var opponent_score = normalized.opponent_score
+	var result_type = normalized.result_type
+	var mood = normalized.mood
 	var score_str = "%d-%d" % [player_score, opponent_score]
-
-	# Determine result type
-	var result_type = "draw"
-	var mood = "neutral"
-	if player_score > opponent_score:
-		result_type = "win"
-		mood = "happy"
-	elif player_score < opponent_score:
-		result_type = "loss"
-		mood = "sad"
+	var presence_bonus = _get_reputation_presence_bonus()
 
 	# Match summary post
 	var summary_content = "%s %s %s" % [player_team_name, score_str, opponent_name]
@@ -1281,25 +1327,29 @@ func on_match_ended(result: Dictionary) -> void:
 		POST_TYPE_NAMES[PostType.MATCH_SUMMARY],
 		"system", "Match Report", "system", summary_content,
 		{"event_type": "match_" + result_type, "mood": mood,
-		 "score": score_str, "likes": randi_range(30, 150)}
+		 "score": score_str, "likes": randi_range(30 + (presence_bonus * 8), 150 + (presence_bonus * 15))}
 	)
 
 	# NPC reactions (2-4 from teammates)
 	var event_key = "match_" + result_type
-	_generate_npc_event_posts(event_key, mood, randi_range(2, 4))
+	var npc_min = 2 + (1 if presence_bonus > 0 else 0)
+	var npc_max = 4 + presence_bonus
+	_generate_npc_event_posts(event_key, mood, randi_range(npc_min, npc_max))
 
 	# Fan reactions (0-2)
-	var fan_count = randi_range(0, 2)
+	var fan_count = randi_range(0, 2 + presence_bonus)
+	var fan_like_range = _scaled_like_range(2, 20)
 	for i in range(fan_count):
 		var fan_templates = FAN_TEMPLATES.get("match_" + result_type, FAN_TEMPLATES["general"])
 		var fan_text = fan_templates[randi() % fan_templates.size()]
 		create_post(
 			POST_TYPE_NAMES[PostType.FAN_REACTION],
 			"fan_%d" % randi(), "Soccer Fan", "fan", fan_text,
-			{"event_type": event_key, "mood": mood, "likes": randi_range(2, 20)}
+			{"event_type": event_key, "mood": mood, "likes": randi_range(fan_like_range.x, fan_like_range.y)}
 		)
 
 	# News article
+	var news_like_range = _scaled_like_range(20, 100)
 	var news_list = NEWS_TEMPLATES.get("match_" + result_type, [])
 	if not news_list.is_empty():
 		var template = news_list[randi() % news_list.size()]
@@ -1320,7 +1370,7 @@ func on_match_ended(result: Dictionary) -> void:
 			POST_TYPE_NAMES[PostType.NEWS_ARTICLE],
 			"news", "FanZone News", "news", headline,
 			{"headline": headline, "body": body, "source": "FanZone Sports Desk",
-			 "event_type": event_key, "likes": randi_range(20, 100)}
+			 "event_type": event_key, "likes": randi_range(news_like_range.x, news_like_range.y)}
 		)
 
 

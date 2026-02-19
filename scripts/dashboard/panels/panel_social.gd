@@ -26,6 +26,8 @@ var thread_original_post: VBoxContainer
 
 # Filter buttons for highlighting
 var filter_buttons: Dictionary = {}
+var followers_pill: PanelContainer
+var followers_label: Label
 
 # Colors
 const COLOR_BG_CARD := Color(0.06, 0.1, 0.18, 0.9)
@@ -51,8 +53,10 @@ func _on_panel_ready() -> void:
 
 func _on_panel_opened() -> void:
 	_connect_feed_signals()
+	_connect_career_signals()
 	SocialFeedManager.ensure_welcome_post()
 	_build_filter_bar()
+	_refresh_followers_display()
 	_build_compose_area()
 	_build_thread_view()
 	_refresh_feed()
@@ -60,6 +64,7 @@ func _on_panel_opened() -> void:
 
 func _on_panel_closing() -> void:
 	_disconnect_feed_signals()
+	_disconnect_career_signals()
 
 
 func _connect_feed_signals() -> void:
@@ -78,6 +83,18 @@ func _disconnect_feed_signals() -> void:
 		SocialFeedManager.reply_added.disconnect(_on_reply_added)
 	if SocialFeedManager.feed_refreshed.is_connected(_on_feed_refreshed):
 		SocialFeedManager.feed_refreshed.disconnect(_on_feed_refreshed)
+
+
+func _connect_career_signals() -> void:
+	if CareerManager and CareerManager.has_signal("fan_popularity_changed"):
+		if not CareerManager.fan_popularity_changed.is_connected(_on_fan_popularity_changed):
+			CareerManager.fan_popularity_changed.connect(_on_fan_popularity_changed)
+
+
+func _disconnect_career_signals() -> void:
+	if CareerManager and CareerManager.has_signal("fan_popularity_changed"):
+		if CareerManager.fan_popularity_changed.is_connected(_on_fan_popularity_changed):
+			CareerManager.fan_popularity_changed.disconnect(_on_fan_popularity_changed)
 
 
 # ─── Input Handling ──────────────────────────────────────────────
@@ -129,6 +146,31 @@ func _build_filter_bar() -> void:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	filter_bar.add_child(spacer)
 
+	# Followers pill
+	followers_pill = PanelContainer.new()
+	followers_pill.custom_minimum_size = Vector2(160, 32)
+	var pill_style = StyleBoxFlat.new()
+	pill_style.bg_color = Color(0.06, 0.14, 0.22, 0.95)
+	pill_style.border_color = COLOR_ACCENT_GREEN.darkened(0.25)
+	pill_style.set_border_width_all(1)
+	pill_style.set_corner_radius_all(16)
+	followers_pill.add_theme_stylebox_override("panel", pill_style)
+
+	var pill_margin = MarginContainer.new()
+	pill_margin.add_theme_constant_override("margin_left", 10)
+	pill_margin.add_theme_constant_override("margin_right", 10)
+	pill_margin.add_theme_constant_override("margin_top", 4)
+	pill_margin.add_theme_constant_override("margin_bottom", 4)
+
+	followers_label = Label.new()
+	followers_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	followers_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	followers_label.add_theme_font_size_override("font_size", 12)
+	followers_label.add_theme_color_override("font_color", COLOR_TEXT_PRIMARY)
+	pill_margin.add_child(followers_label)
+	followers_pill.add_child(pill_margin)
+	filter_bar.add_child(followers_pill)
+
 
 func _style_filter_button(btn: Button, active: bool) -> void:
 	var style = StyleBoxFlat.new()
@@ -157,6 +199,21 @@ func _on_filter_pressed(filter_id: String) -> void:
 	for fid in filter_buttons:
 		_style_filter_button(filter_buttons[fid], fid == current_filter)
 	_refresh_feed()
+
+
+func _refresh_followers_display() -> void:
+	if not followers_label:
+		return
+	var followers = CareerManager.fan_popularity if CareerManager else 0
+	followers_label.text = "Followers: %s" % _format_followers(followers)
+
+
+func _format_followers(count: int) -> String:
+	if count >= 1000000:
+		return "%.1fM" % (float(count) / 1000000.0)
+	if count >= 1000:
+		return "%.1fK" % (float(count) / 1000.0)
+	return str(count)
 
 
 # ─── Compose Area ────────────────────────────────────────────────
@@ -892,3 +949,7 @@ func _on_reply_added(parent_post_id: String, _reply: Dictionary) -> void:
 func _on_feed_refreshed() -> void:
 	if is_open and current_view == ViewState.FEED:
 		_refresh_feed()
+
+
+func _on_fan_popularity_changed(_new_total: int, _delta: int, _outcome: String) -> void:
+	_refresh_followers_display()

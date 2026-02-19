@@ -16,6 +16,8 @@ class_name PostMatchScreen
 @onready var dribbles_label: Label = $MainContainer/PerformanceSection/StatsGrid/DribblesValue
 
 @onready var xp_gained_label: Label = $MainContainer/RewardsSection/XPGained
+@onready var reputation_label: Label = $MainContainer/RewardsSection/ReputationLabel
+@onready var reputation_breakdown_label: Label = $MainContainer/RewardsSection/ReputationBreakdown
 @onready var milestones_container: VBoxContainer = $MainContainer/RewardsSection/MilestonesContainer
 
 @onready var event_list: VBoxContainer = $MainContainer/EventSection/EventScroll/EventList
@@ -78,6 +80,7 @@ func _display_result() -> void:
 	# Calculate and display XP gained
 	var xp_gained = _calculate_xp_display()
 	xp_gained_label.text = "+%d XP" % xp_gained
+	_display_reputation()
 
 	# Man of the Match
 	if match_result.get("man_of_match", false):
@@ -422,6 +425,51 @@ func _generate_match_narrative() -> String:
 		lines.append("Room for improvement, but experience gained.")
 
 	return "\n".join(lines)
+
+
+func _display_reputation() -> void:
+	if not reputation_label:
+		return
+
+	var rep_before = int(match_result.get("reputation_before", CareerManager.reputation))
+	var rep_after = int(match_result.get("reputation_after", CareerManager.reputation))
+	var rep_delta = int(match_result.get("reputation_delta", rep_after - rep_before))
+	var tier_name = str(match_result.get("reputation_tier", "Unknown"))
+
+	var delta_prefix = "+" if rep_delta > 0 else ""
+	reputation_label.text = "Reputation: %s%d -> %d (%s)" % [delta_prefix, rep_delta, rep_after, tier_name]
+	if rep_delta > 0:
+		reputation_label.add_theme_color_override("font_color", Color(0.45, 0.9, 0.55))
+	elif rep_delta < 0:
+		reputation_label.add_theme_color_override("font_color", Color(0.95, 0.45, 0.45))
+	else:
+		reputation_label.add_theme_color_override("font_color", Color(0.7, 0.78, 0.86))
+
+	if not reputation_breakdown_label:
+		return
+	var breakdown = match_result.get("reputation_breakdown", [])
+	reputation_breakdown_label.text = _format_reputation_breakdown(breakdown)
+
+
+func _format_reputation_breakdown(breakdown: Array) -> String:
+	if breakdown.is_empty():
+		return "No reputation changes."
+
+	var parts: Array[String] = []
+	for entry in breakdown:
+		var source = str(entry.get("source", "change"))
+		var delta = int(entry.get("delta", 0))
+		if delta == 0:
+			continue
+		var label = source.replace("_", " ").capitalize()
+		var prefix = "+" if delta > 0 else ""
+		parts.append("%s %s%d" % [label, prefix, delta])
+		if parts.size() >= 4:
+			break
+
+	if parts.is_empty():
+		return "No significant modifiers."
+	return "Breakdown: " + " | ".join(parts)
 
 
 func _update_season_standings() -> void:

@@ -62,6 +62,9 @@ func change_state(new_state: GameState) -> void:
 
 
 func start_new_career(player_name: String, position: String, nationality: String = "USA", appearance: Dictionary = {}, dominant_foot: String = "right", traits: Array[String] = [], prefecture: String = "Kanagawa") -> void:
+	if CareerManager and CareerManager.has_method("reset_for_new_career"):
+		CareerManager.reset_for_new_career()
+
 	player_data = PlayerData.new()
 	player_data.initialize(player_name, position, nationality, appearance, dominant_foot, traits)
 	current_career_phase = CareerPhase.HIGH_SCHOOL
@@ -99,6 +102,7 @@ func end_match(result: Dictionary) -> void:
 	# Process match results
 	StatSystem.process_match_performance(result)
 	CareerManager.record_match_result(result)
+	SocialFeedManager.on_match_ended(result)
 	
 	# Generate post-match narrative
 	NarrativeEngine.generate_post_match_narrative(result)

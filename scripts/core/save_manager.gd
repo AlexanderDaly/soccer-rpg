@@ -7,7 +7,7 @@ signal load_completed(slot: int, success: bool)
 const SAVE_DIR = "user://saves/"
 const SAVE_EXTENSION = ".sav"
 const MAX_SAVE_SLOTS = 5
-const SAVE_VERSION = 1
+const SAVE_VERSION = 2
 
 var current_slot: int = -1
 var auto_save_enabled: bool = true
@@ -238,7 +238,14 @@ func _serialize_career() -> Dictionary:
 		"match_history": CareerManager.match_history,
 		"career_stats": CareerManager.career_stats,
 		"reputation": CareerManager.reputation,
+		"media_coverage": CareerManager.media_coverage,
+		"fan_popularity": CareerManager.fan_popularity,
 		"scout_attention": CareerManager.scout_attention,
+		"reputation_event_log": CareerManager.reputation_event_log,
+		"last_match_reputation_report": CareerManager.last_match_reputation_report,
+		"social_rep_day_key": CareerManager.social_rep_day_key,
+		"social_rep_awarded_today": CareerManager.social_rep_awarded_today,
+		"social_rep_actions_today": CareerManager.social_rep_actions_today,
 		"completed_milestones": CareerManager.completed_milestones,
 		"rivals": CareerManager.rivals
 	}
@@ -296,7 +303,14 @@ func _apply_save_data(data: Dictionary) -> void:
 		CareerManager.match_history.assign(career.get("match_history", []))
 		CareerManager.career_stats = career.get("career_stats", {})
 		CareerManager.reputation = career.get("reputation", 10)
+		CareerManager.media_coverage = career.get("media_coverage", 0)
+		CareerManager.fan_popularity = career.get("fan_popularity", 0)
 		CareerManager.scout_attention = career.get("scout_attention", {})
+		CareerManager.reputation_event_log.assign(career.get("reputation_event_log", []))
+		CareerManager.last_match_reputation_report = career.get("last_match_reputation_report", {})
+		CareerManager.social_rep_day_key = career.get("social_rep_day_key", "")
+		CareerManager.social_rep_awarded_today = int(career.get("social_rep_awarded_today", 0))
+		CareerManager.social_rep_actions_today = int(career.get("social_rep_actions_today", 0))
 		CareerManager.completed_milestones.assign(career.get("completed_milestones", []))
 		CareerManager.rivals.assign(career.get("rivals", []))
 

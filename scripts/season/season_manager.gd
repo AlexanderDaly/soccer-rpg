@@ -439,7 +439,7 @@ func _transition_to_qualifiers() -> void:
 
 	# Check for league champion milestone
 	if current_season.player_won_league():
-		CareerManager._complete_milestone("prefecture_league_champion")
+		CareerManager.award_milestone("prefecture_league_champion", {"source": "season_progress"})
 		print("[SeasonManager] Player won the prefecture league!")
 
 	# Generate qualifier teams (all league teams plus additional)
@@ -468,7 +468,7 @@ func _transition_to_qualifiers() -> void:
 func _handle_qualifier_completion() -> void:
 	if current_season.player_won_qualifiers():
 		print("[SeasonManager] Player won qualifiers, advancing to nationals")
-		CareerManager._complete_milestone("prefecture_qualifier_winner")
+		CareerManager.award_milestone("prefecture_qualifier_winner", {"source": "season_progress"})
 		_transition_to_nationals()
 	else:
 		print("[SeasonManager] Player eliminated from qualifiers")
@@ -487,7 +487,7 @@ func _transition_to_nationals() -> void:
 	print("[SeasonManager] Transitioning to National Championship")
 
 	# Milestone for making it to nationals
-	CareerManager._complete_milestone("national_participant")
+	CareerManager.award_milestone("national_participant", {"source": "season_progress"})
 
 	var player_team = current_season.league.get_player_team()
 	var national_teams = JapaneseSchoolGenerator.generate_national_teams(player_team, 48)
@@ -508,7 +508,7 @@ func _handle_nationals_completion() -> void:
 	if current_season.player_won_nationals():
 		print("[SeasonManager] Player won the National Championship!")
 		# Record milestone
-		CareerManager._complete_milestone("national_champion")
+		CareerManager.award_milestone("national_champion", {"source": "season_progress"})
 	else:
 		print("[SeasonManager] Player eliminated from nationals")
 		player_eliminated.emit("National Championship")
@@ -529,16 +529,16 @@ func _record_nationals_progress_milestones() -> void:
 	match stage:
 		TournamentData.Stage.QUARTER_FINAL:
 			# Lost in quarter finals = made quarter finals
-			CareerManager._complete_milestone("national_quarter_finalist")
+			CareerManager.award_milestone("national_quarter_finalist", {"source": "season_progress"})
 		TournamentData.Stage.SEMI_FINAL:
 			# Lost in semi finals = made quarters and semis
-			CareerManager._complete_milestone("national_quarter_finalist")
-			CareerManager._complete_milestone("national_semi_finalist")
+			CareerManager.award_milestone("national_quarter_finalist", {"source": "season_progress"})
+			CareerManager.award_milestone("national_semi_finalist", {"source": "season_progress"})
 		TournamentData.Stage.FINAL:
 			# Lost in final = made quarters, semis, and final
-			CareerManager._complete_milestone("national_quarter_finalist")
-			CareerManager._complete_milestone("national_semi_finalist")
-			CareerManager._complete_milestone("national_finalist")
+			CareerManager.award_milestone("national_quarter_finalist", {"source": "season_progress"})
+			CareerManager.award_milestone("national_semi_finalist", {"source": "season_progress"})
+			CareerManager.award_milestone("national_finalist", {"source": "season_progress"})
 
 
 func _end_season() -> void:

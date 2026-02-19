@@ -1,8 +1,21 @@
 extends GutTest
 ## Unit tests for SocialFeedManager
 
+var _original_reputation: int = 10
+var _original_social_day_key: String = ""
+var _original_social_awarded_today: int = 0
+var _original_social_actions_today: int = 0
 
 func before_each() -> void:
+	_original_reputation = CareerManager.reputation
+	_original_social_day_key = CareerManager.social_rep_day_key
+	_original_social_awarded_today = CareerManager.social_rep_awarded_today
+	_original_social_actions_today = CareerManager.social_rep_actions_today
+	CareerManager.reputation = 10
+	CareerManager.social_rep_day_key = ""
+	CareerManager.social_rep_awarded_today = 0
+	CareerManager.social_rep_actions_today = 0
+
 	SocialFeedManager.feed.clear()
 	SocialFeedManager.feed_v2.clear()
 	SocialFeedManager._next_post_id = 1
@@ -19,6 +32,11 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	CareerManager.reputation = _original_reputation
+	CareerManager.social_rep_day_key = _original_social_day_key
+	CareerManager.social_rep_awarded_today = _original_social_awarded_today
+	CareerManager.social_rep_actions_today = _original_social_actions_today
+
 	SocialFeedManager.feed.clear()
 	SocialFeedManager.feed_v2.clear()
 	SocialFeedManager._next_post_id = 1
@@ -437,3 +455,77 @@ func test_on_match_ended_draw() -> void:
 
 	assert_not_null(summary, "Should have match summary")
 	assert_eq(summary.mood, "neutral", "Draw should have neutral mood")
+
+
+func test_on_match_ended_accepts_runtime_result_shape() -> void:
+	var result = {
+		"player_score": 2,
+		"opponent_score": 1,
+		"opponent_name": "Runtime Opponent"
+	}
+
+	SocialFeedManager.on_match_ended(result)
+
+	var summary = null
+	for post in SocialFeedManager.feed:
+		if post.post_type == "match_summary":
+			summary = post
+			break
+
+	assert_not_null(summary, "Should have match summary")
+	assert_true(summary.content.contains("2-1"), "Runtime schema score should be rendered")
+	assert_eq(summary.mood, "happy")
+
+
+func test_create_player_post_awards_social_reputation() -> void:
+	CareerManager.reputation = 10
+	SocialFeedManager.create_player_post("Social hook test")
+	assert_eq(CareerManager.reputation, 12)
+
+
+func test_add_player_reply_awards_social_reputation() -> void:
+	CareerManager.reputation = 10
+	var post = SocialFeedManager.create_post(
+		"npc_reaction", "npc_001", "Takumi", "teammate", "Reply to me"
+	)
+	SocialFeedManager.add_player_reply(post.post_id, "Sure thing")
+	assert_eq(CareerManager.reputation, 11)
+
+
+func test_toggle_like_social_reputation_only_for_eligible_post_types() -> void:
+	CareerManager.reputation = 10
+	var news_post = SocialFeedManager.create_post(
+		"news_article", "news", "FanZone News", "news", "Headline"
+	)
+	SocialFeedManager.toggle_like(news_post.post_id)
+	assert_eq(CareerManager.reputation, 11)
+
+	var npc_post = SocialFeedManager.create_post(
+		"npc_reaction", "npc_002", "Ren", "teammate", "Hello"
+	)
+	SocialFeedManager.toggle_like(npc_post.post_id)
+	assert_eq(CareerManager.reputation, 11, "NPC likes should not award social reputation")
+
+
+func test_high_reputation_scales_match_summary_and_news_likes() -> void:
+	CareerManager.reputation = 90
+	var result = {
+		"player_score": 3,
+		"opponent_score": 1,
+		"opponent_name": "Scale FC"
+	}
+
+	SocialFeedManager.on_match_ended(result)
+
+	var summary = null
+	var news = null
+	for post in SocialFeedManager.feed:
+		if summary == null and post.post_type == "match_summary":
+			summary = post
+		if news == null and post.post_type == "news_article":
+			news = post
+
+	assert_not_null(summary)
+	assert_not_null(news)
+	assert_true(int(summary.likes) >= 46, "High reputation should raise summary like floor")
+	assert_true(int(news.likes) >= 28, "High reputation should raise news like floor")

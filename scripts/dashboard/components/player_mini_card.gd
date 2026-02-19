@@ -6,6 +6,8 @@ class_name PlayerMiniCard
 @onready var name_label: Label = $MarginContainer/HBoxContainer/InfoContainer/NameLabel
 @onready var position_label: Label = $MarginContainer/HBoxContainer/InfoContainer/PositionRow/PositionLabel
 @onready var overall_label: Label = $MarginContainer/HBoxContainer/InfoContainer/PositionRow/OverallLabel
+@onready var reputation_label: Label = $MarginContainer/HBoxContainer/InfoContainer/ReputationRow/ReputationLabel
+@onready var reputation_tier_label: Label = $MarginContainer/HBoxContainer/InfoContainer/ReputationRow/ReputationTierLabel
 @onready var form_indicator: ColorRect = $MarginContainer/HBoxContainer/InfoContainer/FormRow/FormIndicator
 @onready var form_label: Label = $MarginContainer/HBoxContainer/InfoContainer/FormRow/FormLabel
 @onready var stamina_bar: ProgressBar = $MarginContainer/HBoxContainer/InfoContainer/StaminaRow/StaminaBar
@@ -29,10 +31,16 @@ func _setup_style() -> void:
 
 
 func _connect_signals() -> void:
-	if StatSystem.stat_changed.is_connected(_on_stat_changed):
-		return
-	StatSystem.stat_changed.connect(_on_stat_changed)
-	StatSystem.level_up.connect(_on_level_up)
+	if not StatSystem.stat_changed.is_connected(_on_stat_changed):
+		StatSystem.stat_changed.connect(_on_stat_changed)
+	if not StatSystem.level_up.is_connected(_on_level_up):
+		StatSystem.level_up.connect(_on_level_up)
+	if CareerManager and CareerManager.has_signal("reputation_changed"):
+		if not CareerManager.reputation_changed.is_connected(_on_reputation_changed):
+			CareerManager.reputation_changed.connect(_on_reputation_changed)
+	if CareerManager and CareerManager.has_signal("reputation_tier_changed"):
+		if not CareerManager.reputation_tier_changed.is_connected(_on_reputation_tier_changed):
+			CareerManager.reputation_tier_changed.connect(_on_reputation_tier_changed)
 
 
 func _on_stat_changed(_player_id: String, _stat_name: String, _old_value: int, _new_value: int) -> void:
@@ -40,6 +48,14 @@ func _on_stat_changed(_player_id: String, _stat_name: String, _old_value: int, _
 
 
 func _on_level_up(_player_id: String, _new_level: int) -> void:
+	_refresh_display()
+
+
+func _on_reputation_changed(_new_value: int) -> void:
+	_refresh_display()
+
+
+func _on_reputation_tier_changed(_old_tier: String, _new_tier: String) -> void:
 	_refresh_display()
 
 
@@ -63,6 +79,21 @@ func _refresh_display() -> void:
 		var ovr = player.get_overall()
 		overall_label.text = "OVR %d" % ovr
 		overall_label.add_theme_color_override("font_color", _get_overall_color(ovr))
+
+	# Reputation
+	var rep_score = 10
+	var rep_tier_name = "Unknown"
+	if CareerManager:
+		rep_score = int(CareerManager.reputation)
+		if CareerManager.has_method("get_reputation_tier"):
+			var tier = CareerManager.get_reputation_tier()
+			rep_tier_name = str(tier.get("name", "Unknown"))
+	if reputation_label:
+		reputation_label.text = "REP %d" % rep_score
+		reputation_label.add_theme_color_override("font_color", _get_reputation_color(rep_score))
+	if reputation_tier_label:
+		reputation_tier_label.text = rep_tier_name
+		reputation_tier_label.add_theme_color_override("font_color", _get_reputation_color(rep_score).lightened(0.2))
 
 	# Form
 	if form_indicator and form_label:
@@ -88,6 +119,10 @@ func _show_placeholder() -> void:
 		position_label.text = "---"
 	if overall_label:
 		overall_label.text = "OVR --"
+	if reputation_label:
+		reputation_label.text = "REP --"
+	if reputation_tier_label:
+		reputation_tier_label.text = "---"
 	if form_label:
 		form_label.text = "---"
 	if stamina_bar:
@@ -146,3 +181,17 @@ func _get_stamina_color(stamina: int) -> Color:
 		return Color(1.0, 0.9, 0.3)  # Yellow
 	else:
 		return Color(1.0, 0.4, 0.4)  # Red
+
+
+func _get_reputation_color(score: int) -> Color:
+	if score >= 85:
+		return Color(1.0, 0.75, 0.2)
+	elif score >= 70:
+		return Color(0.95, 0.6, 0.25)
+	elif score >= 50:
+		return Color(0.4, 0.8, 1.0)
+	elif score >= 30:
+		return Color(0.45, 0.9, 0.55)
+	elif score >= 15:
+		return Color(0.9, 0.9, 0.4)
+	return Color(0.65, 0.7, 0.78)

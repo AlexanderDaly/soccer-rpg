@@ -199,6 +199,21 @@ theme_override_colors/font_color = Color(0.4, 0.8, 1, 1)
 text = "+100 XP"
 horizontal_alignment = 1
 
+[node name="ReputationLabel" type="Label" parent="MainContainer/RewardsSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.55, 0.88, 1, 1)
+text = "Reputation: +0 -> 10 (Unknown)"
+horizontal_alignment = 1
+
+[node name="ReputationBreakdown" type="Label" parent="MainContainer/RewardsSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.68, 0.74, 0.82, 1)
+text = "No reputation changes."
+horizontal_alignment = 1
+autowrap_mode = 2
+
 [node name="MilestonesContainer" type="VBoxContainer" parent="MainContainer/RewardsSection"]
 layout_mode = 2
 theme_override_constants/separation = 5

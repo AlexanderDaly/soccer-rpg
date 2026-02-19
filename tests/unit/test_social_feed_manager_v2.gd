@@ -3,11 +3,20 @@ extends GutTest
 
 var _original_team: TeamData
 var _original_reputation: int = 0
+var _original_social_day_key: String = ""
+var _original_social_awarded_today: int = 0
+var _original_social_actions_today: int = 0
 
 
 func before_each() -> void:
 	_original_team = GameManager.current_team
 	_original_reputation = CareerManager.reputation
+	_original_social_day_key = CareerManager.social_rep_day_key
+	_original_social_awarded_today = CareerManager.social_rep_awarded_today
+	_original_social_actions_today = CareerManager.social_rep_actions_today
+	CareerManager.social_rep_day_key = ""
+	CareerManager.social_rep_awarded_today = 0
+	CareerManager.social_rep_actions_today = 0
 
 	var test_team = TeamData.new()
 	test_team.name = "Test High"
@@ -34,6 +43,9 @@ func before_each() -> void:
 func after_each() -> void:
 	GameManager.current_team = _original_team
 	CareerManager.reputation = _original_reputation
+	CareerManager.social_rep_day_key = _original_social_day_key
+	CareerManager.social_rep_awarded_today = _original_social_awarded_today
+	CareerManager.social_rep_actions_today = _original_social_actions_today
 
 	SocialFeedManager.feed.clear()
 	SocialFeedManager.feed_v2.clear()
@@ -120,11 +132,12 @@ func test_social_reputation_daily_cap() -> void:
 	SocialFeedManager._v2_social_rep_day_key = SocialFeedManager._get_v2_day_key()
 	SocialFeedManager._v2_social_rep_awarded_today = 0
 
-	assert_true(SocialFeedManager._grant_v2_social_reputation(1, "test_1"))
-	assert_true(SocialFeedManager._grant_v2_social_reputation(1, "test_2"))
-	assert_false(SocialFeedManager._grant_v2_social_reputation(1, "test_3"))
-	assert_eq(SocialFeedManager._v2_social_rep_awarded_today, 2, "Daily cap should stop further social reputation gains")
-	assert_eq(CareerManager.reputation, 12, "Only two points should apply under the +2/day cap")
+	assert_true(SocialFeedManager._grant_v2_social_reputation(2, "test_1"))
+	assert_true(SocialFeedManager._grant_v2_social_reputation(2, "test_2"))
+	assert_true(SocialFeedManager._grant_v2_social_reputation(2, "test_3"))
+	assert_false(SocialFeedManager._grant_v2_social_reputation(2, "test_4"))
+	assert_eq(SocialFeedManager._v2_social_rep_awarded_today, 4, "Daily cap should stop further social reputation gains")
+	assert_eq(CareerManager.reputation, 14, "Social gains should cap at +4/day")
 
 
 func test_v2_reply_queue_dedupes_same_npc_per_thread_window() -> void:

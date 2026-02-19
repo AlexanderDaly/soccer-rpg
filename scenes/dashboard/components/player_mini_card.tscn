@@ -55,6 +55,22 @@ theme_override_colors/font_color = Color(1, 0.84, 0, 1)
 theme_override_font_sizes/font_size = 14
 text = "OVR 67"
 
+[node name="ReputationRow" type="HBoxContainer" parent="MarginContainer/HBoxContainer/InfoContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ReputationLabel" type="Label" parent="MarginContainer/HBoxContainer/InfoContainer/ReputationRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 13
+text = "REP 10"
+
+[node name="ReputationTierLabel" type="Label" parent="MarginContainer/HBoxContainer/InfoContainer/ReputationRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.8, 1)
+theme_override_font_sizes/font_size = 13
+text = "Unknown"
+
 [node name="FormRow" type="HBoxContainer" parent="MarginContainer/HBoxContainer/InfoContainer"]
 layout_mode = 2
 theme_override_constants/separation = 8
