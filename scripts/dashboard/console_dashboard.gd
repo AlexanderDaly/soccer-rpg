@@ -169,7 +169,10 @@ func _on_tile_pressed(tile_id: String) -> void:
 	for config in TILE_CONFIG:
 		if config.id == tile_id:
 			if config.has("panel"):
-				_open_panel(config.panel)
+				if config.id == "social" and SocialFeedManager and SocialFeedManager.is_v2_enabled():
+					_open_panel("res://scenes/dashboard/panels/panel_social_v2.tscn")
+				else:
+					_open_panel(config.panel)
 			elif config.has("scene"):
 				_open_scene(config.scene)
 			return

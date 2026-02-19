@@ -4,14 +4,34 @@ extends GutTest
 
 func before_each() -> void:
 	SocialFeedManager.feed.clear()
+	SocialFeedManager.feed_v2.clear()
 	SocialFeedManager._next_post_id = 1
+	SocialFeedManager._next_post_id_v2 = 1
 	SocialFeedManager._reply_queue.clear()
+	SocialFeedManager._reply_queue_v2.clear()
+	SocialFeedManager._v2_recent_reply_keys.clear()
+	SocialFeedManager._v2_last_reply_npc_by_thread.clear()
+	SocialFeedManager._v2_first_npc_reply_awarded.clear()
+	SocialFeedManager._v2_thread_engagement_awarded.clear()
+	SocialFeedManager._v2_notification_day_by_post.clear()
+	SocialFeedManager._v2_social_rep_day_key = ""
+	SocialFeedManager._v2_social_rep_awarded_today = 0
 
 
 func after_each() -> void:
 	SocialFeedManager.feed.clear()
+	SocialFeedManager.feed_v2.clear()
 	SocialFeedManager._next_post_id = 1
+	SocialFeedManager._next_post_id_v2 = 1
 	SocialFeedManager._reply_queue.clear()
+	SocialFeedManager._reply_queue_v2.clear()
+	SocialFeedManager._v2_recent_reply_keys.clear()
+	SocialFeedManager._v2_last_reply_npc_by_thread.clear()
+	SocialFeedManager._v2_first_npc_reply_awarded.clear()
+	SocialFeedManager._v2_thread_engagement_awarded.clear()
+	SocialFeedManager._v2_notification_day_by_post.clear()
+	SocialFeedManager._v2_social_rep_day_key = ""
+	SocialFeedManager._v2_social_rep_awarded_today = 0
 
 
 # ─── Post Creation ───────────────────────────────────────────────
@@ -71,6 +91,14 @@ func test_create_player_post() -> void:
 	assert_eq(post.post_type, "player_post")
 	assert_eq(post.author_id, "player")
 	assert_eq(post.content, "We got this team!")
+
+
+func test_v2_post_creation_does_not_change_v1_feed() -> void:
+	SocialFeedManager.create_player_post("V1 post")
+	SocialFeedManager.create_player_post_v2("V2 post")
+
+	assert_eq(SocialFeedManager.feed.size(), 1, "V1 feed should remain unchanged by V2 posts")
+	assert_eq(SocialFeedManager.feed_v2.size(), 1, "V2 feed should receive V2 post")
 
 
 func test_post_default_values() -> void:

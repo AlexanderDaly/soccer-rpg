@@ -371,6 +371,8 @@ func open_panel(panel_id: String, parent: Node) -> Control:
 		close_current_panel()
 
 	var panel_path = panel_scenes.get(panel_id, "")
+	if panel_id == "social" and SocialFeedManager and SocialFeedManager.is_v2_enabled():
+		panel_path = "res://scenes/dashboard/panels/panel_social_v2.tscn"
 	if panel_path.is_empty():
 		push_error("Unknown panel: " + panel_id)
 		return null

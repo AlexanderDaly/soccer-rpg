@@ -130,9 +130,16 @@ func _update_reputation(result: Dictionary) -> void:
 func _add_reputation(amount: int) -> void:
 	var old_rep = reputation
 	reputation = clampi(reputation + amount, 0, 100)
-	
+
 	if reputation != old_rep:
 		reputation_changed.emit(reputation)
+
+
+func apply_social_reputation_delta(delta: int, reason: String) -> void:
+	if delta == 0:
+		return
+	_add_reputation(delta)
+	print("[CareerManager] Social reputation delta %d (%s)" % [delta, reason])
 
 
 func _check_scout_interest(result: Dictionary) -> void:
