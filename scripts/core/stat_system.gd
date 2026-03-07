@@ -6,6 +6,8 @@ signal stat_changed(player_id: String, stat_name: String, old_value: int, new_va
 signal level_up(player_id: String, new_level: int)
 signal skill_unlocked(player_id: String, skill_id: String)
 
+const DICE_SYSTEM = preload("res://scripts/core/dice_system.gd")
+
 # Primary stat definitions (1-99 scale)
 const PRIMARY_STATS = {
 	"SPD": "Speed",        # Movement range, chase/escape
@@ -193,18 +195,28 @@ func generate_npc_stats(position: String, quality_tier: int) -> Dictionary:
 
 
 ## Roll for action success (used in match system)
-func roll_action_success(actor_stat: int, defender_stat: int = 0, difficulty: float = 0.5) -> Dictionary:
-	# Returns success, critical success, or failure with margin
-	var actor_roll = randf() * 100
-	var success_threshold = actor_stat * (1.0 - difficulty)
-	
-	if defender_stat > 0:
-		success_threshold = (actor_stat / float(actor_stat + defender_stat)) * 100
-	
-	var result = {
-		"success": actor_roll < success_threshold,
-		"critical": actor_roll < success_threshold * 0.2,  # Critical on bottom 20% of success range
-		"margin": success_threshold - actor_roll
+func roll_action_success(actor_stat: int, defender_stat: int = 0, difficulty: float = 0.5, rng = null) -> Dictionary:
+	var chance_percent = _calculate_action_success_percent(actor_stat, defender_stat, difficulty)
+	var target_number = DICE_SYSTEM.success_percent_to_target(chance_percent)
+	var dice_roll = DICE_SYSTEM.roll_2d6(rng)
+	var dice_total = int(dice_roll.total)
+	var raw_margin = dice_total - target_number
+	var success = dice_total >= target_number
+
+	return {
+		"success": success,
+		"critical": success and (dice_total == 12 or raw_margin >= 3),
+		"margin": DICE_SYSTEM.raw_margin_to_scaled_margin(raw_margin),
+		"chance_percent": chance_percent,
+		"target_number": target_number,
+		"dice_total": dice_total,
+		"dice": dice_roll.dice
 	}
-	
-	return result
+
+
+func _calculate_action_success_percent(actor_stat: int, defender_stat: int = 0, difficulty: float = 0.5) -> float:
+	if defender_stat > 0:
+		var total_stats = max(actor_stat + defender_stat, 1)
+		return clampf((actor_stat / float(total_stats)) * 100.0, 0.0, 100.0)
+
+	return clampf(actor_stat * (1.0 - difficulty), 0.0, 100.0)

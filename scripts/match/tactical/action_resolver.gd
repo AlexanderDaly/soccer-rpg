@@ -74,7 +74,7 @@ static func execute_sprint(unit: PlayerUnit, target_hex: Vector2i, occupied_hexe
 
 ## Execute a pass action
 static func execute_pass(passer: PlayerUnit, target_hex: Vector2i, receiver: PlayerUnit,
-						  defenders: Array[PlayerUnit], match_data: MatchData) -> Dictionary:
+						  defenders: Array[PlayerUnit], match_data: MatchData, rng = null) -> Dictionary:
 	var ap_cost = AP_COST["pass"]
 
 	if passer.action_points < ap_cost:
@@ -91,10 +91,10 @@ static func execute_pass(passer: PlayerUnit, target_hex: Vector2i, receiver: Pla
 
 	# Roll for pass accuracy
 	var pass_stat = passer.get_passing_stat()
-	var roll = StatSystem.roll_action_success(pass_stat, 0, base_difficulty)
+	var roll = StatSystem.roll_action_success(pass_stat, 0, base_difficulty, rng)
 
 	# Check for interceptions
-	var interception_result = _check_interception(passer.hex_position, target_hex, defenders)
+	var interception_result = _check_interception(passer.hex_position, target_hex, defenders, 1.0, rng)
 
 	# Record event
 	if match_data:
@@ -106,7 +106,7 @@ static func execute_pass(passer: PlayerUnit, target_hex: Vector2i, receiver: Pla
 
 	if not roll.success:
 		# Misplaced pass - ball goes loose somewhere along the path
-		var miss_hex = _calculate_miss_location(passer.hex_position, target_hex, roll.margin)
+		var miss_hex = _calculate_miss_location(passer.hex_position, target_hex, roll.margin, rng)
 		return {
 			"success": false,
 			"reason": "inaccurate",
@@ -132,7 +132,7 @@ static func execute_pass(passer: PlayerUnit, target_hex: Vector2i, receiver: Pla
 
 ## Execute a through ball (2 AP, uses vision)
 static func execute_through_ball(passer: PlayerUnit, target_hex: Vector2i,
-								  defenders: Array[PlayerUnit], match_data: MatchData) -> Dictionary:
+								  defenders: Array[PlayerUnit], match_data: MatchData, rng = null) -> Dictionary:
 	var ap_cost = AP_COST["through_ball"]
 
 	if passer.action_points < ap_cost:
@@ -151,10 +151,10 @@ static func execute_through_ball(passer: PlayerUnit, target_hex: Vector2i,
 	var distance = HexUtils.hex_distance(passer.hex_position, target_hex)
 	var base_difficulty = 0.4 + (distance * 0.04)
 
-	var roll = StatSystem.roll_action_success(combined_stat, 0, base_difficulty)
+	var roll = StatSystem.roll_action_success(combined_stat, 0, base_difficulty, rng)
 
 	# Check for interception (through balls are harder to intercept)
-	var interception_result = _check_interception(passer.hex_position, target_hex, defenders, 0.7)
+	var interception_result = _check_interception(passer.hex_position, target_hex, defenders, 0.7, rng)
 
 	if match_data:
 		match_data.record_event("pass", {
@@ -165,7 +165,7 @@ static func execute_through_ball(passer: PlayerUnit, target_hex: Vector2i,
 		})
 
 	if not roll.success:
-		var miss_hex = _calculate_miss_location(passer.hex_position, target_hex, roll.margin)
+		var miss_hex = _calculate_miss_location(passer.hex_position, target_hex, roll.margin, rng)
 		return {
 			"success": false,
 			"reason": "inaccurate",
@@ -192,7 +192,7 @@ static func execute_through_ball(passer: PlayerUnit, target_hex: Vector2i,
 ## Execute a shot
 static func execute_shot(shooter: PlayerUnit, goal_hex: Vector2i,
 						  goalkeeper: PlayerUnit, blockers: Array[PlayerUnit],
-						  match_data: MatchData) -> Dictionary:
+						  match_data: MatchData, rng = null) -> Dictionary:
 	var ap_cost = AP_COST["shoot"]
 
 	if shooter.action_points < ap_cost:
@@ -208,7 +208,7 @@ static func execute_shot(shooter: PlayerUnit, goal_hex: Vector2i,
 	var difficulty = HexUtils.calculate_shot_difficulty(shooter.hex_position, goal_hex)
 
 	# Check for shot blocks first
-	var block_result = _check_shot_block(shooter.hex_position, goal_hex, blockers)
+	var block_result = _check_shot_block(shooter.hex_position, goal_hex, blockers, rng)
 
 	if block_result.blocked:
 		if match_data:
@@ -225,7 +225,7 @@ static func execute_shot(shooter: PlayerUnit, goal_hex: Vector2i,
 		}
 
 	# Roll for shot accuracy
-	var shot_roll = StatSystem.roll_action_success(shot_stat, 0, difficulty)
+	var shot_roll = StatSystem.roll_action_success(shot_stat, 0, difficulty, rng)
 
 	if not shot_roll.success:
 		# Shot missed target
@@ -247,7 +247,7 @@ static func execute_shot(shooter: PlayerUnit, goal_hex: Vector2i,
 	if shot_roll.critical:
 		save_difficulty += 0.2  # Critical shots are much harder to save
 
-	var save_roll = StatSystem.roll_action_success(gk_stat, 0, save_difficulty)
+	var save_roll = StatSystem.roll_action_success(gk_stat, 0, save_difficulty, rng)
 
 	if save_roll.success:
 		if match_data:
@@ -283,7 +283,7 @@ static func execute_shot(shooter: PlayerUnit, goal_hex: Vector2i,
 ## Execute a dribble (contested move past a defender)
 static func execute_dribble(dribbler: PlayerUnit, target_hex: Vector2i,
 							 defender: PlayerUnit, match_data: MatchData,
-							 move_id: String = "basic") -> Dictionary:
+							 move_id: String = "basic", rng = null) -> Dictionary:
 	var move = DribbleMoves.get_move(move_id)
 	var ap_cost = int(move.get("ap_cost", AP_COST["dribble"]))
 	var stamina_cost = int(move.get("stamina_cost", 0))
@@ -326,7 +326,7 @@ static func execute_dribble(dribbler: PlayerUnit, target_hex: Vector2i,
 	dribble_stat = clampi(dribble_stat, 1, 99)
 	defend_stat = clampi(defend_stat, 1, 99)
 
-	var roll = StatSystem.roll_action_success(dribble_stat, defend_stat)
+	var roll = StatSystem.roll_action_success(dribble_stat, defend_stat, 0.5, rng)
 
 	if match_data:
 		match_data.record_event("dribble", {
@@ -361,7 +361,7 @@ static func execute_dribble(dribbler: PlayerUnit, target_hex: Vector2i,
 
 ## Execute a tackle
 static func execute_tackle(tackler: PlayerUnit, target: PlayerUnit,
-							match_data: MatchData) -> Dictionary:
+							match_data: MatchData, rng = null) -> Dictionary:
 	var ap_cost = AP_COST["tackle"]
 
 	if tackler.action_points < ap_cost:
@@ -380,10 +380,10 @@ static func execute_tackle(tackler: PlayerUnit, target: PlayerUnit,
 	var tackle_stat = tackler.get_tackling_stat()
 	var dribble_stat = target.get_dribbling_stat()
 
-	var roll = StatSystem.roll_action_success(tackle_stat, dribble_stat)
+	var roll = StatSystem.roll_action_success(tackle_stat, dribble_stat, 0.5, rng)
 
 	# Check for foul
-	var foul_roll = randf()
+	var foul_roll = _randf(rng)
 	var foul_chance = FOUL_BASE_CHANCE
 	if not roll.success:
 		foul_chance += 0.15  # Failed tackles more likely to be fouls
@@ -392,7 +392,7 @@ static func execute_tackle(tackler: PlayerUnit, target: PlayerUnit,
 	var card: String = ""
 
 	if is_foul:
-		var card_roll = randf()
+		var card_roll = _randf(rng)
 		if card_roll < 0.02:
 			card = "red"
 		elif card_roll < 0.15:
@@ -448,7 +448,7 @@ static func execute_tackle(tackler: PlayerUnit, target: PlayerUnit,
 ## Check if a pass can be intercepted
 static func _check_interception(from: Vector2i, to: Vector2i,
 								 defenders: Array[PlayerUnit],
-								 difficulty_modifier: float = 1.0) -> Dictionary:
+								 difficulty_modifier: float = 1.0, rng = null) -> Dictionary:
 	var pass_line = HexUtils.get_hex_line(from, to)
 
 	for defender in defenders:
@@ -456,7 +456,7 @@ static func _check_interception(from: Vector2i, to: Vector2i,
 			if HexUtils.hex_distance(hex, defender.hex_position) <= 1:
 				# Defender can attempt interception
 				var interception_stat = defender.get_stat("DEF") * 0.5 + defender.get_stat("MEN") * 0.5
-				var roll = StatSystem.roll_action_success(int(interception_stat), 0, 0.6 * difficulty_modifier)
+				var roll = StatSystem.roll_action_success(int(interception_stat), 0, 0.6 * difficulty_modifier, rng)
 
 				if roll.success:
 					return {
@@ -470,7 +470,7 @@ static func _check_interception(from: Vector2i, to: Vector2i,
 
 ## Check if a shot can be blocked
 static func _check_shot_block(from: Vector2i, to: Vector2i,
-							   blockers: Array[PlayerUnit]) -> Dictionary:
+							   blockers: Array[PlayerUnit], rng = null) -> Dictionary:
 	var shot_line = HexUtils.get_hex_line(from, to)
 
 	for blocker in blockers:
@@ -478,7 +478,7 @@ static func _check_shot_block(from: Vector2i, to: Vector2i,
 			if hex == blocker.hex_position:
 				# Blocker is directly in the way
 				var block_stat = blocker.get_stat("DEF")
-				var roll = StatSystem.roll_action_success(block_stat, 0, 0.5)
+				var roll = StatSystem.roll_action_success(block_stat, 0, 0.5, rng)
 
 				if roll.success:
 					return {
@@ -491,13 +491,13 @@ static func _check_shot_block(from: Vector2i, to: Vector2i,
 
 
 ## Calculate where a missed pass lands
-static func _calculate_miss_location(from: Vector2i, intended: Vector2i, margin: float) -> Vector2i:
+static func _calculate_miss_location(from: Vector2i, intended: Vector2i, margin: float, rng = null) -> Vector2i:
 	var direction = Vector2(intended.x - from.x, intended.y - from.y)
 	var perpendicular = Vector2(-direction.y, direction.x).normalized()
 
 	# Larger negative margin = bigger miss
 	var miss_amount = abs(margin) / 20.0
-	var side = 1 if randf() > 0.5 else -1
+	var side = 1 if _randf(rng) > 0.5 else -1
 
 	var miss_offset = perpendicular * miss_amount * side
 	var miss_hex = Vector2i(
@@ -510,3 +510,9 @@ static func _calculate_miss_location(from: Vector2i, intended: Vector2i, margin:
 	miss_hex.y = clampi(miss_hex.y, 0, HexUtils.GRID_HEIGHT - 1)
 
 	return miss_hex
+
+
+static func _randf(rng = null) -> float:
+	if rng != null and rng.has_method("randf"):
+		return float(rng.randf())
+	return randf()

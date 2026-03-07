@@ -4,6 +4,20 @@ extends GutTest
 var stat_system: Node
 
 
+class FixedDiceRng:
+	extends RefCounted
+
+	var die_rolls: Array[int] = []
+
+	func _init(initial_rolls: Array[int] = []) -> void:
+		die_rolls = initial_rolls.duplicate()
+
+	func randi_range(min_value: int, max_value: int) -> int:
+		if die_rolls.is_empty():
+			return min_value
+		return clampi(die_rolls.pop_front(), min_value, max_value)
+
+
 func before_all() -> void:
 	# Get reference to the autoloaded StatSystem
 	stat_system = get_tree().root.get_node_or_null("StatSystem")
@@ -235,14 +249,20 @@ func test_roll_action_success_returns_required_keys() -> void:
 	assert_has(result, "success")
 	assert_has(result, "critical")
 	assert_has(result, "margin")
+	assert_has(result, "chance_percent")
+	assert_has(result, "target_number")
+	assert_has(result, "dice_total")
+	assert_has(result, "dice")
 
 
 func test_roll_action_success_high_stat_usually_succeeds() -> void:
 	var successes = 0
 	var trials = 100
+	var rng = RandomNumberGenerator.new()
+	rng.seed = 1337
 
 	for _i in range(trials):
-		var result = StatSystem.roll_action_success(99, 0, 0.1)  # Very easy
+		var result = StatSystem.roll_action_success(99, 0, 0.1, rng)  # Very easy
 		if result.success:
 			successes += 1
 
@@ -252,9 +272,11 @@ func test_roll_action_success_high_stat_usually_succeeds() -> void:
 func test_roll_action_success_low_stat_usually_fails() -> void:
 	var failures = 0
 	var trials = 100
+	var rng = RandomNumberGenerator.new()
+	rng.seed = 2026
 
 	for _i in range(trials):
-		var result = StatSystem.roll_action_success(10, 0, 0.9)  # Very hard
+		var result = StatSystem.roll_action_success(10, 0, 0.9, rng)  # Very hard
 		if not result.success:
 			failures += 1
 
@@ -264,13 +286,35 @@ func test_roll_action_success_low_stat_usually_fails() -> void:
 func test_roll_action_contested_favors_higher_stat() -> void:
 	var actor_wins = 0
 	var trials = 100
+	var rng = RandomNumberGenerator.new()
+	rng.seed = 9001
 
 	for _i in range(trials):
-		var result = StatSystem.roll_action_success(80, 20)  # Big advantage
+		var result = StatSystem.roll_action_success(80, 20, 0.5, rng)  # Big advantage
 		if result.success:
 			actor_wins += 1
 
 	assert_gt(actor_wins, 60, "Higher stat should win contested rolls more often")
+
+
+func test_roll_action_success_reports_expected_dice_metadata() -> void:
+	var result = StatSystem.roll_action_success(80, 0, 0.4, FixedDiceRng.new([6, 6]))
+
+	assert_almost_eq(result.chance_percent, 48.0, 0.01)
+	assert_eq(result.target_number, 8)
+	assert_eq(result.dice_total, 12)
+	assert_eq(result.dice, [6, 6])
+	assert_eq(result.margin, 40)
+	assert_true(result.critical, "A natural 12 should count as a critical success")
+
+
+func test_roll_action_success_scales_failure_margin_from_dice_gap() -> void:
+	var result = StatSystem.roll_action_success(50, 0, 0.42, FixedDiceRng.new([4, 4]))
+
+	assert_false(result.success)
+	assert_eq(result.target_number, 9)
+	assert_eq(result.dice_total, 8)
+	assert_eq(result.margin, -10)
 
 
 # =============================================================================
