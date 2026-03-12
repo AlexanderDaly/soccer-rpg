@@ -266,7 +266,8 @@ func get_starting_eleven() -> Array[Dictionary]:
 			"position": GameManager.player_data.position,
 			"stats": GameManager.player_data.stats,
 			"overall": GameManager.player_data.get_overall(),
-			"is_player": true
+			"is_player": true,
+			"dominant_foot": GameManager.player_data.dominant_foot
 		})
 
 	# Filter to only available players (not injured or graduated)

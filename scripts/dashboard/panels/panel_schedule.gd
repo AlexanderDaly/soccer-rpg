@@ -30,14 +30,12 @@ func _on_panel_opened() -> void:
 
 
 func _refresh_schedule() -> void:
-	season_schedule.clear()
-	next_match_index = 0
-
-	# Use season system for HIGH_SCHOOL phase
-	if GameManager.current_career_phase == GameManager.CareerPhase.HIGH_SCHOOL and SeasonManager.has_active_season():
-		_load_season_schedule()
-	else:
-		_generate_legacy_schedule()
+	season_schedule = SeasonManager.get_upcoming_fixtures(-1, true)
+	next_match_index = -1
+	for i in range(season_schedule.size()):
+		if not season_schedule[i].get("played", false):
+			next_match_index = i
+			break
 
 
 func _load_season_schedule() -> void:
@@ -551,7 +549,7 @@ func _on_play_match(match_index: int) -> void:
 	var opponent_team = match_info.opponent.team_data
 	var is_home = match_info.get("is_home", true)
 
-	GameManager.start_match(opponent_team, match_info.type, is_home)
+	GameManager.start_match(opponent_team, match_info.type, is_home, match_info.get("player_team", null))
 	season_schedule[match_index].played = true
 
 	close()

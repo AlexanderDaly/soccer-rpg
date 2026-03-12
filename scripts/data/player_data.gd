@@ -8,6 +8,9 @@ class_name PlayerData
 @export var nationality: String = "USA"
 @export var dominant_foot: String = "right"  # left, right, both
 @export var age: int = 14  # Starting age for high school
+@export var school_year: int = 1
+@export var background_story: String = "academy_product"
+@export var career_difficulty: String = "normal"
 
 # Primary stats (1-99)
 @export var stats: Dictionary = {
@@ -47,18 +50,74 @@ class_name PlayerData
 # Personality traits (affects narrative generation)
 @export var personality_traits: Array[String] = []
 
+const BACKGROUND_STORIES := {
+	"academy_product": {
+		"reputation_bonus": 5,
+		"coach_trust_bonus": 10,
+		"stat_bonuses": {"PAS": 2, "MEN": 2},
+		"stat_xp_multiplier": 1.0,
+		"positive_relationship_multiplier": 1.0,
+		"poor_match_penalty_multiplier": 1.0
+	},
+	"late_bloomer": {
+		"reputation_bonus": -5,
+		"coach_trust_bonus": 0,
+		"all_stats_delta": -1,
+		"stat_xp_multiplier": 1.2,
+		"positive_relationship_multiplier": 1.1,
+		"poor_match_penalty_multiplier": 1.0
+	},
+	"prodigy": {
+		"reputation_bonus": 10,
+		"coach_trust_bonus": 5,
+		"top_weighted_stat_bonus": 3,
+		"top_weighted_stat_count": 3,
+		"stat_xp_multiplier": 0.95,
+		"positive_relationship_multiplier": 1.0,
+		"poor_match_penalty_multiplier": 1.35
+	}
+}
 
-func initialize(player_name: String, player_position: String, player_nationality: String = "USA", player_appearance: Dictionary = {}, player_dominant_foot: String = "right", player_traits: Array[String] = []) -> void:
+const CAREER_DIFFICULTIES := {
+	"casual": {
+		"match_xp_multiplier": 1.2,
+		"stat_xp_multiplier": 1.15,
+		"opponent_difficulty_multiplier": 0.9,
+		"scout_threshold_multiplier": 0.85,
+		"relationship_loss_multiplier": 0.75
+	},
+	"normal": {
+		"match_xp_multiplier": 1.0,
+		"stat_xp_multiplier": 1.0,
+		"opponent_difficulty_multiplier": 1.0,
+		"scout_threshold_multiplier": 1.0,
+		"relationship_loss_multiplier": 1.0
+	},
+	"hardcore": {
+		"match_xp_multiplier": 0.8,
+		"stat_xp_multiplier": 0.85,
+		"opponent_difficulty_multiplier": 1.1,
+		"scout_threshold_multiplier": 1.15,
+		"relationship_loss_multiplier": 1.5
+	}
+}
+
+
+func initialize(player_name: String, player_position: String, player_nationality: String = "USA", player_appearance: Dictionary = {}, player_dominant_foot: String = "right", player_traits: Array[String] = [], player_background_story: String = "academy_product", player_career_difficulty: String = "normal") -> void:
 	id = _generate_id()
 	name = player_name
 	position = player_position
 	nationality = player_nationality
 	dominant_foot = player_dominant_foot
 	age = 14  # Everyone starts at high school age
+	school_year = 1
+	background_story = _normalize_background_story(player_background_story)
+	career_difficulty = _normalize_career_difficulty(player_career_difficulty)
 	personality_traits = player_traits
 
 	# Set starting stats based on position
 	_set_starting_stats()
+	_apply_background_story_modifiers()
 
 	# Initialize stat XP tracking
 	for stat_key in stats:
@@ -93,8 +152,9 @@ func _set_starting_stats() -> void:
 		stats[stat_key] = clampi(weighted_base + randi_range(-variance, variance), 30, 65)
 
 
-func add_xp(amount: int) -> void:
-	xp += amount
+func add_xp(amount: int, source: String = "general") -> void:
+	var adjusted_amount = _apply_xp_multiplier(amount, source)
+	xp += adjusted_amount
 	
 	# Check for level up
 	var xp_needed = StatSystem.xp_for_level(level)
@@ -120,7 +180,7 @@ func add_stat_xp(stat_key: String, amount: int) -> void:
 	if stat_key not in stat_xp:
 		return
 	
-	stat_xp[stat_key] += amount
+	stat_xp[stat_key] += _apply_stat_xp_multiplier(amount)
 	
 	# Check for stat increase (every 100 stat XP)
 	while stat_xp[stat_key] >= 100:
@@ -214,6 +274,42 @@ func rest() -> void:
 	morale = mini(morale + 5, 100)
 
 
+func get_background_profile() -> Dictionary:
+	return BACKGROUND_STORIES.get(background_story, BACKGROUND_STORIES["academy_product"])
+
+
+func get_difficulty_profile() -> Dictionary:
+	return CAREER_DIFFICULTIES.get(career_difficulty, CAREER_DIFFICULTIES["normal"])
+
+
+func get_match_xp_multiplier() -> float:
+	return float(get_difficulty_profile().get("match_xp_multiplier", 1.0))
+
+
+func get_stat_xp_multiplier() -> float:
+	return float(get_difficulty_profile().get("stat_xp_multiplier", 1.0)) * float(get_background_profile().get("stat_xp_multiplier", 1.0))
+
+
+func get_opponent_difficulty_multiplier() -> float:
+	return float(get_difficulty_profile().get("opponent_difficulty_multiplier", 1.0))
+
+
+func get_scout_threshold_multiplier() -> float:
+	return float(get_difficulty_profile().get("scout_threshold_multiplier", 1.0))
+
+
+func get_positive_relationship_multiplier() -> float:
+	return float(get_background_profile().get("positive_relationship_multiplier", 1.0))
+
+
+func get_relationship_loss_multiplier() -> float:
+	return float(get_difficulty_profile().get("relationship_loss_multiplier", 1.0))
+
+
+func get_poor_match_penalty_multiplier() -> float:
+	return float(get_background_profile().get("poor_match_penalty_multiplier", 1.0))
+
+
 func to_dict() -> Dictionary:
 	return {
 		"id": id,
@@ -222,6 +318,9 @@ func to_dict() -> Dictionary:
 		"nationality": nationality,
 		"dominant_foot": dominant_foot,
 		"age": age,
+		"school_year": school_year,
+		"background_story": background_story,
+		"career_difficulty": career_difficulty,
 		"stats": stats,
 		"level": level,
 		"xp": xp,
@@ -246,6 +345,9 @@ func from_dict(data: Dictionary) -> void:
 	nationality = data.get("nationality", "USA")
 	dominant_foot = data.get("dominant_foot", "right")
 	age = data.get("age", 14)
+	school_year = data.get("school_year", 1)
+	background_story = _normalize_background_story(data.get("background_story", "academy_product"))
+	career_difficulty = _normalize_career_difficulty(data.get("career_difficulty", "normal"))
 	stats = data.get("stats", stats)
 	level = data.get("level", 1)
 	xp = data.get("xp", 0)
@@ -260,3 +362,55 @@ func from_dict(data: Dictionary) -> void:
 	appearance = data.get("appearance", appearance)
 	personality_traits.assign(data.get("personality_traits", []))
 	training_records = data.get("training_records", {})
+
+
+func _normalize_background_story(value: String) -> String:
+	return value if value in BACKGROUND_STORIES else "academy_product"
+
+
+func _normalize_career_difficulty(value: String) -> String:
+	return value if value in CAREER_DIFFICULTIES else "normal"
+
+
+func _apply_background_story_modifiers() -> void:
+	var profile = get_background_profile()
+	var all_stats_delta = int(profile.get("all_stats_delta", 0))
+	if all_stats_delta != 0:
+		for stat_key in stats:
+			stats[stat_key] = clampi(int(stats[stat_key]) + all_stats_delta, 1, 99)
+
+	var stat_bonuses: Dictionary = profile.get("stat_bonuses", {})
+	for stat_key in stat_bonuses:
+		if stats.has(stat_key):
+			stats[stat_key] = clampi(int(stats[stat_key]) + int(stat_bonuses[stat_key]), 1, 99)
+
+	var weighted_bonus = int(profile.get("top_weighted_stat_bonus", 0))
+	if weighted_bonus > 0:
+		var count = int(profile.get("top_weighted_stat_count", 3))
+		var boosted_stats = _get_top_weighted_stats(count)
+		for stat_key in boosted_stats:
+			stats[stat_key] = clampi(int(stats[stat_key]) + weighted_bonus, 1, 99)
+
+
+func _get_top_weighted_stats(count: int) -> Array[String]:
+	var weights = StatSystem.POSITION_WEIGHTS.get(position, StatSystem.POSITION_WEIGHTS["CM"])
+	var weighted_keys: Array[Dictionary] = []
+	for stat_key in weights:
+		weighted_keys.append({"stat": stat_key, "weight": float(weights[stat_key])})
+	weighted_keys.sort_custom(func(a, b): return a.get("weight", 0.0) > b.get("weight", 0.0))
+
+	var top_stats: Array[String] = []
+	for i in range(mini(count, weighted_keys.size())):
+		top_stats.append(str(weighted_keys[i].get("stat", "")))
+	return top_stats
+
+
+func _apply_xp_multiplier(amount: int, source: String) -> int:
+	var adjusted = float(amount)
+	if source == "match":
+		adjusted *= get_match_xp_multiplier()
+	return maxi(0, roundi(adjusted))
+
+
+func _apply_stat_xp_multiplier(amount: int) -> int:
+	return maxi(0, roundi(float(amount) * get_stat_xp_multiplier()))

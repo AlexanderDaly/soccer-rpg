@@ -7,7 +7,7 @@ signal load_completed(slot: int, success: bool)
 const SAVE_DIR = "user://saves/"
 const SAVE_EXTENSION = ".sav"
 const MAX_SAVE_SLOTS = 5
-const SAVE_VERSION = 2
+const SAVE_VERSION = 3
 
 var current_slot: int = -1
 var auto_save_enabled: bool = true
@@ -185,6 +185,7 @@ func _collect_save_data() -> Dictionary:
 		# Game state
 		"game_state": GameManager.current_state,
 		"career_phase": GameManager.current_career_phase,
+		"national_phase": GameManager.current_national_phase,
 		"prefecture": GameManager.current_prefecture,
 
 		# Player data
@@ -247,7 +248,14 @@ func _serialize_career() -> Dictionary:
 		"social_rep_awarded_today": CareerManager.social_rep_awarded_today,
 		"social_rep_actions_today": CareerManager.social_rep_actions_today,
 		"completed_milestones": CareerManager.completed_milestones,
-		"rivals": CareerManager.rivals
+		"rivals": CareerManager.rivals,
+		"current_contract": CareerManager.current_contract,
+		"club_history": CareerManager.club_history,
+		"pending_contract_offers": CareerManager.pending_contract_offers,
+		"relationships": CareerManager.relationships,
+		"coach_trust": CareerManager.coach_trust,
+		"scout_relationships": CareerManager.scout_relationships,
+		"queued_contract_offer": CareerManager.queued_contract_offer
 	}
 
 
@@ -283,8 +291,11 @@ func _validate_save_data(data: Dictionary) -> bool:
 
 
 func _apply_save_data(data: Dictionary) -> void:
+	data = _migrate_save_data(data)
+
 	# Restore game state
 	GameManager.current_career_phase = data.get("career_phase", 0)
+	GameManager.current_national_phase = data.get("national_phase", GameManager.NationalPhase.NONE)
 	GameManager.current_prefecture = data.get("prefecture", "Kanagawa")
 
 	# Restore player
@@ -313,6 +324,13 @@ func _apply_save_data(data: Dictionary) -> void:
 		CareerManager.social_rep_actions_today = int(career.get("social_rep_actions_today", 0))
 		CareerManager.completed_milestones.assign(career.get("completed_milestones", []))
 		CareerManager.rivals.assign(career.get("rivals", []))
+		CareerManager.current_contract = career.get("current_contract", {}).duplicate(true)
+		CareerManager.club_history.assign(career.get("club_history", []))
+		CareerManager.pending_contract_offers.assign(career.get("pending_contract_offers", []))
+		CareerManager.relationships = career.get("relationships", {}).duplicate(true)
+		CareerManager.coach_trust = int(career.get("coach_trust", 50))
+		CareerManager.scout_relationships = career.get("scout_relationships", {}).duplicate(true)
+		CareerManager.queued_contract_offer = career.get("queued_contract_offer", {}).duplicate(true)
 
 	# Restore season data
 	if "season" in data:
@@ -340,6 +358,41 @@ func _apply_save_data(data: Dictionary) -> void:
 		AudioManager.set_music_volume(settings.get("music_volume", 0.8))
 		AudioManager.set_sfx_volume(settings.get("sfx_volume", 1.0))
 		auto_save_enabled = settings.get("auto_save", true)
+
+
+func _migrate_save_data(data: Dictionary) -> Dictionary:
+	var migrated = data.duplicate(true)
+	var version = int(migrated.get("version", 1))
+	if version >= SAVE_VERSION:
+		return migrated
+
+	var legacy_phase = int(migrated.get("career_phase", GameManager.CareerPhase.HIGH_SCHOOL))
+	if legacy_phase == GameManager.CareerPhase.U20_QUALIFIERS:
+		migrated["career_phase"] = GameManager.CareerPhase.YOUTH_ACADEMY
+		migrated["national_phase"] = GameManager.NationalPhase.U20_QUALIFIERS
+	elif legacy_phase == GameManager.CareerPhase.U20_WORLD_CUP:
+		migrated["career_phase"] = GameManager.CareerPhase.YOUTH_ACADEMY
+		migrated["national_phase"] = GameManager.NationalPhase.U20_WORLD_CUP
+	else:
+		migrated["national_phase"] = migrated.get("national_phase", GameManager.NationalPhase.NONE)
+
+	var player = migrated.get("player", {}).duplicate(true)
+	player["school_year"] = player.get("school_year", 1)
+	player["background_story"] = player.get("background_story", "academy_product")
+	player["career_difficulty"] = player.get("career_difficulty", "normal")
+	migrated["player"] = player
+
+	var career = migrated.get("career", {}).duplicate(true)
+	career["current_contract"] = career.get("current_contract", {})
+	career["club_history"] = career.get("club_history", [])
+	career["pending_contract_offers"] = career.get("pending_contract_offers", [])
+	career["relationships"] = career.get("relationships", {})
+	career["coach_trust"] = career.get("coach_trust", 50)
+	career["scout_relationships"] = career.get("scout_relationships", {})
+	career["queued_contract_offer"] = career.get("queued_contract_offer", {})
+	migrated["career"] = career
+	migrated["version"] = SAVE_VERSION
+	return migrated
 
 
 func _get_playtime() -> float:

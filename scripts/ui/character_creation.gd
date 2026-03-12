@@ -103,6 +103,36 @@ const PERSONALITY_TRAITS = {
 
 const MAX_TRAITS = 2
 
+const BACKGROUND_STORY_OPTIONS := {
+	"academy_product": {
+		"label": "Academy Product",
+		"description": "+5 reputation, +10 coach trust, +2 PAS, +2 MEN"
+	},
+	"late_bloomer": {
+		"label": "Late Bloomer",
+		"description": "-1 all stats, slower start, faster long-term stat XP"
+	},
+	"prodigy": {
+		"label": "Prodigy",
+		"description": "+10 reputation, +5 coach trust, stronger start, harsher poor-match pressure"
+	}
+}
+
+const CAREER_DIFFICULTY_OPTIONS := {
+	"casual": {
+		"label": "Casual",
+		"description": "More forgiving progression and scout thresholds"
+	},
+	"normal": {
+		"label": "Normal",
+		"description": "Baseline career balance"
+	},
+	"hardcore": {
+		"label": "Hardcore",
+		"description": "Lower XP, stricter scouts, heavier morale and trust punishments"
+	}
+}
+
 @onready var name_input: LineEdit = $MainContainer/ContentContainer/LeftPanel/NameSection/NameInput
 @onready var name_hint: Label = $MainContainer/ContentContainer/LeftPanel/NameSection/NameHint
 @onready var nationality_section: VBoxContainer = $MainContainer/ContentContainer/LeftPanel/NationalitySection
@@ -140,11 +170,15 @@ const SECTION_COUNT = 4
 var selected_position: String = "CM"
 var selected_nationality: String = "USA"
 var selected_dominant_foot: String = "right"
+var selected_background_story: String = "academy_product"
+var selected_career_difficulty: String = "normal"
 var selected_traits: Array[String] = []
 var selected_prefecture: String = "Kanagawa"  # Default prefecture
 var position_buttons: Dictionary = {}
 var appearance_buttons: Dictionary = {}
 var foot_buttons: Dictionary = {}
+var background_buttons: Dictionary = {}
+var difficulty_buttons: Dictionary = {}
 var trait_checkboxes: Dictionary = {}
 var nationality_input: LineEdit
 var nationality_list: ItemList
@@ -166,6 +200,8 @@ func _ready() -> void:
 	_init_nationality_lookup()
 	_create_nationality_selector()
 	_create_prefecture_selector()
+	_create_background_story_selector()
+	_create_difficulty_selector()
 	_setup_foot_buttons()
 	_create_position_buttons()
 	_create_appearance_selectors()
@@ -472,6 +508,75 @@ func _on_prefecture_item_selected(index: int) -> void:
 
 	prefecture_list.visible = false
 	prefecture_input.release_focus()
+
+
+func _create_background_story_selector() -> void:
+	var section = VBoxContainer.new()
+	section.name = "BackgroundStorySection"
+	section.add_theme_constant_override("separation", 8)
+
+	var label = Label.new()
+	label.text = "BACKGROUND STORY"
+	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	section.add_child(label)
+
+	var group = ButtonGroup.new()
+	for story_id in BACKGROUND_STORY_OPTIONS:
+		var option = BACKGROUND_STORY_OPTIONS[story_id]
+		var button = Button.new()
+		button.text = option.get("label", story_id)
+		button.toggle_mode = true
+		button.button_group = group
+		button.tooltip_text = option.get("description", "")
+		button.custom_minimum_size = Vector2(0, 36)
+		button.pressed.connect(_on_background_story_selected.bind(story_id))
+		section.add_child(button)
+		background_buttons[story_id] = button
+
+	nationality_section.get_parent().add_child(section)
+	nationality_section.get_parent().move_child(section, nationality_section.get_index() + 2)
+	background_buttons[selected_background_story].button_pressed = true
+
+
+func _create_difficulty_selector() -> void:
+	var section = VBoxContainer.new()
+	section.name = "DifficultySection"
+	section.add_theme_constant_override("separation", 8)
+
+	var label = Label.new()
+	label.text = "CAREER DIFFICULTY"
+	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	section.add_child(label)
+
+	var group = ButtonGroup.new()
+	for difficulty_id in CAREER_DIFFICULTY_OPTIONS:
+		var option = CAREER_DIFFICULTY_OPTIONS[difficulty_id]
+		var button = Button.new()
+		button.text = option.get("label", difficulty_id)
+		button.toggle_mode = true
+		button.button_group = group
+		button.tooltip_text = option.get("description", "")
+		button.custom_minimum_size = Vector2(0, 36)
+		button.pressed.connect(_on_difficulty_selected.bind(difficulty_id))
+		section.add_child(button)
+		difficulty_buttons[difficulty_id] = button
+
+	nationality_section.get_parent().add_child(section)
+	nationality_section.get_parent().move_child(section, nationality_section.get_index() + 3)
+	difficulty_buttons[selected_career_difficulty].button_pressed = true
+
+
+func _on_background_story_selected(story_id: String) -> void:
+	selected_background_story = story_id
+	AudioManager.play_ui_click()
+	_update_position_selection(selected_position)
+
+
+func _on_difficulty_selected(difficulty_id: String) -> void:
+	selected_career_difficulty = difficulty_id
+	AudioManager.play_ui_click()
 
 
 func _setup_foot_buttons() -> void:
@@ -915,6 +1020,27 @@ func _calculate_preview_stats(pos: String) -> Dictionary:
 		var weighted_base = base + roundi((weight - 0.5) * 10)
 		preview[stat_key] = clampi(weighted_base, 30, 65)
 
+	var background_profile = PlayerData.BACKGROUND_STORIES.get(selected_background_story, {})
+	var all_stats_delta = int(background_profile.get("all_stats_delta", 0))
+	if all_stats_delta != 0:
+		for stat_key in preview:
+			preview[stat_key] = clampi(int(preview[stat_key]) + all_stats_delta, 1, 99)
+
+	for stat_key in background_profile.get("stat_bonuses", {}):
+		if preview.has(stat_key):
+			preview[stat_key] = clampi(int(preview[stat_key]) + int(background_profile["stat_bonuses"][stat_key]), 1, 99)
+
+	var weighted_bonus = int(background_profile.get("top_weighted_stat_bonus", 0))
+	if weighted_bonus > 0:
+		var sorted_weights: Array[Dictionary] = []
+		for stat_key in weights:
+			sorted_weights.append({"stat": stat_key, "weight": float(weights[stat_key])})
+		sorted_weights.sort_custom(func(a, b): return a.get("weight", 0.0) > b.get("weight", 0.0))
+		var max_stats = int(background_profile.get("top_weighted_stat_count", 3))
+		for i in range(mini(max_stats, sorted_weights.size())):
+			var stat_key = sorted_weights[i].get("stat", "")
+			preview[stat_key] = clampi(int(preview[stat_key]) + weighted_bonus, 1, 99)
+
 	return preview
 
 
@@ -993,6 +1119,8 @@ func _show_confirmation_dialog() -> void:
 		["Nationality", nationality_name],
 		["Prefecture", "%s Prefecture" % selected_prefecture],
 		["Dominant Foot", foot_display],
+		["Background", BACKGROUND_STORY_OPTIONS[selected_background_story].get("label", selected_background_story)],
+		["Difficulty", CAREER_DIFFICULTY_OPTIONS[selected_career_difficulty].get("label", selected_career_difficulty)],
 		["Age", "14 (High School)"]
 	]
 
@@ -1038,7 +1166,7 @@ func _on_confirm_career() -> void:
 	AudioManager.play_ui_confirm()
 
 	# Start the career with prefecture
-	GameManager.start_new_career(player_name, selected_position, selected_nationality, selected_appearance, selected_dominant_foot, selected_traits, selected_prefecture)
+	GameManager.start_new_career(player_name, selected_position, selected_nationality, selected_appearance, selected_dominant_foot, selected_traits, selected_prefecture, selected_background_story, selected_career_difficulty)
 
 	# Transition to console dashboard
 	get_tree().change_scene_to_file("res://scenes/dashboard/console_dashboard.tscn")

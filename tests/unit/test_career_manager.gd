@@ -7,12 +7,20 @@ var _snapshot: Dictionary = {}
 func before_each() -> void:
 	seed(1337)
 	_snapshot = {
+		"player_data": GameManager.player_data,
 		"match_history": CareerManager.match_history.duplicate(true),
 		"career_stats": CareerManager.career_stats.duplicate(true),
 		"reputation": CareerManager.reputation,
 		"scout_attention": CareerManager.scout_attention.duplicate(true),
 		"media_coverage": CareerManager.media_coverage,
 		"fan_popularity": CareerManager.fan_popularity,
+		"current_contract": CareerManager.current_contract.duplicate(true),
+		"club_history": CareerManager.club_history.duplicate(true),
+		"pending_contract_offers": CareerManager.pending_contract_offers.duplicate(true),
+		"relationships": CareerManager.relationships.duplicate(true),
+		"coach_trust": CareerManager.coach_trust,
+		"scout_relationships": CareerManager.scout_relationships.duplicate(true),
+		"queued_contract_offer": CareerManager.queued_contract_offer.duplicate(true),
 		"completed_milestones": CareerManager.completed_milestones.duplicate(true),
 		"rivals": CareerManager.rivals.duplicate(true),
 		"reputation_event_log": CareerManager.reputation_event_log.duplicate(true),
@@ -25,12 +33,20 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	GameManager.player_data = _snapshot.get("player_data", null)
 	CareerManager.match_history.assign(_snapshot.get("match_history", []))
 	CareerManager.career_stats = _snapshot.get("career_stats", {}).duplicate(true)
 	CareerManager.reputation = int(_snapshot.get("reputation", 10))
 	CareerManager.scout_attention = _snapshot.get("scout_attention", {}).duplicate(true)
 	CareerManager.media_coverage = int(_snapshot.get("media_coverage", 0))
 	CareerManager.fan_popularity = int(_snapshot.get("fan_popularity", 0))
+	CareerManager.current_contract = _snapshot.get("current_contract", {}).duplicate(true)
+	CareerManager.club_history.assign(_snapshot.get("club_history", []))
+	CareerManager.pending_contract_offers.assign(_snapshot.get("pending_contract_offers", []))
+	CareerManager.relationships = _snapshot.get("relationships", {}).duplicate(true)
+	CareerManager.coach_trust = int(_snapshot.get("coach_trust", 50))
+	CareerManager.scout_relationships = _snapshot.get("scout_relationships", {}).duplicate(true)
+	CareerManager.queued_contract_offer = _snapshot.get("queued_contract_offer", {}).duplicate(true)
 	CareerManager.completed_milestones.assign(_snapshot.get("completed_milestones", []))
 	CareerManager.rivals.assign(_snapshot.get("rivals", []))
 	CareerManager.reputation_event_log.assign(_snapshot.get("reputation_event_log", []))
@@ -176,3 +192,25 @@ func test_get_last_match_reputation_report_returns_payload() -> void:
 	assert_true(report.has("reputation_after"))
 	assert_true(report.has("reputation_delta"))
 	assert_true(report.has("reputation_breakdown"))
+
+
+func test_generate_progression_offers_creates_fallback_offer_after_third_year() -> void:
+	GameManager.player_data = PlayerData.new()
+	GameManager.player_data.school_year = 3
+	GameManager.player_data.career_difficulty = "normal"
+	CareerManager.reputation = 10
+
+	var offers = CareerManager.generate_progression_offers({})
+
+	assert_false(offers.is_empty(), "Year 3 graduation should always produce at least one offer")
+	assert_eq(str(offers[0].get("target_phase", -1)), str(GameManager.CareerPhase.YOUTH_ACADEMY))
+
+
+func test_update_relationship_clamps_and_applies_positive_multiplier() -> void:
+	GameManager.player_data = PlayerData.new()
+	GameManager.player_data.background_story = "late_bloomer"
+
+	var rel = CareerManager.update_relationship("npc_teammate", 10, 5, "teammate", "Teammate")
+
+	assert_eq(int(rel.get("affinity", 0)), 11)
+	assert_eq(int(rel.get("trust", 0)), 56)

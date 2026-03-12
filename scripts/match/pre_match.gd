@@ -218,6 +218,9 @@ func _simulate_player_performance(team_goals: int, team_goal_events: Array = [],
 	# Determine player contribution based on position
 	var goal_chance = _get_goal_chance_for_position(player.position)
 	var assist_chance = _get_assist_chance_for_position(player.position)
+	var channel_multiplier = _get_player_channel_multiplier(player.position, player.dominant_foot)
+	goal_chance *= channel_multiplier
+	assist_chance *= channel_multiplier
 
 	# Calculate player goals and assists
 	if team_goal_events.is_empty():
@@ -235,7 +238,7 @@ func _simulate_player_performance(team_goals: int, team_goal_events: Array = [],
 		match_data.player_stats.passes_completed = int(player_line.get("passes_completed", 0))
 	else:
 		var passes = randi_range(20, 50)
-		var pass_accuracy = minf(0.7 + (player.stats.PAS / 200.0), 1.0)
+		var pass_accuracy = minf((0.7 + (player.stats.PAS / 200.0)) * channel_multiplier, 1.0)
 		for i in range(passes):
 			var success = randf() < pass_accuracy
 			match_data.record_event("pass", {"is_player": true, "successful": success})
@@ -247,7 +250,7 @@ func _simulate_player_performance(team_goals: int, team_goal_events: Array = [],
 		match_data.record_event("tackle", {"is_player": true, "successful": success})
 
 	var dribbles = randi_range(3, 10)
-	var dribble_success = 0.5 + (player.stats.TEC / 200.0)
+	var dribble_success = minf((0.5 + (player.stats.TEC / 200.0)) * channel_multiplier, 1.0)
 	for i in range(dribbles):
 		var success = randf() < dribble_success
 		match_data.record_event("dribble", {"is_player": true, "successful": success})
@@ -257,7 +260,7 @@ func _simulate_player_performance(team_goals: int, team_goal_events: Array = [],
 		var goals = match_data.player_stats.goals
 		var shots = max(randi_range(1, 5), goals)
 		for i in range(shots):
-			var on_target = i < goals or randf() < (0.4 + player.stats.SHO / 300.0)
+			var on_target = i < goals or randf() < minf((0.4 + player.stats.SHO / 300.0) * channel_multiplier, 1.0)
 			match_data.record_event("shot", {"is_player": true, "on_target": on_target})
 
 	# Small chance of cards
@@ -316,6 +319,20 @@ func _record_player_goal_events(team_goal_events: Array) -> void:
 			match_data.record_event("goal", {"is_player": true})
 		if event.get("assister_id", "") == player.id:
 			match_data.record_event("assist", {"is_player": true})
+
+
+func _get_player_channel_multiplier(position: String, foot: String) -> float:
+	if foot == "both":
+		return 1.02
+	if position not in ["FB", "WNG", "CAM", "CM", "ST"]:
+		return 1.0
+
+	var preferred_side = CareerManager.get_player_channel_side()
+	if preferred_side == "center":
+		return 1.0
+	if foot == preferred_side:
+		return 1.1
+	return 0.9
 
 
 func _is_knockout_match(match_type: String) -> bool:

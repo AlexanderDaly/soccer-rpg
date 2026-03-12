@@ -22,30 +22,12 @@ func _ready() -> void:
 
 
 func _generate_season_schedule() -> void:
-	# Generate matches based on career phase
-	season_schedule.clear()
-	next_match_index = 0
-
-	var phase = GameManager.current_career_phase
-	var num_matches = _get_matches_for_phase(phase)
-	var opponents = _generate_opponents(phase, num_matches)
-
-	var current_day = DesktopManager.game_date.day
-	var match_day = current_day + 3  # First match in 3 days
-
-	for i in range(num_matches):
-		var match_type = _get_match_type(phase, i, num_matches)
-
-		season_schedule.append({
-			"day": match_day,
-			"opponent": opponents[i],
-			"type": match_type,
-			"played": false
-		})
-
-		match_day += randi_range(5, 8)  # 5-8 days between matches
-		if match_day > 30:
-			match_day = match_day - 30  # Wrap to next month (simplified)
+	season_schedule = SeasonManager.get_upcoming_fixtures(-1, true)
+	next_match_index = -1
+	for i in range(season_schedule.size()):
+		if not season_schedule[i].get("played", false):
+			next_match_index = i
+			break
 
 
 func _get_matches_for_phase(phase: GameManager.CareerPhase) -> int:
@@ -153,8 +135,10 @@ func _setup_calendar() -> void:
 	# Get match days
 	var match_days: Array[int] = []
 	for match_info in season_schedule:
-		if not match_info.played:
-			match_days.append(match_info.day)
+		if not match_info.get("played", false):
+			var match_date = match_info.get("match_date", {})
+			if int(match_date.get("month", 0)) == DesktopManager.game_date.month and int(match_date.get("year", 0)) == DesktopManager.game_date.year:
+				match_days.append(int(match_date.get("day", 0)))
 
 	# Add day numbers
 	var current_day = DesktopManager.game_date.day
@@ -198,7 +182,8 @@ func _setup_upcoming_matches() -> void:
 		hbox.add_theme_constant_override("separation", 10)
 
 		var date_label = Label.new()
-		date_label.text = "Day %d" % match_info.day
+		var match_date = match_info.get("match_date", {})
+		date_label.text = "%s %d" % [_month_short(int(match_date.get("month", 1))), int(match_date.get("day", 1))]
 		date_label.custom_minimum_size = Vector2(60, 0)
 		date_label.add_theme_font_size_override("font_size", 14)
 
@@ -208,7 +193,7 @@ func _setup_upcoming_matches() -> void:
 		opponent_label.add_theme_font_size_override("font_size", 14)
 
 		var type_label = Label.new()
-		type_label.text = _get_match_type_display(match_info.type)
+		type_label.text = "%s | %s" % [match_info.get("competition", ""), _get_match_type_display(match_info.type)]
 		type_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 		type_label.add_theme_font_size_override("font_size", 12)
 
@@ -260,7 +245,7 @@ func _on_play_match(match_index: int) -> void:
 	var opponent_team = match_info.opponent.team_data
 
 	# Start the match via GameManager
-	GameManager.start_match(opponent_team, match_info.type)
+	GameManager.start_match(opponent_team, match_info.type, match_info.get("is_home", true), match_info.get("player_team", null))
 
 	# Mark as played
 	season_schedule[match_index].played = true
@@ -286,3 +271,8 @@ func _get_current_month() -> String:
 				  "July", "August", "September", "October", "November", "December"]
 	var month_idx = DesktopManager.game_date.month - 1
 	return "%s %d" % [months[month_idx], DesktopManager.game_date.year]
+
+
+func _month_short(month: int) -> String:
+	var months = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+	return months[clampi(month, 1, 12)]

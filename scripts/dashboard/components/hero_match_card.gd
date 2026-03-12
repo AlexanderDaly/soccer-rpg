@@ -76,34 +76,11 @@ func _setup_play_button() -> void:
 
 
 func _generate_schedule() -> void:
-	# Generate matches based on career phase (similar to app_schedule.gd)
-	season_schedule.clear()
+	season_schedule = SeasonManager.get_upcoming_fixtures(-1, true)
 	next_match_index = -1
-
-	var phase = GameManager.current_career_phase
-	var num_matches = _get_matches_for_phase(phase)
-	var opponents = _generate_opponents(phase, num_matches)
-
-	var current_day = DesktopManager.game_date.day
-	var match_day = current_day + 3
-
-	for i in range(num_matches):
-		var match_type = _get_match_type(phase, i, num_matches)
-
-		season_schedule.append({
-			"day": match_day,
-			"opponent": opponents[i],
-			"type": match_type,
-			"played": false
-		})
-
-		match_day += randi_range(5, 8)
-		if match_day > 30:
-			match_day = match_day - 30
-
-	# Find next unplayed match
+	current_match_data = {}
 	for i in range(season_schedule.size()):
-		if not season_schedule[i].played:
+		if not season_schedule[i].get("played", false):
 			next_match_index = i
 			current_match_data = season_schedule[i]
 			break
@@ -255,10 +232,11 @@ func _refresh_display() -> void:
 
 	# Countdown
 	if countdown_label:
-		var days_until = current_match_data.day - DesktopManager.game_date.day
-		if days_until < 0:
-			days_until += 30  # Wrapped to next month
-		var countdown_text = "Day %d" % current_match_data.day
+		var match_date = current_match_data.get("match_date", {})
+		var days_until = int(match_date.get("day", DesktopManager.game_date.day)) - DesktopManager.game_date.day
+		if int(match_date.get("month", DesktopManager.game_date.month)) != DesktopManager.game_date.month:
+			days_until += 30
+		var countdown_text = "%s %d" % [_month_short(int(match_date.get("month", 1))), int(match_date.get("day", 1))]
 		if days_until == 0:
 			countdown_text += " - TODAY!"
 		elif days_until == 1:
@@ -318,7 +296,7 @@ func _on_play_pressed() -> void:
 
 	# Start match
 	var opponent_team = current_match_data.opponent.team_data
-	GameManager.start_match(opponent_team, current_match_data.type)
+	GameManager.start_match(opponent_team, current_match_data.type, current_match_data.get("is_home", true), current_match_data.get("player_team", null))
 
 	# Emit signal for dashboard to handle
 	play_match_pressed.emit(current_match_data)
@@ -333,3 +311,8 @@ func get_schedule() -> Array[Dictionary]:
 
 func get_next_match_index() -> int:
 	return next_match_index
+
+
+func _month_short(month: int) -> String:
+	var months = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+	return months[clampi(month, 1, 12)]

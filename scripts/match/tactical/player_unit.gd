@@ -14,6 +14,7 @@ var unit_name: String = ""
 var position_role: String = ""  # GK, CB, FB, CDM, CM, CAM, WNG, ST
 var is_player_controlled: bool = false
 var is_home_team: bool = true
+var dominant_foot: String = "right"
 
 # Stats (copied from player/NPC data)
 var stats: Dictionary = {}
@@ -106,6 +107,7 @@ func initialize(data: Dictionary, home_team: bool, player_char: bool = false) ->
 	overall = data.get("overall", 50)
 	is_home_team = home_team
 	is_player_controlled = player_char
+	dominant_foot = data.get("dominant_foot", "right")
 
 	# Set visual representation
 	team_color = Color(0.2, 0.4, 0.8) if is_home_team else Color(0.8, 0.2, 0.2)
@@ -266,3 +268,19 @@ func get_goalkeeping_stat() -> int:
 	var men = stats.get("MEN", 50)
 	var reflexes = int(def * 0.5 + men * 0.5)
 	return reflexes
+
+
+func get_channel_side(target_hex: Vector2i = Vector2i(-999, -999)) -> String:
+	var sample_hex = hex_position
+	if target_hex.x != -999:
+		sample_hex = Vector2i(
+			int(round((hex_position.x + target_hex.x) / 2.0)),
+			int(round((hex_position.y + target_hex.y) / 2.0))
+		)
+
+	var center_line = int(HexUtils.GRID_HEIGHT / 2)
+	if sample_hex.y < center_line:
+		return "left"
+	if sample_hex.y > center_line:
+		return "right"
+	return "center"

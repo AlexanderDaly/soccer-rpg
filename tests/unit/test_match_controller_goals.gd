@@ -8,6 +8,7 @@ var controller: MatchController
 func before_each() -> void:
 	controller = MatchController.new()
 	controller.match_data = MatchData.new()
+	controller.match_data.player_position = "CM"
 	# Wire up minimal teams so goal events can record team info
 	controller.match_data.home_team = _make_team("home_team", "Home FC")
 	controller.match_data.away_team = _make_team("away_team", "Away FC")
@@ -103,17 +104,23 @@ func test_goal_without_assist_records_zero_assists() -> void:
 func test_player_assist_affects_match_rating() -> void:
 	var passer = _make_unit("passer_4", "Playmaker", true, true)
 	var scorer = _make_unit("scorer_6", "Striker", false, true)
+	var baseline_match = MatchData.new()
+	baseline_match.player_position = "CM"
+	baseline_match.home_team = _make_team("base_home", "Base Home")
+	baseline_match.away_team = _make_team("base_away", "Base Away")
+	baseline_match.is_home = true
+	baseline_match.home_score = 1
+	baseline_match.away_score = 0
 
 	# Record an assist via goal scoring
 	controller.last_passer = passer
 	controller.last_shooter = scorer
 	controller._on_goal_scored(false)
 
-	# Calculate rating — base is 6.0, +0.5 per assist, +0.5 for winning
+	var baseline_rating = baseline_match.calculate_match_rating()
 	var rating = controller.match_data.calculate_match_rating()
-	# With 1 assist (0.5) and winning (0.5), rating should be 7.0
-	assert_almost_eq(rating, 7.0, 0.01,
-		"Rating should include +0.5 for the assist")
+	assert_gt(rating, baseline_rating,
+		"Rating should improve when the player contributes an assist")
 
 
 func test_away_goal_records_in_away_events() -> void:

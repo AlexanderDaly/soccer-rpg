@@ -109,6 +109,45 @@ func test_execute_dribble_success_keeps_expected_result_shape() -> void:
 	assert_eq(result.roll.dice_total, 7)
 
 
+func test_execute_pass_applies_strong_side_foot_bonus() -> void:
+	var target_hex = Vector2i(14, 4)
+	var receiver = _make_unit("receiver", {"PAS": 45}, target_hex)
+	var passer = _make_unit("passer", {"PAS": 50}, Vector2i(10, 4), true)
+	passer.is_player_controlled = true
+	passer.dominant_foot = "left"
+
+	var result = ActionResolver.execute_pass(
+		passer,
+		target_hex,
+		receiver,
+		[],
+		MatchData.new(),
+		StubRng.new([5, 6], [0.9])
+	)
+
+	assert_true(result.success)
+	assert_gt(result.roll.chance_percent, 30.0)
+
+
+func test_execute_pass_applies_weak_side_foot_penalty() -> void:
+	var target_hex = Vector2i(14, 10)
+	var receiver = _make_unit("receiver", {"PAS": 45}, target_hex)
+	var passer = _make_unit("passer", {"PAS": 50}, Vector2i(10, 10), true)
+	passer.is_player_controlled = true
+	passer.dominant_foot = "left"
+
+	var result = ActionResolver.execute_pass(
+		passer,
+		target_hex,
+		receiver,
+		[],
+		MatchData.new(),
+		StubRng.new([5, 6], [0.9])
+	)
+
+	assert_lt(result.roll.chance_percent, 30.0)
+
+
 func _make_unit(id: String, stats: Dictionary, hex_pos: Vector2i, has_ball: bool = false) -> PlayerUnit:
 	var unit = PlayerUnit.new()
 	unit.unit_id = id

@@ -133,7 +133,7 @@ func process_match_performance(result: Dictionary) -> void:
 		return
 	
 	var xp_gained = _calculate_match_xp(result)
-	player.add_xp(xp_gained)
+	player.add_xp(xp_gained, "match")
 	
 	# Award stat points based on actions taken
 	var stat_gains = _calculate_stat_gains(result)

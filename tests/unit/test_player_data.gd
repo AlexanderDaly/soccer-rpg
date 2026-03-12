@@ -17,6 +17,9 @@ func test_player_data_default_values() -> void:
 	assert_eq(player.current_form, "average", "Default form should be average")
 	assert_eq(player.stamina_current, 100, "Default stamina should be 100")
 	assert_eq(player.morale, 50, "Default morale should be 50")
+	assert_eq(player.school_year, 1, "Default school year should be 1")
+	assert_eq(player.background_story, "academy_product")
+	assert_eq(player.career_difficulty, "normal")
 
 
 func test_player_data_has_all_primary_stats() -> void:
@@ -233,6 +236,9 @@ func test_to_dict_contains_all_fields() -> void:
 	assert_has(data, "equipped_skills")
 	assert_has(data, "appearance")
 	assert_has(data, "personality_traits")
+	assert_has(data, "school_year")
+	assert_has(data, "background_story")
+	assert_has(data, "career_difficulty")
 
 
 func test_from_dict_restores_all_fields() -> void:
@@ -240,6 +246,9 @@ func test_from_dict_restores_all_fields() -> void:
 		"id": "restored_123",
 		"name": "Restored Player",
 		"position": "ST",
+		"school_year": 2,
+		"background_story": "prodigy",
+		"career_difficulty": "hardcore",
 		"stats": {"SPD": 80, "STA": 70, "TEC": 75, "PAS": 65, "SHO": 90, "DEF": 30, "PHY": 70, "MEN": 75},
 		"level": 5,
 		"xp": 150,
@@ -261,6 +270,9 @@ func test_from_dict_restores_all_fields() -> void:
 	assert_eq(player.id, "restored_123")
 	assert_eq(player.name, "Restored Player")
 	assert_eq(player.position, "ST")
+	assert_eq(player.school_year, 2)
+	assert_eq(player.background_story, "prodigy")
+	assert_eq(player.career_difficulty, "hardcore")
 	assert_eq(player.level, 5)
 	assert_eq(player.xp, 150)
 	assert_eq(player.stats["SHO"], 90)
@@ -281,6 +293,20 @@ func test_from_dict_handles_missing_fields() -> void:
 	assert_eq(player.name, "Minimal Player")
 	assert_eq(player.position, "CM", "Missing position should default to CM")
 	assert_eq(player.level, 1, "Missing level should default to 1")
+	assert_eq(player.school_year, 1)
+	assert_eq(player.background_story, "academy_product")
+	assert_eq(player.career_difficulty, "normal")
+
+
+func test_initialize_applies_background_story_modifiers() -> void:
+	var player = PlayerData.new()
+	player.position = "ST"
+	player.background_story = "prodigy"
+	player.stats = {"SPD": 50, "STA": 50, "TEC": 50, "PAS": 50, "SHO": 50, "DEF": 50, "PHY": 50, "MEN": 50}
+
+	player._apply_background_story_modifiers()
+
+	assert_eq(player.stats["SHO"], 53)
 
 
 func test_round_trip_serialization() -> void:

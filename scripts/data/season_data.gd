@@ -12,6 +12,7 @@ enum Phase {
 
 @export var prefecture: String = ""
 @export var year: int = 2024
+@export var season_kind: String = "high_school"
 
 @export var league: LeagueData
 @export var prefecture_qualifier: TournamentData
@@ -35,24 +36,29 @@ func _init() -> void:
 	pass
 
 
-func initialize(pref: String, season_year: int, player_team: TeamData, other_teams: Array[TeamData]) -> void:
+func initialize(pref: String, season_year: int, player_team: TeamData, other_teams: Array[TeamData], kind: String = "high_school", league_name: String = "", cup_name: String = "") -> void:
 	prefecture = pref
 	year = season_year
+	season_kind = kind
 
 	# Initialize league
 	var league_teams: Array[TeamData] = [player_team]
 	league_teams.append_array(other_teams.slice(0, 9))  # 10 teams total
 
 	league = LeagueData.new()
-	league.initialize("%s Prefecture League" % prefecture, league_teams, 0, year)
+	var resolved_league_name = league_name
+	if resolved_league_name.is_empty():
+		resolved_league_name = "%s Prefecture League" % prefecture if season_kind == "high_school" else "%s League" % pref
+	league.initialize(resolved_league_name, league_teams, 0, year)
 
 	current_phase = Phase.LEAGUE
 
 
-func start_qualifiers(qualifier_teams: Array[TeamData], player_team_idx: int) -> void:
+func start_qualifiers(qualifier_teams: Array[TeamData], player_team_idx: int, tournament_name: String = "") -> void:
 	prefecture_qualifier = TournamentData.new()
+	var resolved_name = tournament_name if not tournament_name.is_empty() else "%s Prefecture Qualifier" % prefecture
 	prefecture_qualifier.initialize(
-		"%s Prefecture Qualifier" % prefecture,
+		resolved_name,
 		qualifier_teams,
 		player_team_idx,
 		TournamentData.TournamentType.PREFECTURE_QUALIFIER
@@ -81,7 +87,7 @@ func get_current_competition_name() -> String:
 		Phase.LEAGUE:
 			return league.name if league else "Prefecture League"
 		Phase.QUALIFIERS:
-			return prefecture_qualifier.name if prefecture_qualifier else "Prefecture Qualifier"
+			return prefecture_qualifier.name if prefecture_qualifier else "Cup"
 		Phase.NATIONALS:
 			return national_championship.name if national_championship else "National Championship"
 		_:
@@ -108,7 +114,7 @@ func get_match_type_for_phase() -> String:
 		Phase.LEAGUE:
 			return "league"
 		Phase.QUALIFIERS:
-			return "prefecture_qualifier"
+			return "prefecture_qualifier" if season_kind == "high_school" else "cup"
 		Phase.NATIONALS:
 			return "national_championship"
 		_:
@@ -120,7 +126,7 @@ func get_match_importance_for_phase() -> float:
 		Phase.LEAGUE:
 			return 1.0
 		Phase.QUALIFIERS:
-			return 1.5
+			return 1.5 if season_kind == "high_school" else 1.6
 		Phase.NATIONALS:
 			if national_championship:
 				match national_championship.current_stage:
@@ -205,6 +211,7 @@ func to_dict() -> Dictionary:
 	return {
 		"prefecture": prefecture,
 		"year": year,
+		"season_kind": season_kind,
 		"league": league.to_dict() if league else {},
 		"prefecture_qualifier": prefecture_qualifier.to_dict() if prefecture_qualifier else {},
 		"national_championship": national_championship.to_dict() if national_championship else {},
@@ -217,6 +224,7 @@ func to_dict() -> Dictionary:
 func from_dict(data: Dictionary) -> void:
 	prefecture = data.get("prefecture", "")
 	year = data.get("year", 2024)
+	season_kind = data.get("season_kind", "high_school")
 	current_phase = data.get("current_phase", Phase.PRE_SEASON)
 	qualified_for_nationals = data.get("qualified_for_nationals", false)
 	eliminated_from_qualifiers = data.get("eliminated_from_qualifiers", false)

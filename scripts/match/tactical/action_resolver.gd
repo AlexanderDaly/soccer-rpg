@@ -90,7 +90,7 @@ static func execute_pass(passer: PlayerUnit, target_hex: Vector2i, receiver: Pla
 	var base_difficulty = 0.3 + (distance * 0.03)
 
 	# Roll for pass accuracy
-	var pass_stat = passer.get_passing_stat()
+	var pass_stat = passer.get_passing_stat() + _relationship_pass_modifier(passer, receiver) + _foot_lane_modifier(passer, target_hex)
 	var roll = StatSystem.roll_action_success(pass_stat, 0, base_difficulty, rng)
 
 	# Check for interceptions
@@ -146,7 +146,7 @@ static func execute_through_ball(passer: PlayerUnit, target_hex: Vector2i,
 	# Through balls use PAS + MEN (vision)
 	var pass_stat = passer.get_passing_stat()
 	var men_stat = passer.get_stat("MEN")
-	var combined_stat = int(pass_stat * 0.6 + men_stat * 0.4)
+	var combined_stat = int(pass_stat * 0.6 + men_stat * 0.4) + _relationship_pass_modifier(passer, null) + _foot_lane_modifier(passer, target_hex)
 
 	var distance = HexUtils.hex_distance(passer.hex_position, target_hex)
 	var base_difficulty = 0.4 + (distance * 0.04)
@@ -203,7 +203,7 @@ static func execute_shot(shooter: PlayerUnit, goal_hex: Vector2i,
 
 	shooter.spend_ap(ap_cost)
 
-	var shot_stat = shooter.get_shooting_stat()
+	var shot_stat = shooter.get_shooting_stat() + _foot_lane_modifier(shooter, goal_hex)
 	var distance = HexUtils.hex_distance(shooter.hex_position, goal_hex)
 	var difficulty = HexUtils.calculate_shot_difficulty(shooter.hex_position, goal_hex)
 
@@ -321,7 +321,7 @@ static func execute_dribble(dribbler: PlayerUnit, target_hex: Vector2i,
 			"uncontested": true
 		}
 
-	var dribble_stat = dribbler.get_dribbling_stat() + int(move.get("dribble_bonus", 0))
+	var dribble_stat = dribbler.get_dribbling_stat() + int(move.get("dribble_bonus", 0)) + _foot_lane_modifier(dribbler, target_hex)
 	var defend_stat = (defender.get_tackling_stat() if defender else 30) + int(move.get("defender_bonus", 0))
 	dribble_stat = clampi(dribble_stat, 1, 99)
 	defend_stat = clampi(defend_stat, 1, 99)
@@ -443,6 +443,29 @@ static func execute_tackle(tackler: PlayerUnit, target: PlayerUnit,
 		"target": target,
 		"roll": roll
 	}
+
+
+static func _relationship_pass_modifier(passer: PlayerUnit, receiver: PlayerUnit) -> int:
+	if receiver and passer.is_player_controlled:
+		return CareerManager.get_teammate_pass_modifier(receiver.unit_id)
+	if receiver and receiver.is_player_controlled:
+		return CareerManager.get_teammate_pass_modifier(passer.unit_id)
+	return 0
+
+
+static func _foot_lane_modifier(unit: PlayerUnit, target_hex: Vector2i) -> int:
+	if not unit or not unit.is_player_controlled:
+		return 0
+
+	if unit.dominant_foot == "both":
+		return 2
+
+	var channel = unit.get_channel_side(target_hex)
+	if channel == "center":
+		return 0
+	if unit.dominant_foot == channel:
+		return 5
+	return -8
 
 
 ## Check if a pass can be intercepted

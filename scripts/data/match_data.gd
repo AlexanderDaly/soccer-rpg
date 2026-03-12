@@ -10,6 +10,7 @@ class_name MatchData
 @export var home_team: TeamData
 @export var away_team: TeamData
 @export var is_home: bool = true
+@export var player_position: String = ""
 
 # Match state
 @export var current_half: int = 1
@@ -47,11 +48,107 @@ class_name MatchData
 # Tactical grid state (for turn-based system)
 @export var grid_state: Dictionary = {}
 
+const BASE_MATCH_RATING := 6.0
+
+# Position-aware match rating profiles. The shared component scores are
+# weighted differently so roles are judged on the work they are expected to do.
+const MATCH_RATING_PROFILES := {
+	"GK": {
+		"finishing": 0.0,
+		"creation": 0.30,
+		"defense": 1.25,
+		"carry": 0.0,
+		"clean_sheet_bonus": 0.90,
+		"conceded_penalty": 0.40,
+		"win_bonus": 0.25,
+		"draw_bonus": 0.10,
+		"loss_penalty": 0.20
+	},
+	"CB": {
+		"finishing": 0.05,
+		"creation": 0.25,
+		"defense": 1.15,
+		"carry": 0.05,
+		"clean_sheet_bonus": 0.70,
+		"conceded_penalty": 0.30,
+		"win_bonus": 0.25,
+		"draw_bonus": 0.05,
+		"loss_penalty": 0.20
+	},
+	"FB": {
+		"finishing": 0.15,
+		"creation": 0.50,
+		"defense": 0.90,
+		"carry": 0.30,
+		"clean_sheet_bonus": 0.50,
+		"conceded_penalty": 0.22,
+		"win_bonus": 0.30,
+		"draw_bonus": 0.05,
+		"loss_penalty": 0.20
+	},
+	"CDM": {
+		"finishing": 0.10,
+		"creation": 0.65,
+		"defense": 0.95,
+		"carry": 0.15,
+		"clean_sheet_bonus": 0.45,
+		"conceded_penalty": 0.18,
+		"win_bonus": 0.30,
+		"draw_bonus": 0.05,
+		"loss_penalty": 0.20
+	},
+	"CM": {
+		"finishing": 0.25,
+		"creation": 0.90,
+		"defense": 0.55,
+		"carry": 0.35,
+		"clean_sheet_bonus": 0.20,
+		"conceded_penalty": 0.10,
+		"win_bonus": 0.30,
+		"draw_bonus": 0.05,
+		"loss_penalty": 0.20
+	},
+	"CAM": {
+		"finishing": 0.45,
+		"creation": 1.00,
+		"defense": 0.15,
+		"carry": 0.40,
+		"clean_sheet_bonus": 0.05,
+		"conceded_penalty": 0.06,
+		"win_bonus": 0.30,
+		"draw_bonus": 0.05,
+		"loss_penalty": 0.22
+	},
+	"WNG": {
+		"finishing": 0.70,
+		"creation": 0.70,
+		"defense": 0.10,
+		"carry": 0.65,
+		"clean_sheet_bonus": 0.0,
+		"conceded_penalty": 0.05,
+		"win_bonus": 0.35,
+		"draw_bonus": 0.05,
+		"loss_penalty": 0.22
+	},
+	"ST": {
+		"finishing": 0.95,
+		"creation": 0.30,
+		"defense": 0.05,
+		"carry": 0.45,
+		"clean_sheet_bonus": 0.0,
+		"conceded_penalty": 0.04,
+		"win_bonus": 0.35,
+		"draw_bonus": 0.05,
+		"loss_penalty": 0.25
+	}
+}
+
 
 func setup(player_team: TeamData, opponent_team: TeamData, type: String, player_is_home: bool = true) -> void:
 	id = "match_%d" % randi()
 	match_type = type
 	importance = _calculate_importance(type)
+	player_position = GameManager.player_data.position if GameManager.player_data else "CM"
 
 	# Set home/away based on fixture (or random if not specified)
 	is_home = player_is_home
@@ -205,42 +302,107 @@ func is_draw() -> bool:
 
 
 func calculate_match_rating() -> float:
-	# Calculate player's match rating based on performance
-	var rating = 6.0  # Base rating
-	
-	# Goals and assists are heavily weighted
-	rating += player_stats.goals * 0.8
-	rating += player_stats.assists * 0.5
-	
-	# Pass completion rate
-	if player_stats.passes_attempted > 0:
-		var pass_rate = float(player_stats.passes_completed) / player_stats.passes_attempted
-		rating += (pass_rate - 0.7) * 2.0  # Bonus/penalty vs 70% baseline
-	
-	# Tackle success
-	if player_stats.tackles_attempted > 0:
-		var tackle_rate = float(player_stats.tackles_won) / player_stats.tackles_attempted
-		rating += (tackle_rate - 0.5) * 1.0
-	
-	# Shots on target
-	if player_stats.shots > 0:
-		var accuracy = float(player_stats.shots_on_target) / player_stats.shots
-		rating += accuracy * 0.5
-	
-	# Penalties
-	rating -= player_stats.yellow_cards * 0.5
-	if player_stats.red_card:
-		rating -= 2.0
-	
-	# Team result bonus/penalty
-	if is_winning():
-		rating += 0.5
-	elif is_losing():
-		rating -= 0.3
-	
-	# Clamp to valid range
+	var profile = _get_match_rating_profile()
+	var rating = BASE_MATCH_RATING
+
+	rating += _calculate_finishing_component() * float(profile.get("finishing", 0.0))
+	rating += _calculate_creation_component() * float(profile.get("creation", 0.0))
+	rating += _calculate_defense_component() * float(profile.get("defense", 0.0))
+	rating += _calculate_carry_component() * float(profile.get("carry", 0.0))
+	rating += _calculate_result_adjustment(profile)
+	rating += _calculate_discipline_adjustment()
+	rating += _calculate_goal_prevention_adjustment(profile)
+
 	player_stats.rating = clampf(rating, 1.0, 10.0)
 	return player_stats.rating
+
+
+func _get_match_rating_profile() -> Dictionary:
+	var position = _get_player_position()
+	return MATCH_RATING_PROFILES.get(position, MATCH_RATING_PROFILES["CM"])
+
+
+func _get_player_position() -> String:
+	if not player_position.is_empty():
+		return player_position
+	if GameManager.player_data:
+		return GameManager.player_data.position
+	return "CM"
+
+
+func _calculate_finishing_component() -> float:
+	var score := float(player_stats.goals) * 1.15
+	score += float(player_stats.assists) * 0.20
+
+	if player_stats.shots > 0:
+		var accuracy = float(player_stats.shots_on_target) / player_stats.shots
+		score += float(player_stats.shots_on_target) * 0.12
+		score += (accuracy - 0.35) * 0.70
+		score += minf(float(player_stats.shots) / 5.0, 1.0) * 0.15
+
+	return score
+
+
+func _calculate_creation_component() -> float:
+	var score := float(player_stats.assists) * 0.80
+
+	if player_stats.passes_attempted > 0:
+		var pass_rate = float(player_stats.passes_completed) / player_stats.passes_attempted
+		score += (pass_rate - 0.72) * 1.40
+		score += minf(float(player_stats.passes_completed) / 35.0, 1.0) * 0.35
+
+	score += minf(float(player_stats.fouls_received) / 3.0, 1.0) * 0.10
+	return score
+
+
+func _calculate_defense_component() -> float:
+	var score := 0.0
+
+	if player_stats.tackles_attempted > 0:
+		var tackle_rate = float(player_stats.tackles_won) / player_stats.tackles_attempted
+		score += (tackle_rate - 0.55) * 0.90
+		score += minf(float(player_stats.tackles_won) / 5.0, 1.0) * 0.55
+
+	return score
+
+
+func _calculate_carry_component() -> float:
+	var score := 0.0
+
+	if player_stats.dribbles_attempted > 0:
+		var dribble_rate = float(player_stats.dribbles_completed) / player_stats.dribbles_attempted
+		score += (dribble_rate - 0.55) * 0.70
+		score += minf(float(player_stats.dribbles_completed) / 5.0, 1.0) * 0.40
+
+	return score
+
+
+func _calculate_result_adjustment(profile: Dictionary) -> float:
+	if is_winning():
+		return float(profile.get("win_bonus", 0.0))
+	if is_draw():
+		return float(profile.get("draw_bonus", 0.0))
+	return -float(profile.get("loss_penalty", 0.0))
+
+
+func _calculate_discipline_adjustment() -> float:
+	var adjustment := -float(player_stats.yellow_cards) * 0.45
+	adjustment -= float(player_stats.fouls_committed) * 0.08
+
+	if player_stats.red_card:
+		adjustment -= 2.25
+
+	return adjustment
+
+
+func _calculate_goal_prevention_adjustment(profile: Dictionary) -> float:
+	var adjustment := 0.0
+
+	if get_opponent_score() == 0:
+		adjustment += float(profile.get("clean_sheet_bonus", 0.0))
+
+	adjustment -= float(get_opponent_score()) * float(profile.get("conceded_penalty", 0.0))
+	return adjustment
 
 
 func generate_result() -> Dictionary:
@@ -329,6 +491,7 @@ func to_dict() -> Dictionary:
 		"match_type": match_type,
 		"importance": importance,
 		"is_home": is_home,
+		"player_position": player_position,
 		"current_half": current_half,
 		"current_minute": current_minute,
 		"home_score": home_score,

@@ -202,6 +202,8 @@ func _on_accept_contract(email: Dictionary) -> void:
 
 func _on_decline_contract(email: Dictionary) -> void:
 	AudioManager.play_ui_click()
+	if email.has("offer_data"):
+		CareerManager.decline_contract(email.offer_data)
 
 	emails.erase(email)
 	selected_email_index = -1
@@ -245,13 +247,19 @@ func _on_scout_interest(scout_data: Dictionary) -> void:
 
 
 func _on_contract_offer(offer: Dictionary) -> void:
+	var expires_on = offer.get("expires_on", {})
 	emails.insert(0, {
 		"from": offer.get("team_name", "Club"),
 		"subject": "Contract Offer!",
-		"body": "We are pleased to offer you a contract to join %s!\n\nWages: $%d/week\nLength: %d years\n\nWe hope you will consider this opportunity." % [
+		"body": "We are pleased to offer you a contract to join %s!\n\nSalary: $%d/year\nLength: %d years\nRole: %s\nWindow: %s\nExpires: %02d/%02d/%04d\n\nWe hope you will consider this opportunity." % [
 			offer.get("team_name", "our club"),
-			offer.get("wages", 1000),
-			offer.get("length", 2)
+			offer.get("salary", 1000),
+			offer.get("duration_years", 2),
+			str(offer.get("squad_role", "prospect")).capitalize(),
+			str(offer.get("offer_window", "offseason")).capitalize(),
+			int(expires_on.get("month", 1)),
+			int(expires_on.get("day", 1)),
+			int(expires_on.get("year", 2024))
 		],
 		"date": DesktopManager.get_date_string(),
 		"read": false,

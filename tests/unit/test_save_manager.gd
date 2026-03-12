@@ -12,6 +12,13 @@ func before_each() -> void:
 		"media_coverage": CareerManager.media_coverage,
 		"fan_popularity": CareerManager.fan_popularity,
 		"scout_attention": CareerManager.scout_attention.duplicate(true),
+		"current_contract": CareerManager.current_contract.duplicate(true),
+		"club_history": CareerManager.club_history.duplicate(true),
+		"pending_contract_offers": CareerManager.pending_contract_offers.duplicate(true),
+		"relationships": CareerManager.relationships.duplicate(true),
+		"coach_trust": CareerManager.coach_trust,
+		"scout_relationships": CareerManager.scout_relationships.duplicate(true),
+		"queued_contract_offer": CareerManager.queued_contract_offer.duplicate(true),
 		"reputation_event_log": CareerManager.reputation_event_log.duplicate(true),
 		"last_match_reputation_report": CareerManager.last_match_reputation_report.duplicate(true),
 		"social_rep_day_key": CareerManager.social_rep_day_key,
@@ -20,6 +27,7 @@ func before_each() -> void:
 		"completed_milestones": CareerManager.completed_milestones.duplicate(true),
 		"rivals": CareerManager.rivals.duplicate(true),
 		"phase": GameManager.current_career_phase,
+		"national_phase": GameManager.current_national_phase,
 		"prefecture": GameManager.current_prefecture
 	}
 
@@ -31,6 +39,13 @@ func after_each() -> void:
 	CareerManager.media_coverage = int(_snapshot.get("media_coverage", 0))
 	CareerManager.fan_popularity = int(_snapshot.get("fan_popularity", 0))
 	CareerManager.scout_attention = _snapshot.get("scout_attention", {}).duplicate(true)
+	CareerManager.current_contract = _snapshot.get("current_contract", {}).duplicate(true)
+	CareerManager.club_history.assign(_snapshot.get("club_history", []))
+	CareerManager.pending_contract_offers.assign(_snapshot.get("pending_contract_offers", []))
+	CareerManager.relationships = _snapshot.get("relationships", {}).duplicate(true)
+	CareerManager.coach_trust = int(_snapshot.get("coach_trust", 50))
+	CareerManager.scout_relationships = _snapshot.get("scout_relationships", {}).duplicate(true)
+	CareerManager.queued_contract_offer = _snapshot.get("queued_contract_offer", {}).duplicate(true)
 	CareerManager.reputation_event_log.assign(_snapshot.get("reputation_event_log", []))
 	CareerManager.last_match_reputation_report = _snapshot.get("last_match_reputation_report", {}).duplicate(true)
 	CareerManager.social_rep_day_key = str(_snapshot.get("social_rep_day_key", ""))
@@ -39,6 +54,7 @@ func after_each() -> void:
 	CareerManager.completed_milestones.assign(_snapshot.get("completed_milestones", []))
 	CareerManager.rivals.assign(_snapshot.get("rivals", []))
 	GameManager.current_career_phase = int(_snapshot.get("phase", 0))
+	GameManager.current_national_phase = int(_snapshot.get("national_phase", 0))
 	GameManager.current_prefecture = str(_snapshot.get("prefecture", "Kanagawa"))
 
 
@@ -60,6 +76,10 @@ func test_serialize_career_includes_reputation_schema_fields() -> void:
 	assert_true(data.has("social_rep_day_key"))
 	assert_true(data.has("social_rep_awarded_today"))
 	assert_true(data.has("social_rep_actions_today"))
+	assert_true(data.has("current_contract"))
+	assert_true(data.has("pending_contract_offers"))
+	assert_true(data.has("relationships"))
+	assert_true(data.has("coach_trust"))
 	assert_eq(int(data.get("media_coverage", 0)), 31)
 	assert_eq(int(data.get("fan_popularity", 0)), 44)
 
@@ -104,3 +124,18 @@ func test_apply_save_data_old_save_defaults_new_career_fields() -> void:
 	assert_eq(CareerManager.social_rep_day_key, "", "Missing day key should default empty")
 	assert_eq(CareerManager.social_rep_awarded_today, 0)
 	assert_eq(CareerManager.social_rep_actions_today, 0)
+	assert_eq(GameManager.current_national_phase, GameManager.NationalPhase.NONE)
+
+
+func test_migrate_overlay_phase_save_sets_primary_and_national_phases() -> void:
+	var save_data = {
+		"version": 2,
+		"career_phase": GameManager.CareerPhase.U20_WORLD_CUP,
+		"player": {},
+		"career": {}
+	}
+
+	var migrated = SaveManager._migrate_save_data(save_data)
+
+	assert_eq(int(migrated.get("career_phase", -1)), GameManager.CareerPhase.YOUTH_ACADEMY)
+	assert_eq(int(migrated.get("national_phase", -1)), GameManager.NationalPhase.U20_WORLD_CUP)

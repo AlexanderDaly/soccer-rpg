@@ -12,6 +12,10 @@ signal player_eliminated(competition: String)
 signal season_completed(summary: Dictionary)
 
 var current_season: SeasonData = null
+var national_overlay: TournamentData = null
+var national_overlay_competition: String = ""
+var national_overlay_match_type: String = ""
+var national_team: TeamData = null
 
 
 func _ready() -> void:
@@ -19,37 +23,22 @@ func _ready() -> void:
 
 
 func initialize_season(prefecture: String, player_team: TeamData) -> void:
-	if GameManager.current_career_phase != GameManager.CareerPhase.HIGH_SCHOOL:
-		push_warning("[SeasonManager] Season system only available in HIGH_SCHOOL phase")
+	if not player_team:
+		push_warning("[SeasonManager] Cannot initialize season without player team")
 		return
-
-	# Ensure player team has a stable ID before any roster changes or registry usage
-	if player_team and player_team.id.begins_with("team_") and player_team.id.length() < 15:
-		player_team.set_stable_id(player_team.name, prefecture)
-
-	# Set current season ID for NPC registry tracking
 	var season_year = _get_season_year()
-	var season_id = "%s_%d" % [prefecture, season_year]
-	NpcRegistry.set_current_season(season_id)
+	match GameManager.current_career_phase:
+		GameManager.CareerPhase.HIGH_SCHOOL:
+			_initialize_high_school_season(prefecture, player_team, season_year)
+		GameManager.CareerPhase.YOUTH_ACADEMY:
+			_initialize_club_season("youth_academy", player_team, season_year, CareerManager.get_team_pool("youth"), player_team.league if not player_team.league.is_empty() else "Youth Elite")
+		GameManager.CareerPhase.PRO_CAREER:
+			_initialize_club_season("pro_career", player_team, season_year, CareerManager.get_team_pool("pro"), player_team.league if not player_team.league.is_empty() else "Division One")
+		_:
+			push_warning("[SeasonManager] Unsupported primary phase for season init")
+			return
 
-	# Generate league teams using Japanese school generator
-	var league_teams = JapaneseSchoolGenerator.generate_league_teams(prefecture, player_team, 10)
-
-	# Process pre-season roster changes (graduations, promotions, new players)
-	_process_pre_season_roster_changes(season_year, player_team)
-
-	# Find player team index in the generated list
-	var player_idx = 0
-	for i in range(league_teams.size()):
-		if league_teams[i].id == player_team.id:
-			player_idx = i
-			break
-
-	# Initialize season
-	current_season = SeasonData.new()
-	current_season.initialize(prefecture, season_year, player_team, league_teams.slice(1))
-
-	print("[SeasonManager] Season initialized for %s Prefecture" % prefecture)
+	_refresh_national_overlay()
 	season_initialized.emit(current_season)
 
 
@@ -173,6 +162,93 @@ func _generate_japanese_name() -> String:
 	return "%s %s" % [last_names[randi() % last_names.size()], first_names[randi() % first_names.size()]]
 
 
+func _initialize_high_school_season(prefecture: String, player_team: TeamData, season_year: int) -> void:
+	# Ensure player team has a stable ID before any roster changes or registry usage
+	if player_team.id.begins_with("team_") and player_team.id.length() < 15:
+		player_team.set_stable_id(player_team.name, prefecture)
+
+	var season_id = "%s_%d" % [prefecture, season_year]
+	NpcRegistry.set_current_season(season_id)
+
+	var league_teams = JapaneseSchoolGenerator.generate_league_teams(prefecture, player_team, 10)
+	_process_pre_season_roster_changes(season_year, player_team)
+
+	current_season = SeasonData.new()
+	current_season.initialize(prefecture, season_year, player_team, league_teams.slice(1), "high_school")
+
+	print("[SeasonManager] Season initialized for %s Prefecture" % prefecture)
+
+
+func _initialize_club_season(kind: String, player_team: TeamData, season_year: int, team_pool: Array[Dictionary], default_league_name: String) -> void:
+	if player_team.players.is_empty():
+		player_team.generate_teammates(10, GameManager.current_career_phase, false)
+
+	var other_teams: Array[TeamData] = []
+	for team_info in team_pool:
+		if team_info.get("id", "") == player_team.id:
+			continue
+		other_teams.append(CareerManager.create_team_from_catalog(team_info, GameManager.current_career_phase))
+		if other_teams.size() >= 9:
+			break
+
+	current_season = SeasonData.new()
+	current_season.initialize(default_league_name, season_year, player_team, other_teams, kind, default_league_name)
+	print("[SeasonManager] Club season initialized for %s" % player_team.name)
+
+
+func _refresh_national_overlay() -> void:
+	if national_overlay and not national_overlay.is_complete and not national_overlay.player_eliminated:
+		if GameManager.current_national_phase == GameManager.NationalPhase.U20_QUALIFIERS and national_overlay_match_type == "qualifier":
+			return
+		if GameManager.current_national_phase == GameManager.NationalPhase.U20_WORLD_CUP and national_overlay_match_type == "world_cup":
+			return
+
+	national_overlay = null
+	national_overlay_competition = ""
+	national_overlay_match_type = ""
+	national_team = null
+
+	if not GameManager.player_data:
+		return
+	if GameManager.current_national_phase == GameManager.NationalPhase.NONE:
+		return
+	if GameManager.player_data.age > 20 or CareerManager.reputation < 40:
+		GameManager.set_national_phase(GameManager.NationalPhase.NONE)
+		return
+
+	var pool_id = "u20_qualifiers"
+	var tournament_name = "U20 Continental Qualifiers"
+	var tournament_type = TournamentData.TournamentType.PREFECTURE_QUALIFIER
+	var match_type = "qualifier"
+
+	if GameManager.current_national_phase == GameManager.NationalPhase.U20_WORLD_CUP:
+		pool_id = "u20_world_cup"
+		tournament_name = "U20 World Cup"
+		tournament_type = TournamentData.TournamentType.NATIONAL_CHAMPIONSHIP
+		match_type = "world_cup"
+
+	var player_national_team = TeamData.new()
+	player_national_team.id = "u20_%s_player" % GameManager.player_data.nationality.to_lower()
+	player_national_team.name = "%s U20" % GameManager.player_data.nationality
+	player_national_team.short_name = GameManager.player_data.nationality
+	player_national_team.league = tournament_name
+	player_national_team.tier = 3
+	player_national_team.formation = "4-3-3"
+	player_national_team.generate_teammates(10, GameManager.CareerPhase.PRO_CAREER, false)
+	national_team = player_national_team
+
+	var teams: Array[TeamData] = [player_national_team]
+	for team_info in CareerManager.get_team_pool(pool_id):
+		if team_info.get("name", "") == player_national_team.name:
+			continue
+		teams.append(CareerManager.create_team_from_catalog(team_info, GameManager.CareerPhase.PRO_CAREER))
+
+	national_overlay = TournamentData.new()
+	national_overlay.initialize(tournament_name, teams, 0, tournament_type)
+	national_overlay_competition = tournament_name
+	national_overlay_match_type = match_type
+
+
 func get_current_phase() -> SeasonData.Phase:
 	if current_season:
 		return current_season.current_phase
@@ -180,31 +256,89 @@ func get_current_phase() -> SeasonData.Phase:
 
 
 func get_current_competition_name() -> String:
-	if current_season:
-		return current_season.get_current_competition_name()
-	return ""
+	var next_fixture = get_next_fixture()
+	if not next_fixture.is_empty():
+		return str(next_fixture.get("competition", ""))
+	return current_season.get_current_competition_name() if current_season else national_overlay_competition
 
 
 func get_next_player_match() -> Dictionary:
-	if current_season:
-		return current_season.get_next_player_match()
-	return {}
+	return get_next_fixture()
 
 
 func get_match_type() -> String:
-	if current_season:
-		return current_season.get_match_type_for_phase()
-	return "friendly"
+	var next_fixture = get_next_fixture()
+	return str(next_fixture.get("type", "friendly"))
 
 
 func get_match_importance() -> float:
-	if current_season:
-		return current_season.get_match_importance_for_phase()
-	return 1.0
+	var match_type = get_match_type()
+	match match_type:
+		"league":
+			return 1.0
+		"cup", "prefecture_qualifier":
+			return 1.5
+		"national_championship":
+			return 1.8
+		"qualifier":
+			return 1.8
+		"world_cup":
+			return 2.5
+		"world_cup_final", "national_final":
+			return 3.0
+		_:
+			return current_season.get_match_importance_for_phase() if current_season else 1.0
+
+
+func get_upcoming_fixtures(limit: int = -1, include_played: bool = true) -> Array[Dictionary]:
+	var fixtures: Array[Dictionary] = []
+
+	if current_season and current_season.league:
+		for fixture in current_season.league.get_all_player_fixtures():
+			if not include_played and fixture.get("played", false):
+				continue
+			fixtures.append(_build_league_fixture_display(fixture, current_season.league, "league"))
+
+	if current_season and current_season.current_phase in [SeasonData.Phase.QUALIFIERS, SeasonData.Phase.NATIONALS]:
+		var tournament = current_season.prefecture_qualifier if current_season.current_phase == SeasonData.Phase.QUALIFIERS else current_season.national_championship
+		var competition = current_season.get_current_competition_name()
+		var match_type = current_season.get_match_type_for_phase()
+		var tournament_fixture = _build_tournament_fixture_display(tournament, competition, match_type, current_season.league.get_player_team() if current_season.league else GameManager.current_team)
+		if not tournament_fixture.is_empty():
+			fixtures.append(tournament_fixture)
+
+	if national_overlay:
+		var overlay_fixture = _build_tournament_fixture_display(national_overlay, national_overlay_competition, national_overlay_match_type, national_team)
+		if not overlay_fixture.is_empty():
+			fixtures.append(overlay_fixture)
+
+	fixtures.sort_custom(_sort_fixture_display)
+
+	if limit > 0 and fixtures.size() > limit:
+		return fixtures.slice(0, limit)
+	return fixtures
+
+
+func get_next_fixture() -> Dictionary:
+	var fixtures = get_upcoming_fixtures(-1, false)
+	for fixture in fixtures:
+		if not fixture.get("played", false):
+			return fixture
+	return {}
+
+
+func record_fixture_result(opponent_id: String, player_score: int, opponent_score: int, is_home: bool = true, extra_time: bool = false, penalties: bool = false, pen_player: int = 0, pen_opponent: int = 0, player_goal_events: Array = [], opponent_goal_events: Array = [], home_fouls: int = 0, away_fouls: int = 0) -> void:
+	record_player_match_result(opponent_id, player_score, opponent_score, is_home, extra_time, penalties, pen_player, pen_opponent, player_goal_events, opponent_goal_events, home_fouls, away_fouls)
 
 
 func record_player_match_result(opponent_id: String, player_score: int, opponent_score: int, is_home: bool = true, extra_time: bool = false, penalties: bool = false, pen_player: int = 0, pen_opponent: int = 0, player_goal_events: Array = [], opponent_goal_events: Array = [], home_fouls: int = 0, away_fouls: int = 0) -> void:
-	if not current_season:
+	if not current_season and not national_overlay:
+		return
+
+	if _is_current_match_national_overlay():
+		_record_overlay_result(opponent_id, player_score, opponent_score, extra_time, penalties, pen_player, pen_opponent)
+		_process_post_match_injury_recovery()
+		_check_national_overlay_transition()
 		return
 
 	var home_id: String
@@ -303,6 +437,13 @@ func _record_nationals_result(home_id: String, away_id: String, home_score: int,
 
 
 func simulate_cpu_matches_for_current_matchday() -> void:
+	if _is_current_match_national_overlay():
+		var overlay_results = _simulate_overlay_cpu_matches()
+		if overlay_results.size() > 0:
+			cpu_matches_simulated.emit(overlay_results)
+		_check_national_overlay_transition()
+		return
+
 	if not current_season:
 		return
 
@@ -321,6 +462,32 @@ func simulate_cpu_matches_for_current_matchday() -> void:
 
 	# Check for phase transitions after simulation
 	_check_phase_transition()
+
+
+func _simulate_overlay_cpu_matches() -> Array[Dictionary]:
+	if not national_overlay:
+		return []
+
+	var cpu_matches = national_overlay.get_unplayed_cpu_matches()
+	if cpu_matches.is_empty():
+		return []
+
+	var teams_by_id: Dictionary = {}
+	for team in national_overlay.teams:
+		teams_by_id[team.id] = team
+
+	var importance = 2.0 if national_overlay_match_type == "world_cup" else 1.8
+	var results = MatchSimulator.simulate_batch_knockout_matches(cpu_matches, teams_by_id, importance)
+	for result in results:
+		national_overlay.record_result(
+			result.home_team_id, result.away_team_id,
+			result.home_score, result.away_score,
+			result.extra_time, result.penalties,
+			result.penalty_score_home, result.penalty_score_away
+		)
+
+	tournament_bracket_updated.emit(national_overlay)
+	return results
 
 
 func _simulate_league_cpu_matches() -> Array[Dictionary]:
@@ -442,10 +609,24 @@ func _transition_to_qualifiers() -> void:
 		CareerManager.award_milestone("prefecture_league_champion", {"source": "season_progress"})
 		print("[SeasonManager] Player won the prefecture league!")
 
-	# Generate qualifier teams (all league teams plus additional)
 	var player_team = current_season.league.get_player_team()
-	var league_teams = current_season.league.teams.duplicate()
-	var qualifier_teams = JapaneseSchoolGenerator.generate_qualifier_teams(current_season.prefecture, league_teams, 16)
+	var qualifier_teams: Array[TeamData] = []
+	var tournament_name = "%s Prefecture Qualifier" % current_season.prefecture
+
+	if current_season.season_kind == "high_school":
+		var league_teams = current_season.league.teams.duplicate()
+		qualifier_teams = JapaneseSchoolGenerator.generate_qualifier_teams(current_season.prefecture, league_teams, 16)
+	else:
+		tournament_name = "Youth Cup" if current_season.season_kind == "youth_academy" else "Domestic Cup"
+		qualifier_teams = current_season.league.teams.duplicate()
+		while qualifier_teams.size() < 16:
+			var pool_id = "youth" if current_season.season_kind == "youth_academy" else "pro"
+			for team_info in CareerManager.get_team_pool(pool_id):
+				if qualifier_teams.size() >= 16:
+					break
+				if team_info.get("id", "") == player_team.id:
+					continue
+				qualifier_teams.append(CareerManager.create_team_from_catalog(team_info, GameManager.current_career_phase))
 
 	# Find player team index
 	var player_idx = -1
@@ -461,11 +642,19 @@ func _transition_to_qualifiers() -> void:
 		qualifier_teams.append(player_team)
 		player_idx = qualifier_teams.size() - 1
 
-	current_season.start_qualifiers(qualifier_teams, player_idx)
+	current_season.start_qualifiers(qualifier_teams, player_idx, tournament_name)
 	phase_changed.emit(current_season.current_phase)
 
 
 func _handle_qualifier_completion() -> void:
+	if current_season.season_kind != "high_school":
+		if current_season.prefecture_qualifier and current_season.prefecture_qualifier.player_won_tournament():
+			var trophies = CareerManager.career_stats.get("trophies", []).duplicate()
+			trophies.append(current_season.prefecture_qualifier.name)
+			CareerManager.career_stats["trophies"] = trophies
+		_end_season()
+		return
+
 	if current_season.player_won_qualifiers():
 		print("[SeasonManager] Player won qualifiers, advancing to nationals")
 		CareerManager.award_milestone("prefecture_qualifier_winner", {"source": "season_progress"})
@@ -543,10 +732,146 @@ func _record_nationals_progress_milestones() -> void:
 
 func _end_season() -> void:
 	print("[SeasonManager] Season complete")
-	current_season.advance_to_post_season()
+	if current_season:
+		current_season.advance_to_post_season()
 
-	var summary = current_season.get_season_summary()
+	var summary = current_season.get_season_summary() if current_season else {}
+	summary["competition_name"] = current_season.get_current_competition_name() if current_season else ""
+	summary["season_kind"] = current_season.season_kind if current_season else ""
 	season_completed.emit(summary)
+
+
+func _is_current_match_national_overlay() -> bool:
+	if not national_overlay or not GameManager.current_match:
+		return false
+	return GameManager.current_match.get_player_team().id == national_team.id if national_team else false
+
+
+func _record_overlay_result(opponent_id: String, player_score: int, opponent_score: int, extra_time: bool, penalties: bool, pen_player: int, pen_opponent: int) -> void:
+	if not national_overlay or not national_team:
+		return
+
+	national_overlay.record_result(
+		national_team.id,
+		opponent_id,
+		player_score,
+		opponent_score,
+		extra_time,
+		penalties,
+		pen_player,
+		pen_opponent
+	)
+	tournament_bracket_updated.emit(national_overlay)
+	if "u20_debut" not in CareerManager.completed_milestones:
+		CareerManager.award_milestone("u20_debut", {"source": "overlay_match"})
+
+
+func _check_national_overlay_transition() -> void:
+	if not national_overlay or not national_overlay.is_complete:
+		return
+
+	if GameManager.current_national_phase == GameManager.NationalPhase.U20_QUALIFIERS and national_overlay.player_won_tournament():
+		GameManager.set_national_phase(GameManager.NationalPhase.U20_WORLD_CUP)
+		_refresh_national_overlay()
+	elif GameManager.current_national_phase == GameManager.NationalPhase.U20_WORLD_CUP:
+		GameManager.set_national_phase(GameManager.NationalPhase.NONE)
+		national_overlay = null
+		national_overlay_competition = ""
+		national_overlay_match_type = ""
+		national_team = null
+	else:
+		GameManager.set_national_phase(GameManager.NationalPhase.NONE)
+		national_overlay = null
+		national_overlay_competition = ""
+		national_overlay_match_type = ""
+		national_team = null
+
+
+func _build_league_fixture_display(fixture: Dictionary, league: LeagueData, match_type: String) -> Dictionary:
+	var player_id = league.get_player_team_id()
+	var opponent_id = fixture.get("away_id", "") if fixture.get("home_id", "") == player_id else fixture.get("home_id", "")
+	var opponent_team = league.get_team_by_id(opponent_id)
+	var opponent_name = fixture.get("away_team_name", "") if fixture.get("home_id", "") == player_id else fixture.get("home_team_name", "")
+	return {
+		"fixture_id": fixture.get("match_id", ""),
+		"matchday": fixture.get("matchday", 0),
+		"match_date": fixture.get("match_date", {}),
+		"opponent": {"name": opponent_name, "team_data": opponent_team},
+		"player_team": league.get_player_team(),
+		"is_home": fixture.get("home_id", "") == player_id,
+		"type": match_type,
+		"competition": league.name,
+		"played": fixture.get("played", false),
+		"result": _get_fixture_result(fixture, player_id) if fixture.get("played", false) else "",
+		"from_season": true
+	}
+
+
+func _build_tournament_fixture_display(tournament: TournamentData, competition: String, match_type: String, player_team: TeamData) -> Dictionary:
+	if not tournament or not player_team:
+		return {}
+	var next_match = tournament.get_next_player_match()
+	if next_match.is_empty():
+		return {}
+
+	var player_id = player_team.id
+	var opponent_id = next_match.get("team_b_id", "") if next_match.get("team_a_id", "") == player_id else next_match.get("team_a_id", "")
+	var opponent_team = tournament.get_team_by_id(opponent_id)
+	var opponent_name = next_match.get("team_b_name", "") if next_match.get("team_a_id", "") == player_id else next_match.get("team_a_name", "")
+	var is_home = next_match.get("team_a_id", "") == player_id
+
+	return {
+		"fixture_id": next_match.get("match_id", ""),
+		"matchday": 0,
+		"match_date": _date_in_days(3),
+		"opponent": {"name": opponent_name, "team_data": opponent_team},
+		"player_team": player_team,
+		"is_home": is_home,
+		"type": match_type,
+		"competition": competition,
+		"played": false,
+		"result": "",
+		"stage": tournament.get_current_stage_name(),
+		"from_season": true
+	}
+
+
+func _sort_fixture_display(a: Dictionary, b: Dictionary) -> bool:
+	return _fixture_sort_value(a.get("match_date", {})) < _fixture_sort_value(b.get("match_date", {}))
+
+
+func _fixture_sort_value(date: Dictionary) -> int:
+	return int(date.get("year", 0)) * 10000 + int(date.get("month", 0)) * 100 + int(date.get("day", 0))
+
+
+func _date_in_days(days: int) -> Dictionary:
+	var date = DesktopManager.game_date.duplicate(true) if DesktopManager and DesktopManager.game_date else {"year": 2024, "month": 4, "day": 1}
+	date["day"] = int(date.get("day", 1)) + days
+	while int(date.get("day", 1)) > 30:
+		date["day"] = int(date.get("day", 1)) - 30
+		date["month"] = int(date.get("month", 1)) + 1
+	while int(date.get("month", 1)) > 12:
+		date["month"] = int(date.get("month", 1)) - 12
+		date["year"] = int(date.get("year", 2024)) + 1
+	return date
+
+
+func _get_fixture_result(fixture: Dictionary, player_id: String) -> String:
+	var player_score: int
+	var opponent_score: int
+
+	if fixture.get("home_id", "") == player_id:
+		player_score = int(fixture.get("home_score", 0))
+		opponent_score = int(fixture.get("away_score", 0))
+	else:
+		player_score = int(fixture.get("away_score", 0))
+		opponent_score = int(fixture.get("home_score", 0))
+
+	if player_score > opponent_score:
+		return "W %d-%d" % [player_score, opponent_score]
+	if player_score < opponent_score:
+		return "L %d-%d" % [player_score, opponent_score]
+	return "D %d-%d" % [player_score, opponent_score]
 
 
 func _is_valid_award_winner(award: Variant) -> bool:
@@ -630,8 +955,10 @@ func get_player_league_position() -> int:
 
 
 func get_current_tournament() -> TournamentData:
+	if _is_current_match_national_overlay():
+		return national_overlay
 	if not current_season:
-		return null
+		return national_overlay
 
 	match current_season.current_phase:
 		SeasonData.Phase.QUALIFIERS:
@@ -643,12 +970,18 @@ func get_current_tournament() -> TournamentData:
 
 
 func has_active_season() -> bool:
-	return current_season != null and current_season.current_phase != SeasonData.Phase.POST_SEASON
+	var primary_active = current_season != null and current_season.current_phase != SeasonData.Phase.POST_SEASON
+	var overlay_active = national_overlay != null and not national_overlay.is_complete and not national_overlay.player_eliminated
+	return primary_active or overlay_active
 
 
 func to_dict() -> Dictionary:
 	return {
-		"current_season": current_season.to_dict() if current_season else {}
+		"current_season": current_season.to_dict() if current_season else {},
+		"national_overlay": national_overlay.to_dict() if national_overlay else {},
+		"national_overlay_competition": national_overlay_competition,
+		"national_overlay_match_type": national_overlay_match_type,
+		"national_team": national_team.to_dict() if national_team else {}
 	}
 
 
@@ -657,3 +990,21 @@ func from_dict(data: Dictionary) -> void:
 	if not season_data.is_empty():
 		current_season = SeasonData.new()
 		current_season.from_dict(season_data)
+	else:
+		current_season = null
+
+	var overlay_data = data.get("national_overlay", {})
+	if not overlay_data.is_empty():
+		national_overlay = TournamentData.new()
+		national_overlay.from_dict(overlay_data)
+	else:
+		national_overlay = null
+
+	national_overlay_competition = data.get("national_overlay_competition", "")
+	national_overlay_match_type = data.get("national_overlay_match_type", "")
+	var national_team_data = data.get("national_team", {})
+	if not national_team_data.is_empty():
+		national_team = TeamData.new()
+		national_team.from_dict(national_team_data)
+	else:
+		national_team = null

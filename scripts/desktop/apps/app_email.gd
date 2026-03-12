@@ -116,8 +116,8 @@ func _setup_action_buttons(email: Dictionary) -> void:
 
 func _on_accept_contract(email: Dictionary) -> void:
 	AudioManager.play_ui_confirm()
-	# Process contract acceptance
-	# This would trigger career progression in full implementation
+	if email.has("offer_data"):
+		CareerManager.accept_contract(email.offer_data)
 	DesktopManager.show_notification(
 		"Contract Signed!",
 		"You've accepted the offer from %s!" % email.get("team_name", "the team"),
@@ -129,6 +129,8 @@ func _on_accept_contract(email: Dictionary) -> void:
 
 func _on_decline_contract(email: Dictionary) -> void:
 	AudioManager.play_ui_click()
+	if email.has("offer_data"):
+		CareerManager.decline_contract(email.offer_data)
 	DesktopManager.show_notification(
 		"Offer Declined",
 		"You've declined the offer",
@@ -185,18 +187,23 @@ func _on_contract_offer(offer: Dictionary) -> void:
 	var salary = offer.get("salary", 0)
 	var duration = offer.get("duration_years", 1)
 	var role = offer.get("squad_role", "prospect")
+	var expires_on = offer.get("expires_on", {})
 
 	var email = {
 		"id": "contract_%d" % randi(),
 		"from": "%s Management" % team_name,
 		"subject": "Contract Offer from %s!" % team_name,
-		"body": "Dear %s,\n\nWe are pleased to extend an official contract offer to join %s!\n\nOffer Details:\n- Salary: $%d per year\n- Duration: %d year(s)\n- Role: %s\n- Signing Bonus: $%d\n\nThis is an exciting opportunity to take your career to the next level. Please respond at your earliest convenience.\n\nWe hope to welcome you to our club soon!\n\nBest regards,\n%s Management" % [
+		"body": "Dear %s,\n\nWe are pleased to extend an official contract offer to join %s!\n\nOffer Details:\n- Salary: $%d per year\n- Duration: %d year(s)\n- Role: %s\n- Signing Bonus: $%d\n- Window: %s\n- Expires: %02d/%02d/%04d\n\nThis is an exciting opportunity to take your career to the next level. Please respond before the offer window closes.\n\nWe hope to welcome you to our club soon!\n\nBest regards,\n%s Management" % [
 			GameManager.player_data.name if GameManager.player_data else "Player",
 			team_name,
 			salary,
 			duration,
 			role.capitalize(),
 			offer.get("signing_bonus", 0),
+			offer.get("offer_window", "offseason").capitalize(),
+			int(expires_on.get("month", 1)),
+			int(expires_on.get("day", 1)),
+			int(expires_on.get("year", 2024)),
 			team_name
 		],
 		"date": DesktopManager.get_date_string(),

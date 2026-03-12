@@ -355,6 +355,9 @@ func advance_time(hours: int = 0, days: int = 0) -> void:
 		game_date.month -= 12
 		game_date.year += 1
 
+	if CareerManager and CareerManager.has_method("on_date_advanced"):
+		CareerManager.on_date_advanced()
+
 
 func get_time_string() -> String:
 	return "%02d:%02d" % [game_date.hour, game_date.minute]

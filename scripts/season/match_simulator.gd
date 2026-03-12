@@ -246,12 +246,18 @@ static func _calculate_team_ratings(team: TeamData) -> Dictionary:
 		return {"attack": 50.0, "defense": 50.0, "control": 50.0, "overall": 50.0}
 
 	var tier_multiplier = 1.0 + maxf(float(team.tier - 1), 0.0) * 0.03
+	var difficulty_multiplier = 1.0
+	if GameManager.player_data:
+		for player in starters:
+			if bool(player.get("is_player", false)):
+				difficulty_multiplier = GameManager.player_data.get_opponent_difficulty_multiplier()
+				break
 
 	return {
-		"attack": (attack_sum / count) * tier_multiplier,
-		"defense": (defense_sum / count) * tier_multiplier,
-		"control": (control_sum / count) * tier_multiplier,
-		"overall": (overall_sum / count) * tier_multiplier
+		"attack": (attack_sum / count) * tier_multiplier / difficulty_multiplier,
+		"defense": (defense_sum / count) * tier_multiplier / difficulty_multiplier,
+		"control": (control_sum / count) * tier_multiplier / difficulty_multiplier,
+		"overall": (overall_sum / count) * tier_multiplier / difficulty_multiplier
 	}
 
 
