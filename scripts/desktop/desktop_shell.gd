@@ -37,6 +37,8 @@ func _ready() -> void:
 	_setup_wallpaper()
 	_create_desktop_icons()
 	_connect_signals()
+	_connect_input_layer_signals()
+	_refresh_input_layers()
 	GameManager.change_state(GameManager.GameState.CAREER_HUB)
 
 
@@ -81,6 +83,22 @@ func _connect_signals() -> void:
 	DesktopManager.notification_received.connect(_on_notification_received)
 
 
+func _connect_input_layer_signals() -> void:
+	window_layer.child_entered_tree.connect(_on_input_layer_child_changed)
+	window_layer.child_exiting_tree.connect(_on_input_layer_child_changed)
+	notification_container.child_entered_tree.connect(_on_input_layer_child_changed)
+	notification_container.child_exiting_tree.connect(_on_input_layer_child_changed)
+
+
+func _on_input_layer_child_changed(_child: Node) -> void:
+	call_deferred("_refresh_input_layers")
+
+
+func _refresh_input_layers() -> void:
+	window_layer.mouse_filter = Control.MOUSE_FILTER_PASS if window_layer.get_child_count() > 0 else Control.MOUSE_FILTER_IGNORE
+	notification_container.mouse_filter = Control.MOUSE_FILTER_PASS if notification_container.get_child_count() > 0 else Control.MOUSE_FILTER_IGNORE
+
+
 func _on_icon_double_clicked(app_id: String) -> void:
 	open_app(app_id)
 
@@ -120,12 +138,12 @@ func open_app(app_id: String) -> void:
 	AudioManager.play_ui_click()
 
 
-func _on_window_opened(window_id: String) -> void:
+func _on_window_opened(_window_id: String) -> void:
 	# Taskbar will handle this via its own signal connection
 	pass
 
 
-func _on_window_closed(window_id: String) -> void:
+func _on_window_closed(_window_id: String) -> void:
 	# Taskbar will handle this via its own signal connection
 	pass
 

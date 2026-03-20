@@ -32,6 +32,8 @@ var music_tracks: Dictionary = {
 
 # SFX (preloaded for instant playback)
 var sfx_cache: Dictionary = {}
+var missing_music_tracks: Dictionary = {}
+var missing_sfx_names: Dictionary = {}
 
 
 func _ready() -> void:
@@ -81,10 +83,13 @@ func play_music(track_name: String, fade_duration: float = 1.0) -> void:
 	if track_name not in music_tracks:
 		push_warning("[AudioManager] Unknown music track: %s" % track_name)
 		return
-	
+
+	if track_name in missing_music_tracks:
+		return
+
 	var path = music_tracks[track_name]
 	if not ResourceLoader.exists(path):
-		push_warning("[AudioManager] Music file not found: %s" % path)
+		missing_music_tracks[track_name] = true
 		return
 	
 	# Fade out current music
@@ -120,7 +125,10 @@ func stop_music(fade_duration: float = 1.0) -> void:
 
 func play_sfx(sfx_name: String, volume_scale: float = 1.0, pitch_scale: float = 1.0) -> void:
 	var stream: AudioStream
-	
+
+	if sfx_name in missing_sfx_names:
+		return
+
 	# Check cache first
 	if sfx_name in sfx_cache:
 		stream = sfx_cache[sfx_name]
@@ -130,7 +138,7 @@ func play_sfx(sfx_name: String, volume_scale: float = 1.0, pitch_scale: float = 
 			stream = load(path)
 			sfx_cache[sfx_name] = stream
 		else:
-			push_warning("[AudioManager] SFX not found: %s" % sfx_name)
+			missing_sfx_names[sfx_name] = true
 			return
 	
 	# Find available player

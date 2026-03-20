@@ -46,10 +46,6 @@ window/stretch/aspect="expand"
 
 fanzone_v2_enabled=false
 
-[editor_plugins]
-
-enabled=PackedStringArray("res://addons/gut/plugin.cfg")
-
 [input]
 
 ui_accept={

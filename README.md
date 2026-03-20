@@ -3,7 +3,6 @@
 [![CI](https://github.com/yourusername/soccer-rpg/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/soccer-rpg/actions/workflows/ci.yml)
 [![Godot 4.x](https://img.shields.io/badge/Godot-4.x-blue.svg)](https://godotengine.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-90%2B%20passing-brightgreen.svg)]()
 
 An anime-style tactical soccer RPG where you rise from high school stardom to international glory.
 
@@ -63,15 +62,14 @@ soccer-rpg/
 │   ├── training/              # Mini-game scenes
 │   ├── menus/                 # Main menu, settings
 │   └── career/                # Career hub
-├── tests/unit/                # 90+ unit tests (GUT framework)
+├── tests/unit/                # Legacy GUT-authored test files (addon not vendored)
 ├── assets/
 │   ├── flags/                 # 73 SVG country flags
 │   ├── ui/icons/              # Dashboard icons
-│   ├── audio/                 # Sound effects and music
+│   ├── audio/                 # Optional local sound/music assets (not shipped here)
 │   └── fonts/                 # Custom fonts
 ├── resources/themes/          # UI themes (.tres)
-├── docs/                      # Development journals
-└── addons/gut/                # GUT testing framework
+└── docs/                      # Development journals
 ```
 
 ## 🎯 Stat System
@@ -198,7 +196,7 @@ To enable AI-generated narrative content:
 - [x] Desktop simulation UI (retro 90s aesthetic)
 - [x] AI narrative engine with fallback templates
 - [x] Save/load system with multiple slots
-- [x] Professional dev infrastructure (GUT tests, CI/CD, GDLint)
+- [x] Professional dev infrastructure (CI/CD, project validation, GDLint)
 
 ### In Progress
 - [ ] Career phase progression beyond high school
@@ -258,31 +256,23 @@ To enable AI-generated narrative content:
 
 ## 🧪 Testing
 
-This project uses [GUT (Godot Unit Testing)](https://github.com/bitwes/Gut) with 90+ passing tests.
+Automated unit tests are not currently wired in this repository. The `tests/unit/` directory contains legacy test files written for [GUT (Godot Unit Testing)](https://github.com/bitwes/Gut), but the `addons/gut` addon is not vendored here and CI does not execute a GUT test job.
 
-### Running Tests
+### What CI Runs
 
-**In Godot Editor:**
-1. Open the project in Godot
-2. Enable the GUT plugin in Project Settings > Plugins
-3. Open the GUT panel (bottom dock)
-4. Click "Run All"
-
-**From Command Line:**
 ```bash
-godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://tests/unit/ -gexit
+python3 -m gdtoolkit.linter scripts/
 ```
 
-**Via GitHub Actions:**
-Tests run automatically on every push and PR via the CI pipeline.
+GitHub Actions also validates the expected project structure on every push and pull request.
 
-### Test Coverage
-```
-tests/unit/
-├── test_stat_system.gd    # 25+ tests: secondary stats, overall rating, XP curves
-├── test_player_data.gd    # 25+ tests: serialization, stat operations, leveling
-└── test_hex_utils.gd      # 40+ tests: pathfinding, formations, hex math
-```
+### Legacy Test Files
+
+The checked-in GUT test files are retained for future reactivation, but they are currently documentation of past coverage rather than an active, runnable test harness.
+
+## 🔊 Audio Assets
+
+The repository does not currently ship music or sound-effect binaries under `assets/audio/`. Missing audio files are treated as optional placeholders, so the game falls back silently instead of warning on startup or button clicks.
 
 ## 🤝 Contributing
 
@@ -300,6 +290,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Inspired by *Inazuma Eleven*, *Captain Tsubasa*, *Football Manager*, and *FIFA Career Mode*
 - Built with [Godot Engine](https://godotengine.org/)
-- Testing powered by [GUT (Godot Unit Testing)](https://github.com/bitwes/Gut)
 - Country flags from [flag-icons](https://github.com/lipis/flag-icons) (MIT License)
 - Japanese prefecture data for authentic school generation

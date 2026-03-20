@@ -54,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Affected drills: Freekick, Penalty, Rondo
 
 ### Added
-- GUT testing framework with unit tests for core systems
+- Legacy GUT-authored unit test files for core systems
 - GitHub Actions CI/CD pipeline
 - EditorConfig for consistent formatting
 - GDLint configuration for code quality

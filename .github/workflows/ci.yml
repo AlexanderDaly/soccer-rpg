@@ -20,39 +20,10 @@ jobs:
           python-version: '3.11'
 
       - name: Install gdtoolkit
-        run: pip install gdtoolkit
+        run: python -m pip install gdtoolkit==4.5.0
 
       - name: Run gdlint
-        run: gdlint scripts/
-
-  test:
-    name: GUT Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Godot
-        uses: chickensoft-games/setup-godot@v2
-        with:
-          version: 4.3.0
-          use-dotnet: false
-
-      - name: Verify Godot installation
-        run: godot --version
-
-      - name: Import project
-        run: godot --headless --import . || true
-        timeout-minutes: 2
-
-      - name: Run GUT tests
-        run: |
-          godot --headless -s addons/gut/gut_cmdln.gd \
-            -gdir=res://tests/unit/ \
-            -ginclude_subdirs \
-            -gexit
-        timeout-minutes: 5
-        continue-on-error: true
+        run: python -m gdtoolkit.linter scripts/
 
   validate-project:
     name: Validate Project Structure

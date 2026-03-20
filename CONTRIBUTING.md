@@ -129,7 +129,7 @@ func _can_move_to(grid_pos: Vector2i) -> bool:
 ## Pull Request Process
 
 1. **Fill out the PR template** completely
-2. **Ensure CI passes** - linting and any tests must be green
+2. **Ensure CI passes** - linting and project validation must be green
 3. **Keep PRs focused** - one feature or fix per PR
 4. **Update documentation** if your change affects user-facing behavior
 5. **Add tests** for new functionality when applicable
@@ -147,54 +147,31 @@ func _can_move_to(grid_pos: Vector2i) -> bool:
 3. Open the project in Godot
 4. Install development tools:
    ```bash
-   pip install gdtoolkit  # Includes gdlint and gdformat
+   python3 -m pip install gdtoolkit==4.5.0
    ```
 
 ## Testing
 
-We use [GUT (Godot Unit Testing)](https://github.com/bitwes/Gut) for automated testing.
+Legacy test files under `tests/unit/` were written for [GUT (Godot Unit Testing)](https://github.com/bitwes/Gut), but the `addons/gut` addon is not vendored in this repository and CI does not run a unit-test job right now.
 
-### Running Tests
+### Current Validation
 
-**In Godot Editor:**
-1. Enable the GUT plugin: Project > Project Settings > Plugins > GUT > Enable
-2. Open the GUT panel in the bottom dock
-3. Click "Run All" to execute all tests
-
-**From Command Line:**
 ```bash
-godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://tests/unit/ -gexit
-```
-
-### Writing Tests
-
-Tests are located in `tests/unit/` and follow these conventions:
-
-- Test files must start with `test_` (e.g., `test_stat_system.gd`)
-- Test classes extend `GutTest`
-- Test methods must start with `test_`
-
-**Example:**
-```gdscript
-extends GutTest
-
-func test_something_works() -> void:
-    var result = SomeClass.do_something()
-    assert_eq(result, expected_value, "Description of what went wrong")
+python3 -m gdtoolkit.linter scripts/
 ```
 
 ### Test Requirements
 
-- All new features should include tests
-- Bug fixes should include regression tests
-- Tests must pass before PRs can be merged
+- Add or update automated tests when the active harness for the area exists
+- If you reintroduce GUT or another runner, wire it into CI and update docs in the same change
+- Manual gameplay validation is still expected for UI and runtime changes
 
 ## Linting
 
 We use gdlint for static analysis:
 
 ```bash
-gdlint scripts/
+python3 -m gdtoolkit.linter scripts/
 ```
 
 Configuration is in `.gdlintrc`. The CI pipeline runs linting automatically.
@@ -204,8 +181,7 @@ Configuration is in `.gdlintrc`. The CI pipeline runs linting automatically.
 GitHub Actions runs on every push and PR:
 
 1. **Lint**: Checks GDScript code style
-2. **Test**: Runs GUT unit tests
-3. **Validate**: Checks project structure
+2. **Validate**: Checks project structure
 
 All checks must pass before merging.
 

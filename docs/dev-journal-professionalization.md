@@ -4,6 +4,8 @@
 **Author:** Development Session
 **Version:** Post-0.1.0 Infrastructure Update
 
+> Historical note: this journal describes the January 2026 setup. The current repository no longer vendors the GUT addon, and the supported repo-root lint command is `python3 -m gdtoolkit.linter scripts/`.
+
 ---
 
 ## Overview
@@ -16,7 +18,7 @@ This document chronicles the implementation of professional development infrastr
 
 | Category | Before | After | Notes |
 |----------|--------|-------|-------|
-| Testing | 1/10 | 7/10 | Added GUT framework + 90+ unit tests |
+| Testing | 1/10 | 7/10 | Added legacy GUT-authored tests; addon is no longer vendored |
 | CI/CD | 0/10 | 8/10 | GitHub Actions pipeline |
 | Documentation | 7/10 | 9/10 | CHANGELOG, templates added |
 | Code Quality | 8/10 | 9/10 | EditorConfig + GDLint |
@@ -371,32 +373,25 @@ This enables GUT plugin on project open.
 
 ## Remaining Setup Steps
 
-To complete the professional setup:
+This checklist is partially superseded by the current repo state:
 
-1. **Install GUT Addon**
-   ```
-   Download from: https://github.com/bitwes/Gut
-   Extract to: addons/gut/
-   ```
-
-2. **Verify Linting**
+1. **Use the current lint command**
    ```bash
-   pip install gdtoolkit
-   gdlint scripts/
+   python3 -m pip install gdtoolkit==4.5.0
+   python3 -m gdtoolkit.linter scripts/
    ```
 
-3. **Run Tests Locally**
-   ```bash
-   godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://tests/unit/ -gexit
-   ```
+2. **Legacy GUT status**
+   - `tests/unit/` still contains the older GUT-authored test files.
+   - The repo does not currently vendor `addons/gut/`, so there is no supported local or CI GUT command at the moment.
 
-4. **Create Initial Release Tag**
+3. **Create Initial Release Tag**
    ```bash
    git tag -a v0.1.0 -m "Initial release"
    git push origin v0.1.0
    ```
 
-5. **Update GitHub Repository URL**
+4. **Update GitHub Repository URL**
    - Replace `yourusername` in README badges
    - Replace `yourusername` in CHANGELOG links
 
@@ -439,7 +434,7 @@ To complete the professional setup:
 ## Conclusion
 
 The repository now has professional-grade infrastructure including:
-- **Automated testing** with 90+ unit tests
+- **Legacy automated test files** preserved for future harness restoration
 - **CI/CD pipeline** running on every PR
 - **Code quality tools** for consistent style
 - **Comprehensive documentation** for contributors
