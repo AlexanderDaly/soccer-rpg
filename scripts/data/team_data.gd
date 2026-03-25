@@ -253,27 +253,20 @@ func get_player_by_position(pos: String) -> Dictionary:
 	return {}
 
 
-func get_starting_eleven() -> Array[Dictionary]:
+func get_starting_eleven(competition_key: String = "") -> Array[Dictionary]:
 	# Returns the best 11 match-eligible players (including user's player)
 	# Minor injuries can play through with stat penalties.
 	var eleven: Array[Dictionary] = []
+	var resolved_competition_key = _resolve_competition_key(competition_key)
 
-	# Add user's player
-	if GameManager.player_data:
-		eleven.append({
-			"id": GameManager.player_data.id,
-			"name": GameManager.player_data.name,
-			"position": GameManager.player_data.position,
-			"stats": GameManager.player_data.stats,
-			"overall": GameManager.player_data.get_overall(),
-			"is_player": true,
-			"dominant_foot": GameManager.player_data.dominant_foot
-		})
+	var player_record = _build_player_character_record(resolved_competition_key)
+	if not player_record.is_empty():
+		eleven.append(player_record)
 
 	# Filter to only available players (not injured or graduated)
 	var available_players: Array[Dictionary] = []
 	for player in players:
-		if is_player_available_for_match(player):
+		if is_player_available_for_match(player, resolved_competition_key):
 			available_players.append(get_match_ready_player_record(player))
 
 	# Sort by overall rating
@@ -287,21 +280,26 @@ func get_starting_eleven() -> Array[Dictionary]:
 	return eleven
 
 
-func is_player_available_for_match(player: Dictionary) -> bool:
+func is_player_available_for_match(player: Dictionary, competition_key: String = "") -> bool:
 	var player_id = player.get("id", "")
 	if player_id == "":
 		return true
 
+	if GameManager.player_data and player_id == GameManager.player_data.id:
+		return GameManager.player_data.is_match_eligible(competition_key)
+
 	if not NpcRegistry.has_npc(player_id):
 		return true  # Unknown NPCs are assumed available
 
-	return NpcRegistry.is_npc_match_eligible(player_id)
+	return NpcRegistry.get_npc_match_availability(player_id, competition_key).get("eligible", true)
 
 
 func get_match_ready_player_record(player: Dictionary) -> Dictionary:
 	var player_id = player.get("id", "")
 	if player_id == "":
 		return player
+	if GameManager.player_data and player_id == GameManager.player_data.id:
+		return _build_player_character_record(_resolve_competition_key(""))
 	if not NpcRegistry.has_npc(player_id):
 		return player
 
@@ -321,6 +319,8 @@ func get_match_ready_player_record(player: Dictionary) -> Dictionary:
 
 func _apply_minor_injury_penalty(player: Dictionary, injury: Dictionary) -> Dictionary:
 	var adjusted = player.duplicate(true)
+	adjusted["base_stats"] = adjusted.get("stats", {}).duplicate(true)
+	adjusted["base_overall"] = int(adjusted.get("overall", 50))
 	var injury_type = str(injury.get("injury_type", ""))
 	var penalties: Dictionary = MINOR_INJURY_STAT_PENALTIES.get(
 		injury_type,
@@ -347,6 +347,7 @@ func _apply_minor_injury_penalty(player: Dictionary, injury: Dictionary) -> Dict
 	adjusted["injury_type"] = injury_type
 	adjusted["injury_matches_remaining"] = int(injury.get("matches_remaining", 0))
 	adjusted["injury_penalty_scale"] = penalty_scale
+	adjusted["injury"] = injury.duplicate(true)
 	return adjusted
 
 
@@ -397,6 +398,50 @@ func get_average_overall() -> int:
 		total += player.overall
 	
 	return roundi(float(total) / players.size())
+
+
+func _build_player_character_record(competition_key: String) -> Dictionary:
+	if not _should_include_player_character():
+		return {}
+	if not GameManager.player_data:
+		return {}
+	if not GameManager.player_data.is_match_eligible(competition_key):
+		return {}
+
+	var record = {
+		"id": GameManager.player_data.id,
+		"name": GameManager.player_data.name,
+		"position": GameManager.player_data.position,
+		"stats": GameManager.player_data.stats.duplicate(true),
+		"overall": GameManager.player_data.get_overall(),
+		"is_player": true,
+		"dominant_foot": GameManager.player_data.dominant_foot,
+		"stamina_current": GameManager.player_data.stamina_current,
+		"injury": GameManager.player_data.get_injury_record()
+	}
+
+	var injury_record = GameManager.player_data.get_injury_record()
+	if str(injury_record.get("type", "")) == "minor" and int(injury_record.get("matches_remaining", 0)) > 0:
+		return _apply_minor_injury_penalty(record, injury_record)
+
+	return record
+
+
+func _should_include_player_character() -> bool:
+	if not GameManager.player_data:
+		return false
+	if GameManager.current_match:
+		var player_team = GameManager.current_match.get_player_team()
+		return player_team != null and player_team.id == id
+	return GameManager.current_team != null and GameManager.current_team.id == id
+
+
+func _resolve_competition_key(competition_key: String) -> String:
+	if not str(competition_key).is_empty():
+		return str(competition_key)
+	if GameManager.current_match:
+		return str(GameManager.current_match.competition_key)
+	return ""
 
 
 func to_dict() -> Dictionary:

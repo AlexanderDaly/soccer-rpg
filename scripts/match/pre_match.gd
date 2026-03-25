@@ -2,6 +2,8 @@ extends Control
 class_name PreMatchScreen
 ## PreMatchScreen - Displays match preview before playing
 
+const TacticalMatchRules = preload("res://scripts/match/tactical/tactical_match_rules.gd")
+
 @onready var home_team_name: Label = $MainContainer/MatchupSection/HomeTeam/TeamName
 @onready var home_team_overall: Label = $MainContainer/MatchupSection/HomeTeam/TeamOverall
 @onready var home_team_formation: Label = $MainContainer/MatchupSection/HomeTeam/Formation
@@ -19,6 +21,8 @@ class_name PreMatchScreen
 @onready var sim_button: Button = $MainContainer/ButtonSection/SimButton
 
 var match_data: MatchData
+var player_availability: Dictionary = {"eligible": true, "reason": "", "detail": ""}
+var _auto_sim_queued: bool = false
 
 
 func _ready() -> void:
@@ -32,6 +36,7 @@ func _ready() -> void:
 
 func _setup_match_display(data: MatchData) -> void:
 	match_data = data
+	player_availability = TacticalMatchRules.player_match_availability(match_data)
 
 	# Home team info
 	home_team_name.text = data.home_team.name
@@ -50,6 +55,14 @@ func _setup_match_display(data: MatchData) -> void:
 	# Populate lineups
 	_populate_lineup(home_lineup_container, data.home_team, data.is_home)
 	_populate_lineup(away_lineup_container, data.away_team, not data.is_home)
+
+	if not bool(player_availability.get("eligible", true)):
+		play_button.disabled = true
+		play_button.text = "Unavailable"
+		sim_button.text = "Auto-Sim"
+		if not _auto_sim_queued:
+			_auto_sim_queued = true
+			call_deferred("_simulate_match")
 
 
 func _get_match_type_display(match_type: String) -> String:
@@ -124,6 +137,8 @@ func _populate_lineup(container: VBoxContainer, team: TeamData, is_player_team: 
 
 
 func _on_play_pressed() -> void:
+	if not bool(player_availability.get("eligible", true)):
+		return
 	AudioManager.play_ui_click()
 
 	# Launch tactical match
@@ -165,14 +180,18 @@ func _simulate_match() -> void:
 	match_data.home_score = sim_result.get("home_score", 0)
 	match_data.away_score = sim_result.get("away_score", 0)
 	match_data.is_extra_time = sim_result.get("extra_time", false)
+	match_data.did_not_play = not bool(player_availability.get("eligible", true))
+	match_data.absence_reason = str(player_availability.get("reason", ""))
+	match_data.absence_detail = str(player_availability.get("detail", ""))
 
 	# Simulate player performance based on team goal events
 	var player_team_events = sim_result.get("home_goal_events", []) if match_data.is_home else sim_result.get("away_goal_events", [])
 	var player_stats = sim_result.get("home_player_stats", {}) if match_data.is_home else sim_result.get("away_player_stats", {})
 	var player_line = {}
-	if GameManager.player_data and player_stats.has(GameManager.player_data.id):
+	if not match_data.did_not_play and GameManager.player_data and player_stats.has(GameManager.player_data.id):
 		player_line = player_stats[GameManager.player_data.id]
-	_simulate_player_performance(player_team_events.size(), player_team_events, player_line)
+	if not match_data.did_not_play:
+		_simulate_player_performance(player_team_events.size(), player_team_events, player_line)
 
 	# End the match with full result payload
 	var result = match_data.generate_result()

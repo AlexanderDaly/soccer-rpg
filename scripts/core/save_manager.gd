@@ -7,7 +7,7 @@ signal load_completed(slot: int, success: bool)
 const SAVE_DIR = "user://saves/"
 const SAVE_EXTENSION = ".sav"
 const MAX_SAVE_SLOTS = 5
-const SAVE_VERSION = 3
+const SAVE_VERSION = 4
 
 var current_slot: int = -1
 var auto_save_enabled: bool = true
@@ -380,6 +380,14 @@ func _migrate_save_data(data: Dictionary) -> Dictionary:
 	player["school_year"] = player.get("school_year", 1)
 	player["background_story"] = player.get("background_story", "academy_product")
 	player["career_difficulty"] = player.get("career_difficulty", "normal")
+	player["injury"] = player.get("injury", {
+		"type": "",
+		"injury_type": "",
+		"matches_remaining": 0,
+		"matches_total": 0,
+		"description": ""
+	})
+	player["discipline"] = player.get("discipline", {"competitions": {}})
 	migrated["player"] = player
 
 	var career = migrated.get("career", {}).duplicate(true)

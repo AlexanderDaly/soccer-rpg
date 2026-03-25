@@ -2,6 +2,8 @@ extends RefCounted
 class_name ActionResolver
 ## ActionResolver - Executes tactical actions and resolves outcomes
 
+const TacticalMatchRules = preload("res://scripts/match/tactical/tactical_match_rules.gd")
+
 signal action_completed(action_type: String, success: bool, data: Dictionary)
 
 # Action costs
@@ -37,6 +39,7 @@ static func execute_move(unit: PlayerUnit, target_hex: Vector2i, occupied_hexes:
 
 	# Execute the move
 	unit.spend_ap(ap_needed)
+	unit.apply_action_fatigue("move", distance)
 
 	return {
 		"success": true,
@@ -83,10 +86,31 @@ static func execute_pass(passer: PlayerUnit, target_hex: Vector2i, receiver: Pla
 	if not passer.has_ball:
 		return {"success": false, "reason": "no_ball"}
 
+	var distance = HexUtils.hex_distance(passer.hex_position, target_hex)
+	var attacking_right = target_hex.x >= passer.hex_position.x
 	passer.spend_ap(ap_cost)
+	passer.apply_action_fatigue("pass")
 
 	# Calculate pass difficulty based on distance
-	var distance = HexUtils.hex_distance(passer.hex_position, target_hex)
+	if receiver and TacticalMatchRules.is_receiver_offside(
+		receiver,
+		passer,
+		_get_active_units(defenders),
+		attacking_right
+	):
+		if match_data:
+			match_data.record_event("offside", {
+				"player_id": receiver.unit_id,
+				"player_name": receiver.unit_name,
+				"team_id": match_data.home_team.id if receiver.is_home_team else match_data.away_team.id,
+				"team_name": match_data.home_team.name if receiver.is_home_team else match_data.away_team.name
+			})
+		return {
+			"success": false,
+			"reason": "offside",
+			"receiver": receiver,
+			"restart_hex": receiver.hex_position
+		}
 	var base_difficulty = 0.3 + (distance * 0.03)
 
 	# Roll for pass accuracy
@@ -132,7 +156,7 @@ static func execute_pass(passer: PlayerUnit, target_hex: Vector2i, receiver: Pla
 
 ## Execute a through ball (2 AP, uses vision)
 static func execute_through_ball(passer: PlayerUnit, target_hex: Vector2i,
-								  defenders: Array[PlayerUnit], match_data: MatchData, rng = null) -> Dictionary:
+								  receiver: PlayerUnit, defenders: Array[PlayerUnit], match_data: MatchData, rng = null) -> Dictionary:
 	var ap_cost = AP_COST["through_ball"]
 
 	if passer.action_points < ap_cost:
@@ -141,7 +165,29 @@ static func execute_through_ball(passer: PlayerUnit, target_hex: Vector2i,
 	if not passer.has_ball:
 		return {"success": false, "reason": "no_ball"}
 
+	var attacking_right = target_hex.x >= passer.hex_position.x
 	passer.spend_ap(ap_cost)
+	passer.apply_action_fatigue("through_ball")
+
+	if receiver and TacticalMatchRules.is_receiver_offside(
+		receiver,
+		passer,
+		_get_active_units(defenders),
+		attacking_right
+	):
+		if match_data:
+			match_data.record_event("offside", {
+				"player_id": receiver.unit_id,
+				"player_name": receiver.unit_name,
+				"team_id": match_data.home_team.id if receiver.is_home_team else match_data.away_team.id,
+				"team_name": match_data.home_team.name if receiver.is_home_team else match_data.away_team.name
+			})
+		return {
+			"success": false,
+			"reason": "offside",
+			"receiver": receiver,
+			"restart_hex": receiver.hex_position
+		}
 
 	# Through balls use PAS + MEN (vision)
 	var pass_stat = passer.get_passing_stat()
@@ -184,6 +230,7 @@ static func execute_through_ball(passer: PlayerUnit, target_hex: Vector2i,
 	return {
 		"success": true,
 		"target_hex": target_hex,
+		"receiver": receiver,
 		"roll": roll,
 		"critical": roll.critical
 	}
@@ -202,6 +249,7 @@ static func execute_shot(shooter: PlayerUnit, goal_hex: Vector2i,
 		return {"success": false, "reason": "no_ball"}
 
 	shooter.spend_ap(ap_cost)
+	shooter.apply_action_fatigue("shoot")
 
 	var shot_stat = shooter.get_shooting_stat() + _foot_lane_modifier(shooter, goal_hex)
 	var distance = HexUtils.hex_distance(shooter.hex_position, goal_hex)
@@ -376,6 +424,7 @@ static func execute_tackle(tackler: PlayerUnit, target: PlayerUnit,
 		return {"success": false, "reason": "too_far"}
 
 	tackler.spend_ap(ap_cost)
+	tackler.apply_action_fatigue("tackle")
 
 	var tackle_stat = tackler.get_tackling_stat()
 	var dribble_stat = target.get_dribbling_stat()
@@ -411,8 +460,16 @@ static func execute_tackle(tackler: PlayerUnit, target: PlayerUnit,
 			}
 			match_data.record_event("foul_committed", event_data)
 			if card == "yellow":
-				match_data.record_event("yellow_card", event_data)
+				var prior_yellows = _count_yellow_cards(match_data, tackler.unit_id)
+				if prior_yellows >= 1:
+					event_data["dismissal_reason"] = "second_yellow"
+					match_data.record_event("yellow_card", event_data)
+					match_data.record_event("red_card", event_data)
+					card = "second_yellow"
+				else:
+					match_data.record_event("yellow_card", event_data)
 			elif card == "red":
+				event_data["dismissal_reason"] = "red"
 				match_data.record_event("red_card", event_data)
 
 	if match_data:
@@ -426,6 +483,8 @@ static func execute_tackle(tackler: PlayerUnit, target: PlayerUnit,
 			"success": false,
 			"reason": "foul",
 			"card": card,
+			"tackler": tackler,
+			"target": target,
 			"free_kick_hex": target.hex_position,
 			"roll": roll
 		}
@@ -475,6 +534,8 @@ static func _check_interception(from: Vector2i, to: Vector2i,
 	var pass_line = HexUtils.get_hex_line(from, to)
 
 	for defender in defenders:
+		if not defender or not defender.is_active_in_match():
+			continue
 		for hex in pass_line:
 			if HexUtils.hex_distance(hex, defender.hex_position) <= 1:
 				# Defender can attempt interception
@@ -497,6 +558,8 @@ static func _check_shot_block(from: Vector2i, to: Vector2i,
 	var shot_line = HexUtils.get_hex_line(from, to)
 
 	for blocker in blockers:
+		if not blocker or not blocker.is_active_in_match():
+			continue
 		for hex in shot_line:
 			if hex == blocker.hex_position:
 				# Blocker is directly in the way
@@ -528,10 +591,6 @@ static func _calculate_miss_location(from: Vector2i, intended: Vector2i, margin:
 		intended.y + roundi(miss_offset.y)
 	)
 
-	# Clamp to valid grid
-	miss_hex.x = clampi(miss_hex.x, 0, HexUtils.GRID_WIDTH - 1)
-	miss_hex.y = clampi(miss_hex.y, 0, HexUtils.GRID_HEIGHT - 1)
-
 	return miss_hex
 
 
@@ -539,3 +598,24 @@ static func _randf(rng = null) -> float:
 	if rng != null and rng.has_method("randf"):
 		return float(rng.randf())
 	return randf()
+
+
+static func _count_yellow_cards(match_data: MatchData, player_id: String) -> int:
+	if not match_data:
+		return 0
+	var count = 0
+	for event in match_data.events:
+		if str(event.get("type", "")) != "yellow_card":
+			continue
+		var data = event.get("data", {})
+		if str(data.get("player_id", "")) == player_id:
+			count += 1
+	return count
+
+
+static func _get_active_units(units: Array[PlayerUnit]) -> Array[PlayerUnit]:
+	var active_units: Array[PlayerUnit] = []
+	for unit in units:
+		if unit and unit.is_active_in_match():
+			active_units.append(unit)
+	return active_units

@@ -44,14 +44,18 @@ func _ready() -> void:
 
 
 func _display_result() -> void:
+	if match_result.get("did_not_play", false):
+		result_label.text = "MATCH SIMULATED"
+		result_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.9))
+
 	# Result header
-	if match_result.get("won", false):
+	if not match_result.get("did_not_play", false) and match_result.get("won", false):
 		result_label.text = "VICTORY!"
 		result_label.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
-	elif match_result.get("lost", false):
+	elif not match_result.get("did_not_play", false) and match_result.get("lost", false):
 		result_label.text = "DEFEAT"
 		result_label.add_theme_color_override("font_color", Color(0.8, 0.2, 0.2))
-	else:
+	elif not match_result.get("did_not_play", false):
 		result_label.text = "DRAW"
 		result_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.2))
 
@@ -62,6 +66,11 @@ func _display_result() -> void:
 
 	# Opponent name
 	opponent_label.text = "vs %s" % match_result.get("opponent_name", "Unknown")
+	if match_result.get("did_not_play", false):
+		var absence_detail = str(match_result.get("absence_detail", ""))
+		if absence_detail.is_empty():
+			absence_detail = str(match_result.get("absence_reason", "Unavailable")).capitalize()
+		opponent_label.text += " | %s" % absence_detail
 	_update_team_stats_label()
 
 	# Player rating
@@ -97,6 +106,13 @@ func _display_result() -> void:
 
 	# Generate narrative
 	_display_narrative()
+
+	for injury_event in match_result.get("injury_events", []):
+		_add_injury_display(
+			str(injury_event.get("player_name", "Player")),
+			str(injury_event.get("description", "injury")),
+			str(injury_event.get("type", "minor"))
+		)
 
 
 func _color_rating(rating: float) -> void:
@@ -147,6 +163,8 @@ func _update_team_stats_label() -> void:
 
 
 func _calculate_xp_display() -> int:
+	if match_result.get("did_not_play", false):
+		return 0
 	var base_xp = 50
 
 	if match_result.get("goals", 0) > 0:
@@ -531,8 +549,8 @@ func _update_season_standings() -> void:
 
 
 func _roll_for_injuries() -> void:
-	"""No injury rolls in post-match flow. Training is now the only source."""
-	if match_result:
+	"""Preserve tactical injury events; simulation does not roll new post-match injuries."""
+	if match_result and not match_result.has("injury_events"):
 		match_result["injury_events"] = []
 
 

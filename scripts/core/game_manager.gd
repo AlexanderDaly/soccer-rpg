@@ -2,6 +2,8 @@ extends Node
 ## GameManager - Central game state and flow controller
 ## Autoloaded singleton accessible via GameManager
 
+const TacticalMatchRules = preload("res://scripts/match/tactical/tactical_match_rules.gd")
+
 signal game_state_changed(new_state: GameState)
 signal match_started(match_data: Dictionary)
 signal match_ended(result: Dictionary)
@@ -112,12 +114,19 @@ func start_match(opponent_team: TeamData, match_type: String, player_is_home: bo
 
 func end_match(result: Dictionary) -> void:
 	# Process match results
-	StatSystem.process_match_performance(result)
+	if current_match:
+		TacticalMatchRules.serve_competition_suspensions(current_match)
+		TacticalMatchRules.apply_result_discipline(current_match, result)
+		TacticalMatchRules.apply_result_injuries(result)
+
+	if not bool(result.get("did_not_play", false)):
+		StatSystem.process_match_performance(result)
 	CareerManager.record_match_result(result)
 	SocialFeedManager.on_match_ended(result)
 	
 	# Generate post-match narrative
-	NarrativeEngine.generate_post_match_narrative(result)
+	if not bool(result.get("did_not_play", false)):
+		NarrativeEngine.generate_post_match_narrative(result)
 	
 	change_state(GameState.POST_MATCH)
 	match_ended.emit(result)

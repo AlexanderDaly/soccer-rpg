@@ -75,11 +75,73 @@ static func simulate_knockout_match(team_a: TeamData, team_b: TeamData, context:
 	return _simulate_match(team_a, team_b, true, false, context)
 
 
+static func simulate_remaining_match(home_team: TeamData, away_team: TeamData, current_minute: int, current_home_score: int, current_away_score: int, context: Dictionary = {}) -> Dictionary:
+	var remaining_minutes = clampi(90 - current_minute, 0, 90)
+	if remaining_minutes <= 0:
+		return {
+			"home_team_id": home_team.id,
+			"away_team_id": away_team.id,
+			"home_team_name": home_team.name,
+			"away_team_name": away_team.name,
+			"home_score": current_home_score,
+			"away_score": current_away_score,
+			"additional_home_score": 0,
+			"additional_away_score": 0,
+			"extra_time": false,
+			"penalties": false,
+			"penalty_score_home": 0,
+			"penalty_score_away": 0,
+			"home_goal_events": [],
+			"away_goal_events": [],
+			"card_events": [],
+			"home_fouls": 0,
+			"away_fouls": 0,
+			"home_stats": {},
+			"away_stats": {},
+			"home_player_stats": {},
+			"away_player_stats": {}
+		}
+	var remaining_ratio = float(remaining_minutes) / 90.0
+	var sim_context = context.duplicate(true)
+	sim_context["remaining_ratio"] = remaining_ratio
+
+	var base_result = _simulate_match(home_team, away_team, false, true, sim_context)
+	var incremental_home = min(_poisson_random(float(base_result.home_score) * remaining_ratio), 8)
+	var incremental_away = min(_poisson_random(float(base_result.away_score) * remaining_ratio), 8)
+	var max_minute = maxi(current_minute + remaining_minutes, current_minute)
+
+	var result = {
+		"home_team_id": home_team.id,
+		"away_team_id": away_team.id,
+		"home_team_name": home_team.name,
+		"away_team_name": away_team.name,
+		"home_score": current_home_score + incremental_home,
+		"away_score": current_away_score + incremental_away,
+		"additional_home_score": incremental_home,
+		"additional_away_score": incremental_away,
+		"extra_time": false,
+		"penalties": false,
+		"penalty_score_home": 0,
+		"penalty_score_away": 0,
+		"home_goal_events": _attribute_goals_in_window(home_team, incremental_home, current_minute + 1, max_minute),
+		"away_goal_events": _attribute_goals_in_window(away_team, incremental_away, current_minute + 1, max_minute),
+		"card_events": _retime_card_events(_generate_card_events(home_team, remaining_minutes, remaining_ratio), current_minute + 1, max_minute) + _retime_card_events(_generate_card_events(away_team, remaining_minutes, remaining_ratio), current_minute + 1, max_minute),
+		"home_fouls": _generate_fouls(MEAN_FOULS_PER_TEAM_LEAGUE * remaining_ratio),
+		"away_fouls": _generate_fouls(MEAN_FOULS_PER_TEAM_LEAGUE * remaining_ratio),
+		"home_stats": _scale_stat_line(base_result.get("home_stats", {}), remaining_ratio),
+		"away_stats": _scale_stat_line(base_result.get("away_stats", {}), remaining_ratio),
+		"home_player_stats": base_result.get("home_player_stats", {}),
+		"away_player_stats": base_result.get("away_player_stats", {})
+	}
+	return result
+
+
 static func _simulate_match(home_team: TeamData, away_team: TeamData, is_knockout: bool, has_home_advantage: bool, context: Dictionary = {}) -> Dictionary:
 	var home_form = context.get("home_form", [])
 	var away_form = context.get("away_form", [])
 	var importance = float(context.get("importance", 1.0))
 	var rivalry = bool(context.get("rivalry", false))
+	var remaining_ratio = clampf(float(context.get("remaining_ratio", 1.0)), 0.1, 1.0)
 
 	# Calculate team ratings from starting XIs (injuries already filtered)
 	var home_ratings = _calculate_team_ratings(home_team)
@@ -115,6 +177,7 @@ static func _simulate_match(home_team: TeamData, away_team: TeamData, is_knockou
 	# Importance slightly dampens or boosts total goals
 	var importance_factor = clampf(1.0 - (importance - 1.0) * IMPORTANCE_GOAL_MULTIPLIER, 0.9, 1.05)
 	target_total *= importance_factor
+	target_total *= remaining_ratio
 
 	# Rivalries tend to be higher intensity
 	if rivalry:
@@ -235,11 +298,11 @@ static func _calculate_team_ratings(team: TeamData) -> Dictionary:
 	var count: int = 0
 
 	for player in starters:
-		var stats = player.get("stats", {})
+		var stats = player.get("match_stats", player.get("stats", {}))
 		attack_sum += _weighted_stat(stats, ATTACK_STAT_WEIGHTS)
 		defense_sum += _weighted_stat(stats, DEFENSE_STAT_WEIGHTS)
 		control_sum += _weighted_stat(stats, CONTROL_STAT_WEIGHTS)
-		overall_sum += float(player.get("overall", 50))
+		overall_sum += float(player.get("match_overall", player.get("overall", 50)))
 		count += 1
 
 	if count == 0:
@@ -740,6 +803,14 @@ static func _attribute_goals(team: TeamData, goals_scored: int, minutes: Array =
 	return events
 
 
+static func _attribute_goals_in_window(team: TeamData, goals_scored: int, min_minute: int, max_minute: int) -> Array[Dictionary]:
+	var minutes: Array[int] = []
+	for _i in range(goals_scored):
+		minutes.append(randi_range(min_minute, maxi(min_minute, max_minute)))
+	minutes.sort()
+	return _attribute_goals(team, goals_scored, minutes)
+
+
 static func _create_goal_event(team: TeamData, minute: int) -> Dictionary:
 	return {
 		"minute": minute,
@@ -794,6 +865,32 @@ static func _generate_card_events(team: TeamData, max_minute: int = 90, multipli
 		})
 
 	return events
+
+
+static func _scale_stat_line(stat_line: Dictionary, ratio: float) -> Dictionary:
+	var scaled = stat_line.duplicate(true)
+	var numeric_keys = [
+		"shots", "shots_on_target", "passes_attempted", "passes_completed",
+		"tackles_attempted", "tackles_won", "corners", "fouls",
+		"clear_cut_chances", "saves"
+	]
+	for key in numeric_keys:
+		if scaled.has(key):
+			scaled[key] = roundi(float(scaled[key]) * ratio)
+	if scaled.has("xg"):
+		scaled["xg"] = float(scaled["xg"]) * ratio
+	if scaled.has("possession"):
+		scaled["possession"] = float(scaled["possession"])
+	return scaled
+
+
+static func _retime_card_events(events: Array[Dictionary], min_minute: int, max_minute: int) -> Array[Dictionary]:
+	var retimed: Array[Dictionary] = []
+	for event in events:
+		var updated = event.duplicate(true)
+		updated["minute"] = randi_range(min_minute, maxi(min_minute, max_minute))
+		retimed.append(updated)
+	return retimed
 
 
 static func _weighted_player_select(players: Array, weights: Dictionary, exclude_id: String = "") -> Dictionary:

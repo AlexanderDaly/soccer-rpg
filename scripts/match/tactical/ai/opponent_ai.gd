@@ -2,6 +2,8 @@ extends RefCounted
 class_name OpponentAI
 ## OpponentAI - Controls opponent units during the opponent phase
 
+const TacticalMatchRules = preload("res://scripts/match/tactical/tactical_match_rules.gd")
+
 # AI behavior based on tactics
 const MENTALITY_MODIFIERS = {
 	"defensive": {"press_range": 3, "hold_line": 0.7, "shoot_threshold": 4},
@@ -62,7 +64,7 @@ static func _decide_with_ball(unit: PlayerUnit, ball: BallController,
 
 	if under_pressure:
 		# Quick pass to release pressure
-		var pass_option = _find_safe_pass(unit, teammates, opponents)
+		var pass_option = _find_safe_pass(unit, teammates, opponents, attacking_right)
 		if pass_option.found:
 			return {
 				"action": "pass",
@@ -89,6 +91,7 @@ static func _decide_with_ball(unit: PlayerUnit, ball: BallController,
 			return {
 				"action": "through_ball",
 				"target": through_ball.target,
+				"receiver": through_ball.receiver,
 				"reason": "through_ball_opportunity"
 			}
 
@@ -113,7 +116,7 @@ static func _decide_with_ball(unit: PlayerUnit, ball: BallController,
 			}
 
 	# Safe sideways/backward pass
-	var safe_pass = _find_safe_pass(unit, teammates, opponents)
+	var safe_pass = _find_safe_pass(unit, teammates, opponents, attacking_right)
 	if safe_pass.found:
 		return {
 			"action": "pass",
@@ -231,7 +234,7 @@ static func _team_has_possession(unit: PlayerUnit, ball: BallController,
 static func _get_teammates(unit: PlayerUnit, all_units: Array[PlayerUnit]) -> Array[PlayerUnit]:
 	var teammates: Array[PlayerUnit] = []
 	for other in all_units:
-		if other != unit and other.is_home_team == unit.is_home_team:
+		if other != unit and other.is_active_in_match() and other.is_home_team == unit.is_home_team:
 			teammates.append(other)
 	return teammates
 
@@ -239,7 +242,7 @@ static func _get_teammates(unit: PlayerUnit, all_units: Array[PlayerUnit]) -> Ar
 static func _get_opponents(unit: PlayerUnit, all_units: Array[PlayerUnit]) -> Array[PlayerUnit]:
 	var opponents: Array[PlayerUnit] = []
 	for other in all_units:
-		if other.is_home_team != unit.is_home_team:
+		if other.is_active_in_match() and other.is_home_team != unit.is_home_team:
 			opponents.append(other)
 	return opponents
 
@@ -247,7 +250,8 @@ static func _get_opponents(unit: PlayerUnit, all_units: Array[PlayerUnit]) -> Ar
 static func _get_occupied_hexes(all_units: Array[PlayerUnit]) -> Array[Vector2i]:
 	var occupied: Array[Vector2i] = []
 	for u in all_units:
-		occupied.append(u.hex_position)
+		if u.is_active_in_match():
+			occupied.append(u.hex_position)
 	return occupied
 
 
@@ -284,12 +288,14 @@ static func _get_blocking_units(from: Vector2i, to: Vector2i,
 
 
 static func _find_safe_pass(passer: PlayerUnit, teammates: Array[PlayerUnit],
-							 opponents: Array[PlayerUnit]) -> Dictionary:
+							 opponents: Array[PlayerUnit], attacking_right: bool) -> Dictionary:
 	var best: PlayerUnit = null
 	var best_score: float = -1.0
 
 	for tm in teammates:
 		if tm.is_goalkeeper():
+			continue
+		if TacticalMatchRules.is_receiver_offside(tm, passer, opponents, attacking_right):
 			continue
 
 		var dist = HexUtils.hex_distance(passer.hex_position, tm.hex_position)
@@ -318,6 +324,8 @@ static func _find_forward_pass(passer: PlayerUnit, teammates: Array[PlayerUnit],
 	var best_score: float = -1.0
 
 	for tm in teammates:
+		if TacticalMatchRules.is_receiver_offside(tm, passer, opponents, attacking_right):
+			continue
 		var x_diff = (tm.hex_position.x - passer.hex_position.x) * forward_dir
 		if x_diff <= 0:
 			continue
@@ -347,6 +355,8 @@ static func _find_through_ball(passer: PlayerUnit, teammates: Array[PlayerUnit],
 	var goal_hex = HexUtils.get_goal_hex(attacking_right)
 
 	for tm in teammates:
+		if TacticalMatchRules.is_receiver_offside(tm, passer, opponents, attacking_right):
+			continue
 		# Through ball target should be ahead of teammate
 		var through_target = Vector2i(
 			tm.hex_position.x + forward_dir * 3,
@@ -368,7 +378,7 @@ static func _find_through_ball(passer: PlayerUnit, teammates: Array[PlayerUnit],
 				break
 
 		if clear:
-			return {"found": true, "target": through_target}
+			return {"found": true, "target": through_target, "receiver": tm}
 
 	return {"found": false}
 

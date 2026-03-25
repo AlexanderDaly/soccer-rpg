@@ -93,6 +93,41 @@ static func roll_for_injuries(team: TeamData, match_intensity: float = 1.0) -> A
 	return []
 
 
+## Roll a lightweight tactical-match injury for a live unit.
+## Tactical v1 only produces minor or moderate injuries and never forces removal.
+static func roll_for_tactical_injury(unit: PlayerUnit, context: Dictionary = {}) -> Dictionary:
+	if not unit:
+		return {}
+
+	var fatigue = clampf(float(context.get("fatigue", 0.0)), 0.0, 100.0)
+	var had_contact = bool(context.get("had_contact", false))
+	var base_chance = 0.0025 + (fatigue / 100.0) * 0.014
+	if had_contact:
+		base_chance *= 1.8
+
+	if randf() >= clampf(base_chance, 0.0, 0.08):
+		return {}
+
+	var severity = "moderate" if randf() < (0.22 + fatigue / 220.0) else "minor"
+	var injury_type = _roll_injury_type(severity)
+	var type_data = INJURY_CATEGORIES.get(severity, {}).get("types", {}).get(injury_type, {})
+	if type_data.is_empty():
+		return {}
+
+	var descriptions = type_data.get("descriptions", ["injury"])
+	var description = descriptions[randi() % descriptions.size()]
+	var matches_out = int(type_data.get("matches_out", 1))
+
+	return {
+		"type": severity,
+		"injury_type": injury_type,
+		"matches_out": matches_out,
+		"matches_remaining": matches_out,
+		"matches_total": matches_out,
+		"description": description
+	}
+
+
 ## Roll for injuries specifically during training sessions.
 static func roll_for_training_injuries(team: TeamData, training_context: Dictionary = {}) -> Array[Dictionary]:
 	if not team or team.players.is_empty():

@@ -2,6 +2,8 @@ extends Node2D
 class_name MatchController
 ## MatchController - Main orchestrator for tactical match gameplay
 
+const TacticalMatchRules = preload("res://scripts/match/tactical/tactical_match_rules.gd")
+
 signal turn_changed(phase: TurnPhase, turn_number: int)
 signal match_minute_changed(minute: int)
 signal score_changed(home: int, away: int)
@@ -43,6 +45,10 @@ var home_goal_events: Array[Dictionary] = []
 var away_goal_events: Array[Dictionary] = []
 var last_passer: PlayerUnit = null  # Track who made the last pass for assist attribution
 var last_shooter: PlayerUnit = null  # Track shooter for goal attribution (possession is cleared during flight)
+var last_touch_is_home_team: bool = true
+var set_piece_context: Dictionary = {}
+var tactical_injury_events: Array[Dictionary] = []
+var contact_units_this_minute: Dictionary = {}
 
 # Turn settings
 const TURNS_PER_HALF: int = 45
@@ -135,6 +141,12 @@ func _exit_tree() -> void:
 
 
 func _initialize_match() -> void:
+	if match_data:
+		if str(match_data.competition_name).is_empty():
+			match_data.competition_name = TacticalMatchRules.build_competition_name(match_data)
+		if str(match_data.competition_key).is_empty():
+			match_data.competition_key = TacticalMatchRules.build_competition_key(match_data)
+
 	# Spawn all units
 	_spawn_units()
 
@@ -155,6 +167,7 @@ func _initialize_match() -> void:
 	var kickoff_unit = _get_kickoff_unit(true)  # Home team starts
 	if kickoff_unit:
 		ball.give_possession(kickoff_unit)
+		last_touch_is_home_team = kickoff_unit.is_home_team
 
 	# Start the match
 	match_phase = MatchPhase.PLAYING
@@ -203,11 +216,12 @@ func _team_roster_data(is_home: bool) -> Array[Dictionary]:
 		return roster
 
 	for player in team.players:
-		if team.is_player_available_for_match(player):
+		if team.is_player_available_for_match(player, match_data.competition_key):
 			roster.append(team.get_match_ready_player_record(player))
 
-	# Ensure player character data is present in home roster
-	if is_home and GameManager.player_data:
+	# Ensure player character data is present only for the actual player team.
+	var is_player_team = match_data and match_data.get_player_team() and team and match_data.get_player_team().id == team.id
+	if is_player_team and GameManager.player_data and GameManager.player_data.is_match_eligible(match_data.competition_key):
 		var player_exists = false
 		for player in roster:
 			if player.get("id", "") == GameManager.player_data.id:
@@ -241,7 +255,7 @@ func _is_active_player_record(data: Dictionary) -> bool:
 		return true
 	if not NpcRegistry.has_npc(player_id):
 		return true
-	return NpcRegistry.is_npc_match_eligible(player_id)
+	return NpcRegistry.is_npc_match_eligible(player_id, match_data.competition_key if match_data else "")
 
 
 func _lineup_for_team(is_home: bool) -> Array[Dictionary]:
@@ -369,13 +383,18 @@ func _create_unit(data: Dictionary, is_home: bool, hex_pos: Vector2i) -> PlayerU
 func _get_kickoff_unit(home_team: bool) -> PlayerUnit:
 	var units = home_units if home_team else away_units
 	for unit in units:
+		if not unit.is_active_in_match():
+			continue
 		if unit.position_role == "ST":
 			return unit
 		if unit.position_role == "CAM":
 			return unit
 		if unit.position_role == "CM":
 			return unit
-	return units[0] if units.size() > 0 else null
+	for unit in units:
+		if unit.is_active_in_match():
+			return unit
+	return null
 
 
 ## Input handling
@@ -451,15 +470,20 @@ func _show_action_range(action: String) -> void:
 		"pass", "through_ball":
 			# Highlight teammates as valid pass targets
 			var team = home_units if player_unit.is_home_team else away_units
+			var defenders = away_units if player_unit.is_home_team else home_units
+			var attacking_right = _team_attacking_right(player_unit.is_home_team)
 			for unit in team:
-				if unit != player_unit:
-					valid_targets.append(unit.hex_position)
-					action_target_units.append(unit)
-					_draw_hex_highlight(unit.hex_position, Color(0, 1, 0, 0.4))  # Green
+				if unit == player_unit or not unit.is_active_in_match():
+					continue
+				if TacticalMatchRules.is_receiver_offside(unit, player_unit, defenders, attacking_right):
+					continue
+				valid_targets.append(unit.hex_position)
+				action_target_units.append(unit)
+				_draw_hex_highlight(unit.hex_position, Color(0, 1, 0, 0.4))  # Green
 
 		"shoot":
 			# Highlight goal
-			var goal_hex = HexUtils.get_goal_hex(player_unit.is_home_team == home_attacks_right)
+			var goal_hex = HexUtils.get_goal_hex(_team_attacking_right(player_unit.is_home_team))
 			valid_targets.append(goal_hex)
 			_draw_hex_highlight(goal_hex, Color(1, 0.5, 0, 0.5))  # Orange
 
@@ -467,7 +491,7 @@ func _show_action_range(action: String) -> void:
 			# Highlight adjacent opponents with ball
 			var opponents = away_units if player_unit.is_home_team else home_units
 			for opp in opponents:
-				if opp.has_ball and HexUtils.hex_distance(player_unit.hex_position, opp.hex_position) <= 1:
+				if opp.is_active_in_match() and opp.has_ball and HexUtils.hex_distance(player_unit.hex_position, opp.hex_position) <= 1:
 					valid_targets.append(opp.hex_position)
 					action_target_units.append(opp)
 					_draw_hex_highlight(opp.hex_position, Color(1, 0, 0, 0.4))  # Red
@@ -528,13 +552,25 @@ func _execute_pass(target_hex: Vector2i) -> void:
 	if result.success:
 		# Track passer for potential assist
 		last_passer = player_unit
+		last_touch_is_home_team = player_unit.is_home_team
 		ball.start_pass(player_unit, target_hex)
 		# Ball will be given to receiver when it arrives
 	else:
 		match result.reason:
+			"offside":
+				_start_set_piece(
+					TacticalMatchRules.create_set_piece_context(
+						TacticalMatchRules.RESTART_OFFSIDE,
+						result.get("restart_hex", target_hex),
+						not player_unit.is_home_team,
+						_team_attacking_right(not player_unit.is_home_team)
+					)
+				)
 			"inaccurate":
+				last_touch_is_home_team = player_unit.is_home_team
 				ball.start_pass(player_unit, result.miss_hex)
 			"intercepted":
+				last_touch_is_home_team = player_unit.is_home_team
 				ball.start_pass(player_unit, result.interception_hex)
 				# Interceptor will get ball when it arrives
 
@@ -546,17 +582,31 @@ func _execute_through_ball(target_hex: Vector2i) -> void:
 	if not player_unit or not player_unit.has_ball:
 		return
 
+	var receiver = _get_unit_at_hex(target_hex)
+	var actual_target = TacticalMatchRules.get_default_through_ball_target(receiver, _team_attacking_right(player_unit.is_home_team))
 	var opponents = away_units if player_unit.is_home_team else home_units
-	var result = ActionResolver.execute_through_ball(player_unit, target_hex, opponents, match_data)
+	var result = ActionResolver.execute_through_ball(player_unit, actual_target, receiver, opponents, match_data)
 
 	if result.success:
 		last_passer = player_unit  # Track passer for potential assist
-		ball.start_pass(player_unit, target_hex)
+		last_touch_is_home_team = player_unit.is_home_team
+		ball.start_pass(player_unit, actual_target)
 	else:
 		match result.reason:
+			"offside":
+				_start_set_piece(
+					TacticalMatchRules.create_set_piece_context(
+						TacticalMatchRules.RESTART_OFFSIDE,
+						result.get("restart_hex", target_hex),
+						not player_unit.is_home_team,
+						_team_attacking_right(not player_unit.is_home_team)
+					)
+				)
 			"inaccurate":
+				last_touch_is_home_team = player_unit.is_home_team
 				ball.start_pass(player_unit, result.miss_hex)
 			"intercepted":
+				last_touch_is_home_team = player_unit.is_home_team
 				ball.start_pass(player_unit, result.interception_hex)
 
 	_clear_highlights()
@@ -575,6 +625,7 @@ func _execute_shot(target_hex: Vector2i) -> void:
 
 	if result.success:
 		last_shooter = player_unit
+		last_touch_is_home_team = player_unit.is_home_team
 		ball.start_shot(player_unit, target_hex)
 	else:
 		match result.reason:
@@ -587,7 +638,10 @@ func _execute_shot(target_hex: Vector2i) -> void:
 			"off_target":
 				# Ball goes out - misses the goal
 				var miss_hex = _get_off_target_hex(target_hex)
-				ball.make_loose(miss_hex)
+				if HexUtils.is_valid_hex(miss_hex):
+					ball.make_loose(miss_hex)
+				else:
+					_handle_ball_exit(miss_hex)
 
 	_clear_highlights()
 	_check_turn_end()
@@ -602,13 +656,26 @@ func _execute_tackle(target_hex: Vector2i) -> void:
 		return
 
 	var result = ActionResolver.execute_tackle(player_unit, target, match_data)
+	_mark_contact(player_unit)
+	_mark_contact(target)
 
 	if result.success:
 		ball.give_possession(player_unit)
+		last_touch_is_home_team = player_unit.is_home_team
 	elif result.reason == "foul":
-		# Handle foul - give free kick
-		ball.make_loose(target.hex_position)
-		# For now, just continue play
+		_handle_card_consequence(result.get("tackler"), result.get("card", ""))
+		var foul_against_home = target.is_home_team
+		var penalty = HexUtils.is_in_penalty_area(target.hex_position, foul_against_home)
+		var restart_type = TacticalMatchRules.RESTART_PENALTY if penalty else TacticalMatchRules.RESTART_FREE_KICK
+		var restart_hex = TacticalMatchRules.get_penalty_hex(_team_attacking_right(target.is_home_team)) if penalty else target.hex_position
+		_start_set_piece(
+			TacticalMatchRules.create_set_piece_context(
+				restart_type,
+				restart_hex,
+				target.is_home_team,
+				_team_attacking_right(target.is_home_team)
+			)
+		)
 
 	_clear_highlights()
 	_check_turn_end()
@@ -845,7 +912,7 @@ func _build_initiative_order() -> void:
 	var initiative_entries: Array[Dictionary] = []
 
 	for unit in all_units:
-		if unit == null:
+		if unit == null or not unit.is_active_in_match():
 			continue
 
 		initiative_entries.append({
@@ -865,7 +932,7 @@ func _get_next_initiative_actor() -> PlayerUnit:
 
 	while initiative_cursor < initiative_order.size():
 		var candidate = initiative_order[initiative_cursor]
-		if candidate and candidate.action_points > 0:
+		if candidate and candidate.is_active_in_match() and candidate.action_points > 0:
 			return candidate
 		initiative_cursor += 1
 
@@ -938,6 +1005,7 @@ func _end_turn() -> void:
 	# Update match data
 	if match_data:
 		match_data.current_minute = match_minute
+	_apply_minute_stamina_and_injuries()
 
 	# Check for half/full time
 	if current_turn >= TURNS_PER_HALF and current_half == 1:
@@ -1037,12 +1105,14 @@ func _reset_positions() -> void:
 	var away_formation = HexUtils.get_formation_positions(match_data.away_team.formation, not home_attacks_right)
 
 	for i in range(mini(home_units.size(), home_formation.size())):
-		home_units[i].set_hex_position(home_formation[i].hex)
-		home_units[i].reset_turn()
+		if home_units[i].is_active_in_match():
+			home_units[i].set_hex_position(home_formation[i].hex)
+			home_units[i].reset_turn()
 
 	for i in range(mini(away_units.size(), away_formation.size())):
-		away_units[i].set_hex_position(away_formation[i].hex)
-		away_units[i].reset_turn()
+		if away_units[i].is_active_in_match():
+			away_units[i].set_hex_position(away_formation[i].hex)
+			away_units[i].reset_turn()
 
 	ball.set_hex_position(HexUtils.get_center_hex())
 
@@ -1070,27 +1140,52 @@ func _execute_ai_decision(unit: PlayerUnit, decision: Dictionary) -> void:
 				if result.success:
 					# Track passer for potential assist
 					last_passer = unit
+					last_touch_is_home_team = unit.is_home_team
 					ball.start_pass(unit, target)
 				else:
-					var miss_hex = result.get("miss_hex", result.get("interception_hex", target))
-					ball.start_pass(unit, miss_hex)
+					if result.reason == "offside":
+						_start_set_piece(
+							TacticalMatchRules.create_set_piece_context(
+								TacticalMatchRules.RESTART_OFFSIDE,
+								result.get("restart_hex", target),
+								not unit.is_home_team,
+								_team_attacking_right(not unit.is_home_team)
+							)
+						)
+					else:
+						var miss_hex = result.get("miss_hex", result.get("interception_hex", target))
+						last_touch_is_home_team = unit.is_home_team
+						ball.start_pass(unit, miss_hex)
 
-				await ball.ball_arrived
+				if result.reason != "offside":
+					await ball.ball_arrived
 
 		"through_ball":
 			if unit.has_ball:
-				var target = decision.get("target")
+				var receiver = decision.get("receiver")
+				var target = decision.get("target", TacticalMatchRules.get_default_through_ball_target(receiver, _team_attacking_right(unit.is_home_team)))
 				var opponents = away_units if unit.is_home_team else home_units
-				var result = ActionResolver.execute_through_ball(unit, target, opponents, match_data)
+				var result = ActionResolver.execute_through_ball(unit, target, receiver, opponents, match_data)
 
 				var final_target = target
-				if not result.success:
+				if result.reason == "offside":
+					_start_set_piece(
+						TacticalMatchRules.create_set_piece_context(
+							TacticalMatchRules.RESTART_OFFSIDE,
+							result.get("restart_hex", target),
+							not unit.is_home_team,
+							_team_attacking_right(not unit.is_home_team)
+						)
+					)
+				elif not result.success:
 					final_target = result.get("miss_hex", result.get("interception_hex", target))
 
-				# Track passer for potential assist
-				last_passer = unit
-				ball.start_pass(unit, final_target)
-				await ball.ball_arrived
+				if result.reason != "offside":
+					# Track passer for potential assist
+					last_passer = unit
+					last_touch_is_home_team = unit.is_home_team
+					ball.start_pass(unit, final_target)
+					await ball.ball_arrived
 
 		"shoot":
 			if unit.has_ball:
@@ -1103,6 +1198,7 @@ func _execute_ai_decision(unit: PlayerUnit, decision: Dictionary) -> void:
 
 				if result.success:
 					last_shooter = unit
+					last_touch_is_home_team = unit.is_home_team
 					ball.start_shot(unit, target)
 				else:
 					if result.reason == "blocked":
@@ -1111,7 +1207,10 @@ func _execute_ai_decision(unit: PlayerUnit, decision: Dictionary) -> void:
 						ball.make_loose(_get_save_landing_hex(target))
 					else:  # off_target
 						var miss_hex = _get_off_target_hex(target)
-						ball.make_loose(miss_hex)
+						if HexUtils.is_valid_hex(miss_hex):
+							ball.make_loose(miss_hex)
+						else:
+							_handle_ball_exit(miss_hex)
 
 				await get_tree().create_timer(0.3).timeout
 
@@ -1119,8 +1218,25 @@ func _execute_ai_decision(unit: PlayerUnit, decision: Dictionary) -> void:
 			var target = decision.get("target")
 			if target:
 				var result = ActionResolver.execute_tackle(unit, target, match_data)
+				_mark_contact(unit)
+				_mark_contact(target)
 				if result.success:
 					ball.give_possession(unit)
+					last_touch_is_home_team = unit.is_home_team
+				elif result.reason == "foul":
+					_handle_card_consequence(result.get("tackler"), result.get("card", ""))
+					var foul_against_home = target.is_home_team
+					var penalty = HexUtils.is_in_penalty_area(target.hex_position, foul_against_home)
+					var restart_type = TacticalMatchRules.RESTART_PENALTY if penalty else TacticalMatchRules.RESTART_FREE_KICK
+					var restart_hex = TacticalMatchRules.get_penalty_hex(_team_attacking_right(target.is_home_team)) if penalty else target.hex_position
+						_start_set_piece(
+							TacticalMatchRules.create_set_piece_context(
+							restart_type,
+							restart_hex,
+							target.is_home_team,
+							_team_attacking_right(target.is_home_team)
+						)
+					)
 
 		"dribble":
 			if unit.has_ball:
@@ -1202,12 +1318,18 @@ func _reset_for_kickoff(home_conceded: bool) -> void:
 	var kickoff_unit = _get_kickoff_unit(home_conceded)
 	if kickoff_unit:
 		ball.give_possession(kickoff_unit)
+		last_touch_is_home_team = kickoff_unit.is_home_team
 
 
 func _on_ball_arrived(hex: Vector2i) -> void:
+	if not HexUtils.is_valid_hex(hex):
+		_handle_ball_exit(hex)
+		return
+
 	# Check if any unit can pick up the ball
 	var unit_at_hex = _get_unit_at_hex(hex)
 	if unit_at_hex:
+		last_touch_is_home_team = unit_at_hex.is_home_team
 		ball.give_possession(unit_at_hex)
 	else:
 		# Ball is loose - nearest unit should contest
@@ -1232,7 +1354,7 @@ func _check_turn_end() -> void:
 ## Helper functions
 func _get_unit_at_hex(hex: Vector2i) -> PlayerUnit:
 	for unit in all_units:
-		if unit.hex_position == hex:
+		if unit.is_active_in_match() and unit.hex_position == hex:
 			return unit
 	return null
 
@@ -1240,13 +1362,14 @@ func _get_unit_at_hex(hex: Vector2i) -> PlayerUnit:
 func _get_all_occupied_hexes() -> Array[Vector2i]:
 	var occupied: Array[Vector2i] = []
 	for unit in all_units:
-		occupied.append(unit.hex_position)
+		if unit.is_active_in_match():
+			occupied.append(unit.hex_position)
 	return occupied
 
 
 func _find_goalkeeper(team: Array[PlayerUnit]) -> PlayerUnit:
 	for unit in team:
-		if unit.is_goalkeeper():
+		if unit.is_active_in_match() and unit.is_goalkeeper():
 			return unit
 	return null
 
@@ -1256,7 +1379,7 @@ func _get_units_between(from: Vector2i, to: Vector2i, units: Array[PlayerUnit]) 
 	var between: Array[PlayerUnit] = []
 
 	for unit in units:
-		if unit.hex_position in line and unit.hex_position != from and unit.hex_position != to:
+		if unit.is_active_in_match() and unit.hex_position in line and unit.hex_position != from and unit.hex_position != to:
 			between.append(unit)
 
 	return between
@@ -1273,15 +1396,12 @@ func _get_save_landing_hex(goal_hex: Vector2i) -> Vector2i:
 
 
 func _get_off_target_hex(goal_hex: Vector2i) -> Vector2i:
-	# Ball goes wide or over - lands near goal but not on it
-	var offset_x = 1 if goal_hex.x < HexUtils.GRID_WIDTH / 2 else -1
-	var offset_y = randi_range(-3, 3)
+	# Ball exits the field across the byline or sideline.
+	var byline_x = -1 if goal_hex.x < HexUtils.GRID_WIDTH / 2 else HexUtils.GRID_WIDTH
+	var offset_y = randi_range(-4, 4)
 	if offset_y == 0:
-		offset_y = 1 if randf() > 0.5 else -1  # Ensure it's not on the goal line
-	return Vector2i(
-		clampi(goal_hex.x + offset_x, 0, HexUtils.GRID_WIDTH - 1),
-		clampi(goal_hex.y + offset_y, 0, HexUtils.GRID_HEIGHT - 1)
-	)
+		offset_y = 2 if randf() > 0.5 else -2
+	return Vector2i(byline_x, goal_hex.y + offset_y)
 
 
 ## Visual helpers
@@ -1298,3 +1418,220 @@ func _clear_highlights() -> void:
 		child.queue_free()
 	valid_targets.clear()
 	action_target_units.clear()
+
+
+func _team_attacking_right(is_home: bool) -> bool:
+	return home_attacks_right if is_home else not home_attacks_right
+
+
+func _handle_ball_exit(exit_hex: Vector2i) -> void:
+	var restart = TacticalMatchRules.classify_ball_exit(exit_hex, last_touch_is_home_team)
+	if str(restart.get("restart_type", TacticalMatchRules.RESTART_NONE)) == TacticalMatchRules.RESTART_NONE:
+		ball.make_loose(HexUtils.get_center_hex())
+		return
+
+	_start_set_piece(TacticalMatchRules.create_set_piece_context(
+		str(restart.get("restart_type", TacticalMatchRules.RESTART_NONE)),
+		restart.get("restart_hex", HexUtils.get_center_hex()),
+		bool(restart.get("is_home_team", true)),
+		_team_attacking_right(bool(restart.get("is_home_team", true)))
+	))
+
+
+func _start_set_piece(context: Dictionary) -> void:
+	if match_phase == MatchPhase.FULL_TIME:
+		return
+
+	set_piece_context = context.duplicate(true)
+	match_phase = MatchPhase.SET_PIECE
+	current_action = ""
+	_clear_highlights()
+	call_deferred("_execute_set_piece")
+
+
+func _execute_set_piece() -> void:
+	if set_piece_context.is_empty():
+		match_phase = MatchPhase.PLAYING
+		return
+
+	var restart_hex = set_piece_context.get("restart_hex", HexUtils.get_center_hex())
+	var is_home_team = bool(set_piece_context.get("is_home_team", true))
+	var restart_type = str(set_piece_context.get("restart_type", TacticalMatchRules.RESTART_NONE))
+	var taker = _choose_set_piece_taker(is_home_team, restart_hex)
+	if not taker:
+		match_phase = MatchPhase.PLAYING
+		set_piece_context.clear()
+		return
+
+	_position_units_for_restart(restart_hex, taker)
+	ball.set_hex_position(restart_hex)
+
+	if restart_type == TacticalMatchRules.RESTART_PENALTY:
+		_resolve_penalty_kick(taker)
+	else:
+		ball.give_possession(taker)
+		last_touch_is_home_team = taker.is_home_team
+		var receiver = _find_restart_receiver(taker)
+		if receiver:
+			last_passer = taker
+			ball.start_pass(taker, receiver.hex_position)
+
+	match_phase = MatchPhase.PLAYING
+	set_piece_context.clear()
+
+
+func _position_units_for_restart(restart_hex: Vector2i, taker: PlayerUnit) -> void:
+	taker.set_hex_position(restart_hex)
+	var occupied = _get_all_occupied_hexes()
+	for unit in all_units:
+		if not unit.is_active_in_match() or unit == taker:
+			continue
+		if HexUtils.hex_distance(unit.hex_position, restart_hex) <= 1:
+			for neighbor in HexUtils.get_neighbors(unit.hex_position):
+				if neighbor not in occupied and neighbor != restart_hex:
+					unit.set_hex_position(neighbor)
+					occupied.append(neighbor)
+					break
+
+
+func _choose_set_piece_taker(is_home_team: bool, restart_hex: Vector2i) -> PlayerUnit:
+	var team_units = home_units if is_home_team else away_units
+	var best_unit: PlayerUnit = null
+	var best_distance = 999
+	for unit in team_units:
+		if not unit.is_active_in_match():
+			continue
+		var distance = HexUtils.hex_distance(unit.hex_position, restart_hex)
+		if distance < best_distance:
+			best_distance = distance
+			best_unit = unit
+	return best_unit
+
+
+func _find_restart_receiver(taker: PlayerUnit) -> PlayerUnit:
+	var team_units = home_units if taker.is_home_team else away_units
+	var best_receiver: PlayerUnit = null
+	var best_score = -999
+	var attacking_right = _team_attacking_right(taker.is_home_team)
+	var defenders = away_units if taker.is_home_team else home_units
+
+	for teammate in team_units:
+		if teammate == taker or not teammate.is_active_in_match():
+			continue
+		if TacticalMatchRules.is_receiver_offside(teammate, taker, defenders, attacking_right):
+			continue
+		var forward_progress = (teammate.hex_position.x - taker.hex_position.x) * (1 if attacking_right else -1)
+		var score = forward_progress - HexUtils.hex_distance(teammate.hex_position, taker.hex_position)
+		if score > best_score:
+			best_score = score
+			best_receiver = teammate
+	return best_receiver
+
+
+func _resolve_penalty_kick(taker: PlayerUnit) -> void:
+	ball.give_possession(taker)
+	last_touch_is_home_team = taker.is_home_team
+	taker.action_points = maxi(taker.action_points, ActionResolver.AP_COST["shoot"])
+	var goal_hex = HexUtils.get_goal_hex(_team_attacking_right(taker.is_home_team))
+	var goalkeeper = _find_goalkeeper(away_units if taker.is_home_team else home_units)
+	var result = ActionResolver.execute_shot(taker, goal_hex, goalkeeper, [], match_data)
+	if result.success:
+		last_shooter = taker
+		ball.start_shot(taker, goal_hex)
+	else:
+		var save_hex = _get_save_landing_hex(goal_hex)
+		ball.make_loose(save_hex)
+
+
+func _handle_card_consequence(unit: PlayerUnit, card: String) -> void:
+	if not unit:
+		return
+	if card in ["red", "second_yellow"]:
+		_send_off_unit(unit, card)
+
+
+func _send_off_unit(unit: PlayerUnit, reason: String) -> void:
+	if not unit or not unit.is_active_in_match():
+		return
+
+	unit.mark_sent_off(reason)
+	unit.hex_position = Vector2i(-10, -10)
+	unit.position = Vector2(-500, -500)
+	if ball.get_possessing_unit() == unit:
+		ball.make_loose(HexUtils.get_center_hex())
+
+	if unit == selected_unit:
+		selected_unit = null
+
+	if unit.is_player_controlled:
+		_simulate_remaining_after_player_dismissal(reason)
+
+
+func _simulate_remaining_after_player_dismissal(reason: String) -> void:
+	if not match_data:
+		return
+	var remainder = MatchSimulator.simulate_remaining_match(
+		match_data.home_team,
+		match_data.away_team,
+		match_minute,
+		home_score,
+		away_score,
+		{"importance": match_data.importance, "dismissal_reason": reason}
+	)
+
+	home_score = int(remainder.get("home_score", home_score))
+	away_score = int(remainder.get("away_score", away_score))
+	match_minute = 90
+	match_data.current_minute = 90
+	match_data.home_score = home_score
+	match_data.away_score = away_score
+
+	home_goal_events.append_array(remainder.get("home_goal_events", []))
+	away_goal_events.append_array(remainder.get("away_goal_events", []))
+	for event in remainder.get("card_events", []):
+		var event_type = "red_card" if str(event.get("card_color", "")) == "red" else "yellow_card"
+		var original_minute = match_data.current_minute
+		match_data.current_minute = int(event.get("minute", 90))
+		match_data.record_event(event_type, {
+			"player_id": str(event.get("player_id", "")),
+			"player_name": str(event.get("player_name", "")),
+			"team_id": str(event.get("team_id", "")),
+			"team_name": str(event.get("team_name", "")),
+			"dismissal_reason": str(event.get("dismissal_reason", ""))
+		})
+		match_data.current_minute = original_minute
+	score_changed.emit(home_score, away_score)
+	_end_match()
+
+
+func _apply_minute_stamina_and_injuries() -> void:
+	for unit in all_units:
+		if not unit.is_active_in_match():
+			continue
+		unit.apply_minute_fatigue(MINUTES_PER_TURN)
+		if not str(unit.live_injury.get("type", "")).is_empty():
+			continue
+		var injury = InjurySystem.roll_for_tactical_injury(unit, {
+			"minute": match_minute,
+			"fatigue": 100 - unit.stamina,
+			"had_contact": bool(contact_units_this_minute.get(unit.unit_id, false))
+		})
+		if injury.is_empty():
+			continue
+		unit.apply_live_injury(injury)
+		var team_id = match_data.home_team.id if unit.is_home_team else match_data.away_team.id
+		var team_name = match_data.home_team.name if unit.is_home_team else match_data.away_team.name
+		var injury_event = injury.duplicate(true)
+		injury_event["player_id"] = unit.unit_id
+		injury_event["player_name"] = unit.unit_name
+		injury_event["team_id"] = team_id
+		injury_event["team_name"] = team_name
+		match_data.record_event("injury", injury_event)
+		tactical_injury_events.append(injury_event)
+	contact_units_this_minute.clear()
+
+
+func _mark_contact(unit: PlayerUnit) -> void:
+	if not unit:
+		return
+	contact_units_this_minute[unit.unit_id] = true

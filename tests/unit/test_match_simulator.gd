@@ -53,6 +53,19 @@ func test_simulate_knockout_match_goal_minutes_range() -> void:
 		assert_true(event.minute >= 1 and event.minute <= 120, "Goal minute should allow extra time")
 
 
+func test_simulate_remaining_match_keeps_existing_score_and_future_minutes() -> void:
+	var home = _make_team("team_home", "Home High")
+	var away = _make_team("team_away", "Away High")
+	var result = MatchSimulator.simulate_remaining_match(home, away, 72, 2, 1, {"importance": 1.0})
+
+	assert_true(result.home_score >= 2)
+	assert_true(result.away_score >= 1)
+	for event in result.home_goal_events:
+		assert_true(event.minute >= 73 and event.minute <= 90)
+	for event in result.away_goal_events:
+		assert_true(event.minute >= 73 and event.minute <= 90)
+
+
 func _make_team(team_id: String, team_name: String) -> TeamData:
 	var team = TeamData.new()
 	team.id = team_id

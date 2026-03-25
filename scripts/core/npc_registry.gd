@@ -10,6 +10,8 @@ signal npc_graduated(npc_id: String, npc_data: Dictionary)
 signal npc_injured(npc_id: String, injury: Dictionary)
 signal npc_recovered(npc_id: String)
 
+const YELLOW_SUSPENSION_THRESHOLD := 3
+
 # Registry of all known NPCs: stable_id -> NPC data
 var npc_registry: Dictionary = {}
 
@@ -108,6 +110,7 @@ func get_or_create_npc(stable_team_id: String, position: String, roster_index: i
 		"matches_total": 0,
 		"description": ""
 	})
+	new_npc["discipline"] = _normalize_discipline_record(npc_data.get("discipline", {}))
 
 	# Career events for persona evolution
 	new_npc["career_events"] = npc_data.get("career_events", [])
@@ -120,7 +123,10 @@ func get_or_create_npc(stable_team_id: String, position: String, roster_index: i
 
 ## Get NPC by their stable ID
 func get_npc(npc_id: String) -> Dictionary:
-	return npc_registry.get(npc_id, {})
+	if npc_id not in npc_registry:
+		return {}
+	npc_registry[npc_id] = _normalize_npc_record(npc_registry[npc_id])
+	return npc_registry[npc_id]
 
 
 ## Check if NPC exists in registry
@@ -144,6 +150,7 @@ func get_team_npcs(stable_team_id: String) -> Array[Dictionary]:
 func update_npc(npc_id: String, updates: Dictionary) -> void:
 	if npc_id in npc_registry:
 		npc_registry[npc_id].merge(updates, true)
+		npc_registry[npc_id] = _normalize_npc_record(npc_registry[npc_id])
 		npc_updated.emit(npc_id)
 
 
@@ -280,6 +287,65 @@ func recover_from_injury(npc_id: String) -> void:
 	print("[NpcRegistry] %s recovered from injury" % npc_id)
 
 
+func record_competition_card(npc_id: String, competition_key: String, card_type: String) -> void:
+	if npc_id not in npc_registry:
+		return
+
+	var normalized_key = str(competition_key)
+	if normalized_key.is_empty():
+		normalized_key = "default"
+
+	var npc = _normalize_npc_record(npc_registry[npc_id])
+	var competitions: Dictionary = npc.get("discipline", {}).get("competitions", {})
+	var record = _normalize_competition_record(competitions.get(normalized_key, {}))
+	var normalized_card = str(card_type).to_lower()
+
+	match normalized_card:
+		"yellow":
+			record["yellow_count"] = int(record.get("yellow_count", 0)) + 1
+			if int(record.get("yellow_count", 0)) >= YELLOW_SUSPENSION_THRESHOLD:
+				record["yellow_count"] = 0
+				record["suspension_matches_remaining"] = int(record.get("suspension_matches_remaining", 0)) + 1
+				record["last_dismissal_reason"] = "yellow_accumulation"
+		"second_yellow":
+			record["yellow_count"] = 0
+			record["suspension_matches_remaining"] = int(record.get("suspension_matches_remaining", 0)) + 1
+			record["last_dismissal_reason"] = "second_yellow"
+		"red":
+			record["suspension_matches_remaining"] = int(record.get("suspension_matches_remaining", 0)) + 1
+			record["last_dismissal_reason"] = "red"
+		_:
+			return
+
+	record["last_card"] = normalized_card
+	competitions[normalized_key] = record
+	npc["discipline"]["competitions"] = competitions
+	npc_registry[npc_id] = npc
+	npc_updated.emit(npc_id)
+
+
+func serve_suspension(npc_id: String, competition_key: String) -> void:
+	if npc_id not in npc_registry:
+		return
+
+	var normalized_key = str(competition_key)
+	if normalized_key.is_empty():
+		normalized_key = "default"
+
+	var npc = _normalize_npc_record(npc_registry[npc_id])
+	var competitions: Dictionary = npc.get("discipline", {}).get("competitions", {})
+	var record = _normalize_competition_record(competitions.get(normalized_key, {}))
+	var remaining = int(record.get("suspension_matches_remaining", 0))
+	if remaining <= 0:
+		return
+
+	record["suspension_matches_remaining"] = remaining - 1
+	competitions[normalized_key] = record
+	npc["discipline"]["competitions"] = competitions
+	npc_registry[npc_id] = npc
+	npc_updated.emit(npc_id)
+
+
 ## Process injury recovery after a match - decrements match counters
 func process_injury_recovery() -> Array[String]:
 	var recovered: Array[String] = []
@@ -387,21 +453,49 @@ func is_npc_available(npc_id: String) -> bool:
 
 ## Check if an NPC can be selected for match play.
 ## Minor injuries are playable; all other injuries are unavailable.
-func is_npc_match_eligible(npc_id: String) -> bool:
-	if npc_id not in npc_registry:
-		return true  # Unknown NPCs are assumed available
+func is_npc_match_eligible(npc_id: String, competition_key: String = "") -> bool:
+	return bool(get_npc_match_availability(npc_id, competition_key).get("eligible", true))
 
-	var npc = npc_registry[npc_id]
+
+func get_npc_match_availability(npc_id: String, competition_key: String = "") -> Dictionary:
+	if npc_id not in npc_registry:
+		return {"eligible": true, "reason": "", "detail": ""}
+
+	var npc = _normalize_npc_record(npc_registry[npc_id])
+	var normalized_key = str(competition_key)
+	if normalized_key.is_empty():
+		normalized_key = "default"
+
+	var competitions: Dictionary = npc.get("discipline", {}).get("competitions", {})
+	var competition_record = _normalize_competition_record(competitions.get(normalized_key, {}))
+	var suspension_matches = int(competition_record.get("suspension_matches_remaining", 0))
+	if suspension_matches > 0:
+		return {
+			"eligible": false,
+			"reason": "suspended",
+			"detail": "Suspended for %d more match%s." % [suspension_matches, "es" if suspension_matches != 1 else ""]
+		}
+
 	var status = npc.get("status", "active")
 	if status == "active":
-		return true
+		return {"eligible": true, "reason": "", "detail": ""}
 	if status != "injured":
-		return false
+		return {"eligible": false, "reason": status, "detail": ""}
 
 	var injury = npc.get("injury", {})
 	var severity = injury.get("type", "")
 	var matches_remaining = int(injury.get("matches_remaining", 0))
-	return severity == "minor" and matches_remaining > 0
+	if severity == "minor" and matches_remaining > 0:
+		return {
+			"eligible": true,
+			"reason": "minor_injury",
+			"detail": str(injury.get("description", "Playing through a minor injury."))
+		}
+	return {
+		"eligible": false,
+		"reason": "injured",
+		"detail": str(injury.get("description", "Unavailable due to injury."))
+	}
 
 
 ## Get the current season year from the season ID
@@ -439,4 +533,36 @@ func from_dict(data: Dictionary) -> void:
 	npc_registry = data.get("npc_registry", {})
 	team_registry = data.get("team_registry", {})
 	current_season_id = data.get("current_season_id", "")
+	for npc_id in npc_registry.keys():
+		npc_registry[npc_id] = _normalize_npc_record(npc_registry[npc_id])
 	print("[NpcRegistry] Loaded %d NPCs, %d teams from save" % [npc_registry.size(), team_registry.size()])
+
+
+func _normalize_npc_record(npc_data: Dictionary) -> Dictionary:
+	var normalized = npc_data.duplicate(true)
+	normalized["injury"] = {
+		"type": str(normalized.get("injury", {}).get("type", "")),
+		"injury_type": str(normalized.get("injury", {}).get("injury_type", "")),
+		"matches_remaining": max(int(normalized.get("injury", {}).get("matches_remaining", 0)), 0),
+		"matches_total": max(int(normalized.get("injury", {}).get("matches_total", normalized.get("injury", {}).get("matches_remaining", 0))), 0),
+		"description": str(normalized.get("injury", {}).get("description", ""))
+	}
+	normalized["discipline"] = _normalize_discipline_record(normalized.get("discipline", {}))
+	return normalized
+
+
+func _normalize_discipline_record(data: Dictionary) -> Dictionary:
+	var competitions: Dictionary = {}
+	var source: Dictionary = data.get("competitions", {})
+	for competition_key in source:
+		competitions[str(competition_key)] = _normalize_competition_record(source[competition_key])
+	return {"competitions": competitions}
+
+
+func _normalize_competition_record(data: Dictionary) -> Dictionary:
+	return {
+		"yellow_count": max(int(data.get("yellow_count", 0)), 0),
+		"suspension_matches_remaining": max(int(data.get("suspension_matches_remaining", 0)), 0),
+		"last_card": str(data.get("last_card", "")),
+		"last_dismissal_reason": str(data.get("last_dismissal_reason", ""))
+	}

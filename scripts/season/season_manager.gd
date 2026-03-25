@@ -381,6 +381,9 @@ func record_player_match_result(opponent_id: String, player_score: int, opponent
 func _process_post_match_injury_recovery() -> void:
 	"""Process injury recovery after a match."""
 	var recovered = NpcRegistry.process_injury_recovery()
+	var player_recovered = false
+	if GameManager.player_data:
+		player_recovered = GameManager.player_data.process_match_recovery()
 
 	if recovered.size() > 0:
 		print("[SeasonManager] %d players recovered from injury" % recovered.size())
@@ -412,6 +415,13 @@ func _process_post_match_injury_recovery() -> void:
 
 				if had_severe_injury:
 					PersonaManager.evolve_persona_for_event(npc_id, "survived_major_injury")
+
+	if player_recovered and DesktopManager and GameManager.player_data:
+		DesktopManager.show_notification(
+			"Player Recovered",
+			"%s is fit again." % GameManager.player_data.name,
+			"", ""
+		)
 
 
 func _record_league_result(home_id: String, away_id: String, home_score: int, away_score: int, home_events: Array = [], away_events: Array = [], home_fouls: int = 0, away_fouls: int = 0) -> void:

@@ -332,6 +332,43 @@ func test_round_trip_serialization() -> void:
 	assert_has(restored.equipped_skills, "through_ball")
 
 
+func test_match_availability_blocks_suspension_and_moderate_injury() -> void:
+	var player = PlayerData.new()
+	player.record_competition_card("league::kanagawa", "yellow")
+	player.record_competition_card("league::kanagawa", "yellow")
+	player.record_competition_card("league::kanagawa", "yellow")
+
+	var suspended = player.get_match_availability("league::kanagawa")
+	assert_false(suspended.get("eligible", true))
+	assert_eq(suspended.get("reason", ""), "suspended")
+
+	player.serve_suspension("league::kanagawa")
+	player.apply_injury_report({
+		"type": "moderate",
+		"injury_type": "hamstring_pull",
+		"matches_out": 3,
+		"description": "Hamstring pull"
+	})
+
+	var injured = player.get_match_availability("league::kanagawa")
+	assert_false(injured.get("eligible", true))
+	assert_eq(injured.get("reason", ""), "injured")
+
+
+func test_minor_injury_remains_match_eligible() -> void:
+	var player = PlayerData.new()
+	player.apply_injury_report({
+		"type": "minor",
+		"injury_type": "muscle_tightness",
+		"matches_out": 1,
+		"description": "Muscle tightness"
+	})
+
+	var availability = player.get_match_availability("league::kanagawa")
+	assert_true(availability.get("eligible", false))
+	assert_eq(availability.get("reason", ""), "minor_injury")
+
+
 # =============================================================================
 # Appearance Tests
 # =============================================================================

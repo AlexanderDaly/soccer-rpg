@@ -19,6 +19,14 @@ var dominant_foot: String = "right"
 # Stats (copied from player/NPC data)
 var stats: Dictionary = {}
 var overall: int = 50
+var live_injury: Dictionary = {
+	"type": "",
+	"injury_type": "",
+	"matches_remaining": 0,
+	"matches_total": 0,
+	"description": ""
+}
+var sent_off_reason: String = ""
 
 # Grid position
 var hex_position: Vector2i = Vector2i.ZERO
@@ -47,6 +55,28 @@ var name_label: Label
 
 # Team colors
 var team_color: Color = Color.BLUE
+
+const MINOR_INJURY_STAT_PENALTIES: Dictionary = {
+	"muscle_tightness": {"STA": 6, "SPD": 4, "TEC": 2},
+	"light_bruising": {"PHY": 5, "DEF": 2, "MEN": 2},
+	"ankle_niggle": {"SPD": 6, "TEC": 4, "PAS": 2},
+	"minor_cramp": {"STA": 7, "SPD": 3, "PHY": 2},
+	"ankle_sprain": {"SPD": 8, "TEC": 5, "PAS": 3},
+	"hamstring_pull": {"STA": 9, "SPD": 8, "PHY": 4},
+	"knee_twist": {"SPD": 7, "DEF": 4, "PHY": 5},
+	"quadriceps_strain": {"STA": 8, "SPD": 6, "SHO": 3},
+	"_default": {"STA": 4, "SPD": 2, "MEN": 1}
+}
+
+const ACTION_STAMINA_COSTS := {
+	"move": 2,
+	"sprint": 10,
+	"pass": 3,
+	"through_ball": 5,
+	"shoot": 6,
+	"dribble": 5,
+	"tackle": 4
+}
 
 
 func _ready() -> void:
@@ -103,11 +133,13 @@ func initialize(data: Dictionary, home_team: bool, player_char: bool = false) ->
 	unit_id = data.get("id", "unit_%d" % randi())
 	unit_name = data.get("name", "Player")
 	position_role = data.get("position", "CM")
-	stats = data.get("stats", {})
-	overall = data.get("overall", 50)
+	stats = data.get("base_stats", data.get("stats", {})).duplicate(true)
+	overall = int(data.get("base_overall", data.get("overall", 50)))
 	is_home_team = home_team
 	is_player_controlled = player_char
 	dominant_foot = data.get("dominant_foot", "right")
+	stamina = clampi(int(data.get("stamina_current", max_stamina)), 0, max_stamina)
+	live_injury = _normalize_injury_record(data.get("injury", {}))
 
 	# Set visual representation
 	team_color = Color(0.2, 0.4, 0.8) if is_home_team else Color(0.8, 0.2, 0.2)
@@ -190,12 +222,16 @@ func _process_movement(delta: float) -> void:
 
 
 func get_move_range() -> int:
-	var spd = stats.get("SPD", 50)
-	return HexUtils.calculate_move_range(spd)
+	var spd = get_effective_stat("SPD")
+	return maxi(1, HexUtils.calculate_move_range(spd))
 
 
 func get_stat(stat_name: String) -> int:
-	return stats.get(stat_name, 50)
+	return get_effective_stat(stat_name)
+
+
+func get_raw_stat(stat_name: String) -> int:
+	return int(stats.get(stat_name, 50))
 
 
 func spend_ap(amount: int) -> bool:
@@ -214,7 +250,7 @@ func spend_stamina(amount: int) -> void:
 
 
 func reset_turn() -> void:
-	action_points = max_action_points
+	action_points = 0 if sent_off_reason != "" else max_action_points
 	_update_labels()
 	action_points_changed.emit(action_points)
 
@@ -238,36 +274,78 @@ func set_has_ball(value: bool) -> void:
 
 
 func can_act() -> bool:
-	return action_points > 0 and not is_moving
+	return action_points > 0 and not is_moving and sent_off_reason == ""
 
 
 func is_goalkeeper() -> bool:
 	return position_role == "GK"
 
 
+func is_active_in_match() -> bool:
+	return sent_off_reason == ""
+
+
+func mark_sent_off(reason: String = "red") -> void:
+	sent_off_reason = reason
+	action_points = 0
+	has_ball = false
+	modulate = Color(0.55, 0.55, 0.55, 0.65)
+	_update_labels()
+	action_points_changed.emit(action_points)
+
+
 func get_tackling_stat() -> int:
-	var def = stats.get("DEF", 50)
-	var phy = stats.get("PHY", 50)
+	var def = get_effective_stat("DEF")
+	var phy = get_effective_stat("PHY")
 	return int(def * 0.7 + phy * 0.3)
 
 
 func get_dribbling_stat() -> int:
-	return stats.get("TEC", 50)
+	return get_effective_stat("TEC")
 
 
 func get_passing_stat() -> int:
-	return stats.get("PAS", 50)
+	return get_effective_stat("PAS")
 
 
 func get_shooting_stat() -> int:
-	return stats.get("SHO", 50)
+	return get_effective_stat("SHO")
 
 
 func get_goalkeeping_stat() -> int:
-	var def = stats.get("DEF", 50)
-	var men = stats.get("MEN", 50)
+	var def = get_effective_stat("DEF")
+	var men = get_effective_stat("MEN")
 	var reflexes = int(def * 0.5 + men * 0.5)
 	return reflexes
+
+
+func get_effective_stat(stat_name: String) -> int:
+	var base_stat = get_raw_stat(stat_name)
+	base_stat -= _get_stamina_penalty()
+	base_stat -= _get_injury_penalty_for_stat(stat_name)
+	return clampi(base_stat, 1, 99)
+
+
+func apply_live_injury(injury_report: Dictionary) -> void:
+	live_injury = _normalize_injury_record(injury_report)
+
+
+func apply_minute_fatigue(minutes: int = 1) -> void:
+	if sent_off_reason != "":
+		return
+	var passive_cost = maxi(1, minutes)
+	if position_role in ["WNG", "FB", "CM", "CAM", "ST"]:
+		passive_cost += 1
+	spend_stamina(passive_cost)
+
+
+func apply_action_fatigue(action_type: String, distance: int = 0) -> void:
+	if sent_off_reason != "":
+		return
+	var base_cost = int(ACTION_STAMINA_COSTS.get(action_type, 0))
+	if action_type == "move":
+		base_cost += maxi(distance - 1, 0)
+	spend_stamina(base_cost)
 
 
 func get_channel_side(target_hex: Vector2i = Vector2i(-999, -999)) -> String:
@@ -284,3 +362,44 @@ func get_channel_side(target_hex: Vector2i = Vector2i(-999, -999)) -> String:
 	if sample_hex.y > center_line:
 		return "right"
 	return "center"
+
+
+func _get_stamina_penalty() -> int:
+	if stamina >= 75:
+		return 0
+	if stamina >= 55:
+		return 3
+	if stamina >= 35:
+		return 6
+	if stamina >= 20:
+		return 10
+	return 14
+
+
+func _get_injury_penalty_for_stat(stat_name: String) -> int:
+	var severity = str(live_injury.get("type", ""))
+	var matches_remaining = int(live_injury.get("matches_remaining", 0))
+	if severity == "" and str(live_injury.get("description", "")).is_empty():
+		return 0
+	if matches_remaining <= 0 and severity != "live":
+		return 0
+
+	var injury_type = str(live_injury.get("injury_type", ""))
+	var penalties: Dictionary = MINOR_INJURY_STAT_PENALTIES.get(
+		injury_type,
+		MINOR_INJURY_STAT_PENALTIES["_default"]
+	)
+	var penalty = int(penalties.get(stat_name, 0))
+	if severity == "moderate":
+		penalty = roundi(float(penalty) * 1.6)
+	return penalty
+
+
+func _normalize_injury_record(data: Dictionary) -> Dictionary:
+	return {
+		"type": str(data.get("type", "")),
+		"injury_type": str(data.get("injury_type", "")),
+		"matches_remaining": max(int(data.get("matches_remaining", data.get("matches_out", 0))), 0),
+		"matches_total": max(int(data.get("matches_total", data.get("matches_remaining", data.get("matches_out", 0)))), 0),
+		"description": str(data.get("description", ""))
+	}

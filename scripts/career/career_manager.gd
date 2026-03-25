@@ -9,6 +9,7 @@ signal fan_popularity_changed(new_total: int, delta: int, outcome: String)
 signal milestone_reached(milestone: String)
 signal scout_interest(scout_data: Dictionary)
 signal contract_offer_received(offer: Dictionary)
+signal contract_offer_resolved(offer: Dictionary, resolution: String)
 
 const REPUTATION_MIN := 0
 const REPUTATION_MAX := 100
@@ -812,6 +813,302 @@ func get_reputation_summary() -> Dictionary:
 	}
 
 
+func get_career_hub_snapshot() -> Dictionary:
+	var player_overview = _get_career_hub_player_overview()
+	var journey_status = _get_career_hub_journey_status()
+	var offers_summary = _get_career_hub_offers()
+	return {
+		"player_overview": player_overview,
+		"journey_status": journey_status,
+		"current_objective": _get_career_hub_objective(journey_status, offers_summary),
+		"offers": offers_summary,
+		"milestones": _get_career_hub_milestones(),
+		"relationships": _get_career_hub_relationships(),
+		"rivals": _get_career_hub_rivals(),
+		"primary_action": _get_career_hub_primary_action(journey_status, offers_summary)
+	}
+
+
+func _get_career_hub_player_overview() -> Dictionary:
+	var player = GameManager.player_data
+	var team_name = GameManager.current_team.name if GameManager.current_team else str(current_contract.get("team_name", "No Team"))
+	var contract_summary = _build_contract_summary(current_contract)
+	return {
+		"name": player.name if player else "No Player",
+		"age": player.age if player else 0,
+		"school_year": player.school_year if player else 0,
+		"school_year_label": "Year %d" % int(player.school_year) if player else "",
+		"position": player.position if player else "--",
+		"overall": player.get_overall() if player and player.has_method("get_overall") else 0,
+		"team_name": team_name,
+		"phase_name": _humanize_identifier(GameManager.CareerPhase.keys()[GameManager.current_career_phase]),
+		"national_phase_name": _humanize_identifier(GameManager.NationalPhase.keys()[GameManager.current_national_phase]),
+		"reputation_score": reputation,
+		"reputation_tier": str(get_reputation_tier().get("name", "Unknown")),
+		"coach_trust": coach_trust,
+		"fan_popularity": fan_popularity,
+		"active_contract": {
+			"available": not current_contract.is_empty(),
+			"team_name": str(current_contract.get("team_name", "")),
+			"summary": contract_summary
+		}
+	}
+
+
+func _get_career_hub_journey_status() -> Dictionary:
+	var active_season = SeasonManager.has_active_season() if SeasonManager else false
+	var next_fixture = SeasonManager.get_next_fixture() if SeasonManager else {}
+	var season_phase = "Offseason"
+	var current_competition = ""
+	var league_position = -1
+	var national_overlay_active = _has_active_national_overlay()
+	var phase_type = "offseason"
+
+	if national_overlay_active:
+		season_phase = _humanize_identifier(GameManager.NationalPhase.keys()[GameManager.current_national_phase])
+		current_competition = str(SeasonManager.national_overlay_competition)
+		phase_type = "national_overlay"
+	elif SeasonManager and SeasonManager.current_season:
+		season_phase = _humanize_identifier(SeasonData.Phase.keys()[SeasonManager.current_season.current_phase])
+		current_competition = SeasonManager.current_season.get_current_competition_name()
+		league_position = SeasonManager.get_player_league_position()
+		match SeasonManager.current_season.current_phase:
+			SeasonData.Phase.LEAGUE:
+				phase_type = "league"
+			SeasonData.Phase.QUALIFIERS, SeasonData.Phase.NATIONALS:
+				phase_type = "knockout"
+			_:
+				phase_type = "offseason"
+
+	if current_competition.is_empty() and not next_fixture.is_empty():
+		current_competition = str(next_fixture.get("competition", ""))
+	if current_competition.is_empty():
+		current_competition = "No active competition"
+
+	return {
+		"active_season": active_season,
+		"current_competition": current_competition,
+		"season_phase": season_phase,
+		"next_fixture": _build_fixture_summary(next_fixture),
+		"queued_contract": _build_offer_entry(queued_contract_offer, true),
+		"club_history": _build_club_history_summary(),
+		"league_position": league_position,
+		"national_overlay_active": national_overlay_active,
+		"phase_type": phase_type
+	}
+
+
+func _get_career_hub_offers() -> Dictionary:
+	var pending: Array[Dictionary] = []
+	for offer in pending_contract_offers:
+		pending.append(_build_offer_entry(offer))
+
+	return {
+		"pending_count": pending.size(),
+		"pending": pending,
+		"queued_contract": _build_offer_entry(queued_contract_offer, true)
+	}
+
+
+func _get_career_hub_milestones() -> Dictionary:
+	var recent_completed: Array[Dictionary] = []
+	for i in range(completed_milestones.size() - 1, maxi(completed_milestones.size() - 5, 0) - 1, -1):
+		var milestone_id = completed_milestones[i]
+		var milestone = MILESTONES.get(milestone_id, {})
+		recent_completed.append({
+			"id": milestone_id,
+			"name": str(milestone.get("name", _humanize_identifier(milestone_id))),
+			"description": str(milestone.get("description", ""))
+		})
+
+	var awards: Array[Dictionary] = []
+	var stored_awards = career_stats.get("awards", [])
+	for i in range(stored_awards.size() - 1, maxi(stored_awards.size() - 3, 0) - 1, -1):
+		var award = stored_awards[i]
+		var award_type = str(award.get("type", "award"))
+		var value = int(award.get("value", 0))
+		awards.append({
+			"type": award_type,
+			"name": str(MILESTONES.get(award_type, {}).get("name", _humanize_identifier(award_type))),
+			"value": value,
+			"season": int(award.get("season", 0)),
+			"summary": "%s (%d)" % [str(MILESTONES.get(award_type, {}).get("name", _humanize_identifier(award_type))), value]
+		})
+
+	var trophies: Array[String] = []
+	for trophy in career_stats.get("trophies", []):
+		trophies.append(str(trophy))
+
+	return {
+		"completed_count": completed_milestones.size(),
+		"total_count": MILESTONES.size(),
+		"current_season": int(career_stats.get("current_season", 1)),
+		"recent_completed": recent_completed,
+		"awards": awards,
+		"trophies": trophies
+	}
+
+
+func _get_career_hub_relationships() -> Dictionary:
+	var entries: Array[Dictionary] = []
+	for entity_id in relationships:
+		var rel = relationships[entity_id]
+		var affinity = int(rel.get("affinity", 0))
+		var trust = int(rel.get("trust", 50))
+		if affinity == 0 and trust == 50:
+			continue
+		entries.append({
+			"entity_id": str(entity_id),
+			"name": str(rel.get("name", entity_id)),
+			"type": str(rel.get("type", "unknown")),
+			"affinity": affinity,
+			"trust": trust,
+			"summary": "Affinity %s • Trust %d" % [_signed_int(affinity), trust]
+		})
+
+	var positive: Array[Dictionary] = []
+	var friction: Array[Dictionary] = []
+	for entry in entries:
+		if int(entry.get("affinity", 0)) > 0 or int(entry.get("trust", 50)) > 50:
+			positive.append(entry)
+		elif int(entry.get("affinity", 0)) < 0 or int(entry.get("trust", 50)) < 50:
+			friction.append(entry)
+
+	positive.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if int(a.get("affinity", 0)) == int(b.get("affinity", 0)):
+			return int(a.get("trust", 50)) > int(b.get("trust", 50))
+		return int(a.get("affinity", 0)) > int(b.get("affinity", 0))
+	)
+	friction.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if int(a.get("affinity", 0)) == int(b.get("affinity", 0)):
+			return int(a.get("trust", 50)) < int(b.get("trust", 50))
+		return int(a.get("affinity", 0)) < int(b.get("affinity", 0))
+	)
+
+	return {
+		"positive": positive.slice(0, 3),
+		"friction": friction.slice(0, 3),
+		"total_meaningful": entries.size()
+	}
+
+
+func _get_career_hub_rivals() -> Dictionary:
+	var items: Array[Dictionary] = []
+	var seen: Dictionary = {}
+
+	for rival in rivals:
+		var entry = _build_rival_entry(rival, "career")
+		var key = str(entry.get("dedupe_key", ""))
+		if key.is_empty() or seen.has(key):
+			continue
+		seen[key] = true
+		items.append(entry)
+
+	var known_rivals = NpcRegistry.get_known_rivals() if NpcRegistry else []
+	for rival in known_rivals:
+		var entry = _build_rival_entry(rival, "known")
+		var key = str(entry.get("dedupe_key", ""))
+		if key.is_empty() or seen.has(key):
+			continue
+		seen[key] = true
+		items.append(entry)
+
+	return {
+		"count": items.size(),
+		"items": items.slice(0, 3)
+	}
+
+
+func _get_career_hub_objective(journey_status: Dictionary, offers_summary: Dictionary) -> Dictionary:
+	var player = GameManager.player_data
+	var queued_contract = offers_summary.get("queued_contract", {})
+	var pending_count = int(offers_summary.get("pending_count", 0))
+	var current_competition = str(journey_status.get("current_competition", "this competition"))
+	var league_position = int(journey_status.get("league_position", -1))
+	var phase_type = str(journey_status.get("phase_type", "offseason"))
+	var active_season = bool(journey_status.get("active_season", false))
+
+	if bool(queued_contract.get("available", false)):
+		return {
+			"title": "Finish the Season",
+			"detail": "Your move to %s is lined up for the next window. Keep your standards high until the switch is official." % str(queued_contract.get("team_name", "your new club"))
+		}
+
+	if pending_count > 0 and not _has_season_critical_fixture(journey_status):
+		return {
+			"title": "Review Contract Offers",
+			"detail": "You have %d live offer%s waiting for a decision." % [pending_count, "" if pending_count == 1 else "s"]
+		}
+
+	if bool(journey_status.get("national_overlay_active", false)):
+		return {
+			"title": "Advance on International Duty",
+			"detail": "Your current focus is %s. Keep the U20 run alive." % current_competition
+		}
+
+	if phase_type == "knockout":
+		return {
+			"title": "Win the Knockout Tie",
+			"detail": "%s is single-elimination now. One bad match ends the run." % current_competition
+		}
+
+	if phase_type == "league":
+		if GameManager.current_career_phase == GameManager.CareerPhase.HIGH_SCHOOL:
+			if league_position > 0 and league_position <= 3:
+				return {
+					"title": "Hold a Top-3 Spot",
+					"detail": "You sit %s in %s. Stay inside the qualifying places." % [_format_ordinal(league_position), current_competition]
+				}
+			return {
+				"title": "Break into the Top 3",
+				"detail": "You sit %s in %s. Push into the qualifying places." % [_format_ordinal(league_position), current_competition]
+			}
+
+		if league_position == 1:
+			return {
+				"title": "Stay on Top",
+				"detail": "You lead %s. Keep the pressure on and protect first place." % current_competition
+			}
+		return {
+			"title": "Climb the Table",
+			"detail": "You sit %s in %s. Strong results can change the season quickly." % [_format_ordinal(league_position), current_competition]
+		}
+
+	if not active_season and GameManager.current_career_phase == GameManager.CareerPhase.HIGH_SCHOOL and player and player.school_year >= 3 and pending_count == 0:
+		return {
+			"title": "Await Progression Offers",
+			"detail": "Your final school season is over. Watch for the next step in your career."
+		}
+
+	return {
+		"title": "Prepare for the Next Season",
+		"detail": "Use this downtime to review your progress, relationships, and next move."
+	}
+
+
+func _get_career_hub_primary_action(journey_status: Dictionary, offers_summary: Dictionary) -> Dictionary:
+	var next_fixture = journey_status.get("next_fixture", {})
+	if bool(next_fixture.get("available", false)):
+		return {
+			"id": "play_match",
+			"label": "Play Next Match",
+			"description": str(next_fixture.get("label", "Step into the next fixture."))
+		}
+
+	if int(offers_summary.get("pending_count", 0)) > 0:
+		return {
+			"id": "review_offers",
+			"label": "Review Offers",
+			"description": "Jump to the live contract decisions below."
+		}
+
+	return {
+		"id": "return_dashboard",
+		"label": "Return to Dashboard",
+		"description": "Head back to the main career dashboard."
+	}
+
+
 func get_last_match_reputation_report() -> Dictionary:
 	return last_match_reputation_report.duplicate(true)
 
@@ -893,22 +1190,29 @@ func _update_fan_popularity_from_match(result: Dictionary) -> void:
 func accept_contract(offer: Dictionary) -> void:
 	if offer.is_empty():
 		return
-	_remove_pending_offer(offer.get("team_id", ""))
+	var resolved_offer = _remove_pending_offer(offer.get("team_id", ""))
+	if resolved_offer.is_empty():
+		resolved_offer = offer.duplicate(true)
 
 	if bool(offer.get("starts_next_window", false)) and SeasonManager.has_active_season():
 		queued_contract_offer = offer.duplicate(true)
 		_apply_reputation_delta(1, "contract_queued", {"team_id": offer.get("team_id", "")})
 		update_relationship(str(offer.get("team_id", "")), 4, 3, "scout", str(offer.get("team_name", "")))
+		contract_offer_resolved.emit(resolved_offer, "accepted")
 		return
 
 	_commit_contract_offer(offer)
+	contract_offer_resolved.emit(resolved_offer, "accepted")
 
 
 func decline_contract(offer: Dictionary) -> void:
 	if offer.is_empty():
 		return
-	_remove_pending_offer(offer.get("team_id", ""))
+	var resolved_offer = _remove_pending_offer(offer.get("team_id", ""))
+	if resolved_offer.is_empty():
+		resolved_offer = offer.duplicate(true)
 	update_relationship(str(offer.get("team_id", "")), -3, -2, "scout", str(offer.get("team_name", "")))
+	contract_offer_resolved.emit(resolved_offer, "declined")
 
 
 func has_queued_contract() -> bool:
@@ -1062,10 +1366,13 @@ func _target_phase_for_team(team_info: Dictionary) -> GameManager.CareerPhase:
 	return GameManager.CareerPhase.YOUTH_ACADEMY if league == "Youth Elite" else GameManager.CareerPhase.PRO_CAREER
 
 
-func _remove_pending_offer(team_id: String) -> void:
+func _remove_pending_offer(team_id: String) -> Dictionary:
 	for i in range(pending_contract_offers.size() - 1, -1, -1):
 		if pending_contract_offers[i].get("team_id", "") == team_id:
+			var removed_offer = pending_contract_offers[i].duplicate(true)
 			pending_contract_offers.remove_at(i)
+			return removed_offer
+	return {}
 
 
 func _commit_contract_offer(offer: Dictionary) -> void:
@@ -1118,3 +1425,192 @@ func _get_current_day_key() -> String:
 func _team_name_from_scouting_pool(team_id: String) -> String:
 	var team = _find_team_in_pools(team_id)
 	return team.get("name", "Unknown")
+
+
+func _build_contract_summary(contract: Dictionary) -> String:
+	if contract.is_empty():
+		return "No active contract"
+
+	var team_name = str(contract.get("team_name", "Unknown Club"))
+	var role = _humanize_identifier(str(contract.get("role", "starter")))
+	var status = str(contract.get("status", ""))
+	var salary = int(contract.get("salary", 0))
+	if salary > 0:
+		return "%s • %s • $%d/yr" % [team_name, role, salary]
+	if status == "student":
+		return "%s • Student starter" % team_name
+	return "%s • %s" % [team_name, role]
+
+
+func _build_fixture_summary(fixture: Dictionary) -> Dictionary:
+	if fixture.is_empty():
+		return {
+			"available": false,
+			"label": "No upcoming fixture",
+			"detail": "Your schedule is currently clear.",
+			"type": ""
+		}
+
+	var opponent = fixture.get("opponent", {})
+	var opponent_name = str(opponent.get("name", "TBD"))
+	var is_home = bool(fixture.get("is_home", true))
+	var competition = str(fixture.get("competition", ""))
+	var match_type = str(fixture.get("type", ""))
+	var match_date = fixture.get("match_date", {})
+	return {
+		"available": true,
+		"label": "%s %s" % ["vs" if is_home else "@", opponent_name],
+		"detail": "%s • %s • %s" % [competition, _format_date_dict(match_date), _humanize_identifier(match_type)],
+		"competition": competition,
+		"type": match_type,
+		"date_text": _format_date_dict(match_date),
+		"opponent_name": opponent_name,
+		"is_home": is_home
+	}
+
+
+func _build_offer_entry(offer: Dictionary, queued: bool = false) -> Dictionary:
+	if offer.is_empty():
+		return {
+			"available": false,
+			"team_name": "",
+			"title": "",
+			"summary": "",
+			"detail": "",
+			"offer_data": {}
+		}
+
+	var team_name = str(offer.get("team_name", "Unknown Club"))
+	var role = _humanize_identifier(str(offer.get("squad_role", "prospect")))
+	var target_phase = int(offer.get("target_phase", GameManager.current_career_phase))
+	var duration_years = int(offer.get("duration_years", offer.get("length", 1)))
+	var expires_on = offer.get("expires_on", {})
+	var window_name = _humanize_identifier(str(offer.get("offer_window", "offseason")))
+	var summary = "%s • $%d/yr • %d year%s" % [
+		role,
+		int(offer.get("salary", 0)),
+		duration_years,
+		"" if duration_years == 1 else "s"
+	]
+	var detail = "%s • %s" % [_humanize_identifier(GameManager.CareerPhase.keys()[target_phase]), window_name]
+	if not expires_on.is_empty():
+		detail += " • Expires %s" % _format_date_dict(expires_on)
+	if queued:
+		detail = "Queued move • %s" % _humanize_identifier(GameManager.CareerPhase.keys()[target_phase])
+
+	return {
+		"available": true,
+		"team_id": str(offer.get("team_id", "")),
+		"team_name": team_name,
+		"title": "Queued Move" if queued else team_name,
+		"summary": summary,
+		"detail": detail,
+		"role": role,
+		"expires_text": _format_date_dict(expires_on),
+		"offer_data": offer.duplicate(true)
+	}
+
+
+func _build_club_history_summary() -> Dictionary:
+	var recent_entries: Array[String] = []
+	for i in range(club_history.size() - 1, maxi(club_history.size() - 3, 0) - 1, -1):
+		var contract = club_history[i]
+		recent_entries.append(str(contract.get("team_name", "Unknown Club")))
+
+	return {
+		"count": club_history.size(),
+		"recent_entries": recent_entries,
+		"summary": "No previous clubs yet." if recent_entries.is_empty() else "Recent clubs: %s" % ", ".join(recent_entries)
+	}
+
+
+func _build_rival_entry(rival: Dictionary, source: String) -> Dictionary:
+	var rival_id = str(rival.get("id", rival.get("player_id", rival.get("npc_id", ""))))
+	var team_name = str(rival.get("team_name", rival.get("club_name", "Unknown Team")))
+	var name = str(rival.get("name", "Unknown Rival"))
+	var position = str(rival.get("position", ""))
+	var stable_team_id = str(rival.get("stable_team_id", rival.get("team_id", "")))
+	return {
+		"dedupe_key": rival_id if not rival_id.is_empty() else "%s:%s:%s" % [stable_team_id, team_name, name],
+		"name": name,
+		"team_name": team_name,
+		"position": position,
+		"source": source,
+		"summary": "%s%s" % [team_name, " • %s" % position if not position.is_empty() else ""]
+	}
+
+
+func _has_season_critical_fixture(journey_status: Dictionary) -> bool:
+	if bool(journey_status.get("national_overlay_active", false)):
+		return true
+	var next_fixture = journey_status.get("next_fixture", {})
+	return _is_knockout_match_type(str(next_fixture.get("type", "")))
+
+
+func _has_active_national_overlay() -> bool:
+	return GameManager.current_national_phase != GameManager.NationalPhase.NONE and SeasonManager and SeasonManager.national_overlay != null and not SeasonManager.national_overlay.is_complete and not SeasonManager.national_overlay.player_eliminated
+
+
+func _is_knockout_match_type(match_type: String) -> bool:
+	return match_type in [
+		"cup",
+		"qualifier",
+		"prefecture_qualifier",
+		"prefecture_qualifier_final",
+		"national_championship",
+		"national_quarter_final",
+		"national_semi_final",
+		"national_final",
+		"world_cup",
+		"world_cup_final"
+	]
+
+
+func _humanize_identifier(identifier: String) -> String:
+	if identifier.is_empty():
+		return ""
+
+	var parts = identifier.replace("-", "_").split("_", false)
+	var formatted: Array[String] = []
+	for part in parts:
+		if part.is_empty():
+			continue
+		var lowered = part.to_lower()
+		if lowered == "u20":
+			formatted.append("U20")
+		elif lowered == "fc":
+			formatted.append("FC")
+		else:
+			formatted.append(lowered.capitalize())
+	return " ".join(formatted)
+
+
+func _format_date_dict(date: Dictionary) -> String:
+	if date.is_empty():
+		return "TBD"
+	return "%02d/%02d/%04d" % [
+		int(date.get("month", 1)),
+		int(date.get("day", 1)),
+		int(date.get("year", 2024))
+	]
+
+
+func _format_ordinal(value: int) -> String:
+	if value <= 0:
+		return "unplaced"
+
+	var remainder_100 = value % 100
+	var suffix = "th"
+	if remainder_100 < 11 or remainder_100 > 13:
+		match value % 10:
+			1:
+				suffix = "st"
+			2:
+				suffix = "nd"
+			3:
+				suffix = "rd"
+	return "%d%s" % [value, suffix]
+
+
+func _signed_int(value: int) -> String:
+	return "+%d" % value if value >= 0 else str(value)

@@ -33,6 +33,16 @@ class_name PlayerData
 @export var stamina_current: int = 100
 @export var morale: int = 50  # 0-100
 @export var injury_status: String = ""  # Empty if healthy
+@export var injury: Dictionary = {
+	"type": "",
+	"injury_type": "",
+	"matches_remaining": 0,
+	"matches_total": 0,
+	"description": ""
+}
+@export var discipline: Dictionary = {
+	"competitions": {}
+}
 
 # Training records (best scores for simulation)
 @export var training_records: Dictionary = {}  # e.g., {"penalty_drill": {"best_score": 7, "attempts": 10}}
@@ -101,6 +111,16 @@ const CAREER_DIFFICULTIES := {
 		"relationship_loss_multiplier": 1.5
 	}
 }
+
+const MINOR_INJURY_STAT_PENALTIES: Dictionary = {
+	"muscle_tightness": {"STA": 6, "SPD": 4, "TEC": 2},
+	"light_bruising": {"PHY": 5, "DEF": 2, "MEN": 2},
+	"ankle_niggle": {"SPD": 6, "TEC": 4, "PAS": 2},
+	"minor_cramp": {"STA": 7, "SPD": 3, "PHY": 2},
+	"_default": {"STA": 4, "SPD": 2, "MEN": 1}
+}
+
+const MODERATE_INJURY_MULTIPLIER: float = 1.65
 
 
 func initialize(player_name: String, player_position: String, player_nationality: String = "USA", player_appearance: Dictionary = {}, player_dominant_foot: String = "right", player_traits: Array[String] = [], player_background_story: String = "academy_product", player_career_difficulty: String = "normal") -> void:
@@ -241,7 +261,9 @@ func get_secondary_stats() -> Dictionary:
 func get_effective_stat(stat_key: String) -> int:
 	if stat_key not in stats:
 		return 0
-	return StatSystem.apply_form_modifier(stats[stat_key], current_form)
+	var effective = StatSystem.apply_form_modifier(stats[stat_key], current_form)
+	effective -= _get_injury_penalty_for_stat(stat_key)
+	return clampi(effective, 1, 99)
 
 
 func update_form() -> void:
@@ -310,6 +332,139 @@ func get_poor_match_penalty_multiplier() -> float:
 	return float(get_background_profile().get("poor_match_penalty_multiplier", 1.0))
 
 
+func get_match_availability(competition_key: String = "") -> Dictionary:
+	var normalized_key = str(competition_key)
+	if normalized_key.is_empty():
+		normalized_key = "default"
+
+	var suspension_record = _get_competition_record(normalized_key)
+	var suspension_matches = int(suspension_record.get("suspension_matches_remaining", 0))
+	if suspension_matches > 0:
+		return {
+			"eligible": false,
+			"reason": "suspended",
+			"detail": "Suspended for %d more match%s." % [suspension_matches, "es" if suspension_matches != 1 else ""]
+		}
+
+	var injury_record = get_injury_record()
+	var severity = str(injury_record.get("type", ""))
+	var matches_remaining = int(injury_record.get("matches_remaining", 0))
+	if severity == "" or matches_remaining <= 0:
+		return {"eligible": true, "reason": "", "detail": ""}
+	if severity == "minor":
+		return {
+			"eligible": true,
+			"reason": "minor_injury",
+			"detail": str(injury_record.get("description", "Playing through a minor injury."))
+		}
+
+	return {
+		"eligible": false,
+		"reason": "injured",
+		"detail": str(injury_record.get("description", "Unavailable due to injury."))
+	}
+
+
+func is_match_eligible(competition_key: String = "") -> bool:
+	return bool(get_match_availability(competition_key).get("eligible", true))
+
+
+func get_injury_record() -> Dictionary:
+	injury = _normalize_injury_record(injury)
+	injury_status = str(injury.get("type", ""))
+	return injury
+
+
+func get_discipline_record(competition_key: String) -> Dictionary:
+	discipline = _normalize_discipline_record(discipline)
+	var normalized_key = str(competition_key)
+	if normalized_key.is_empty():
+		normalized_key = "default"
+	var competitions: Dictionary = discipline.get("competitions", {})
+	var record = competitions.get(normalized_key, {}).duplicate(true)
+	record = _normalize_competition_record(record)
+	competitions[normalized_key] = record
+	discipline["competitions"] = competitions
+	return record
+
+
+func record_competition_card(competition_key: String, card_type: String) -> void:
+	var normalized_key = str(competition_key)
+	if normalized_key.is_empty():
+		normalized_key = "default"
+	var record = get_discipline_record(normalized_key)
+	var normalized_card = str(card_type).to_lower()
+
+	match normalized_card:
+		"yellow":
+			record["yellow_count"] = int(record.get("yellow_count", 0)) + 1
+			if int(record.get("yellow_count", 0)) >= 3:
+				record["yellow_count"] = 0
+				record["suspension_matches_remaining"] = int(record.get("suspension_matches_remaining", 0)) + 1
+				record["last_dismissal_reason"] = "yellow_accumulation"
+		"second_yellow":
+			record["yellow_count"] = 0
+			record["suspension_matches_remaining"] = int(record.get("suspension_matches_remaining", 0)) + 1
+			record["last_dismissal_reason"] = "second_yellow"
+		"red":
+			record["suspension_matches_remaining"] = int(record.get("suspension_matches_remaining", 0)) + 1
+			record["last_dismissal_reason"] = "red"
+		_:
+			return
+
+	record["last_card"] = normalized_card
+	_store_competition_record(normalized_key, record)
+
+
+func serve_suspension(competition_key: String) -> void:
+	var normalized_key = str(competition_key)
+	if normalized_key.is_empty():
+		normalized_key = "default"
+	var record = get_discipline_record(normalized_key)
+	var remaining = int(record.get("suspension_matches_remaining", 0))
+	if remaining <= 0:
+		return
+	record["suspension_matches_remaining"] = max(remaining - 1, 0)
+	_store_competition_record(normalized_key, record)
+
+
+func apply_injury_report(report: Dictionary) -> void:
+	var matches_out = int(report.get("matches_out", report.get("matches_remaining", 0)))
+	if matches_out <= 0:
+		clear_injury()
+		return
+
+	injury = _normalize_injury_record({
+		"type": str(report.get("type", "minor")),
+		"injury_type": str(report.get("injury_type", "")),
+		"matches_remaining": matches_out,
+		"matches_total": int(report.get("matches_total", matches_out)),
+		"description": str(report.get("description", "injury"))
+	})
+	injury_status = str(injury.get("type", ""))
+
+
+func clear_injury() -> void:
+	injury = _normalize_injury_record({})
+	injury_status = ""
+
+
+func process_match_recovery() -> bool:
+	var injury_record = get_injury_record()
+	var matches_remaining = int(injury_record.get("matches_remaining", 0))
+	if matches_remaining <= 0:
+		return false
+
+	injury_record["matches_remaining"] = matches_remaining - 1
+	if int(injury_record.get("matches_remaining", 0)) <= 0:
+		clear_injury()
+		return true
+
+	injury = injury_record
+	injury_status = str(injury.get("type", ""))
+	return false
+
+
 func to_dict() -> Dictionary:
 	return {
 		"id": id,
@@ -332,6 +487,8 @@ func to_dict() -> Dictionary:
 		"stamina_current": stamina_current,
 		"morale": morale,
 		"injury_status": injury_status,
+		"injury": get_injury_record(),
+		"discipline": _normalize_discipline_record(discipline),
 		"appearance": appearance,
 		"personality_traits": personality_traits,
 		"training_records": training_records
@@ -359,6 +516,11 @@ func from_dict(data: Dictionary) -> void:
 	stamina_current = data.get("stamina_current", 100)
 	morale = data.get("morale", 50)
 	injury_status = data.get("injury_status", "")
+	injury = _normalize_injury_record(data.get("injury", {}))
+	if not data.has("injury") and not injury_status.is_empty():
+		injury = _normalize_injury_record({"type": injury_status, "description": injury_status})
+	injury_status = str(injury.get("type", injury_status))
+	discipline = _normalize_discipline_record(data.get("discipline", {}))
 	appearance = data.get("appearance", appearance)
 	personality_traits.assign(data.get("personality_traits", []))
 	training_records = data.get("training_records", {})
@@ -414,3 +576,60 @@ func _apply_xp_multiplier(amount: int, source: String) -> int:
 
 func _apply_stat_xp_multiplier(amount: int) -> int:
 	return maxi(0, roundi(float(amount) * get_stat_xp_multiplier()))
+
+
+func _get_injury_penalty_for_stat(stat_key: String) -> int:
+	var injury_record = get_injury_record()
+	var severity = str(injury_record.get("type", ""))
+	var matches_remaining = int(injury_record.get("matches_remaining", 0))
+	if severity == "" or matches_remaining <= 0:
+		return 0
+
+	var injury_type = str(injury_record.get("injury_type", ""))
+	var penalties: Dictionary = MINOR_INJURY_STAT_PENALTIES.get(
+		injury_type,
+		MINOR_INJURY_STAT_PENALTIES["_default"]
+	)
+	var penalty = int(penalties.get(stat_key, 0))
+	if severity == "moderate":
+		penalty = roundi(float(penalty) * MODERATE_INJURY_MULTIPLIER)
+	return penalty
+
+
+func _normalize_injury_record(data: Dictionary) -> Dictionary:
+	return {
+		"type": str(data.get("type", "")),
+		"injury_type": str(data.get("injury_type", "")),
+		"matches_remaining": max(int(data.get("matches_remaining", 0)), 0),
+		"matches_total": max(int(data.get("matches_total", data.get("matches_remaining", 0))), 0),
+		"description": str(data.get("description", ""))
+	}
+
+
+func _normalize_discipline_record(data: Dictionary) -> Dictionary:
+	var competitions: Dictionary = {}
+	var source: Dictionary = data.get("competitions", {})
+	for competition_key in source:
+		competitions[str(competition_key)] = _normalize_competition_record(source[competition_key])
+	return {"competitions": competitions}
+
+
+func _normalize_competition_record(data: Dictionary) -> Dictionary:
+	return {
+		"yellow_count": max(int(data.get("yellow_count", 0)), 0),
+		"suspension_matches_remaining": max(int(data.get("suspension_matches_remaining", 0)), 0),
+		"last_card": str(data.get("last_card", "")),
+		"last_dismissal_reason": str(data.get("last_dismissal_reason", ""))
+	}
+
+
+func _get_competition_record(competition_key: String) -> Dictionary:
+	var competitions: Dictionary = _normalize_discipline_record(discipline).get("competitions", {})
+	return competitions.get(competition_key, _normalize_competition_record({})).duplicate(true)
+
+
+func _store_competition_record(competition_key: String, record: Dictionary) -> void:
+	discipline = _normalize_discipline_record(discipline)
+	var competitions: Dictionary = discipline.get("competitions", {})
+	competitions[competition_key] = _normalize_competition_record(record)
+	discipline["competitions"] = competitions

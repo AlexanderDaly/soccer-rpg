@@ -86,10 +86,32 @@ func test_calculate_match_rating_goalkeeper_penalizes_conceding() -> void:
 	)
 
 
+func test_generate_result_includes_competition_and_absence_fields() -> void:
+	var match = _make_match("CM", 1, 1)
+	match.competition_name = "Kanagawa Premier"
+	match.competition_key = "league::kanagawa_premier"
+	match.did_not_play = true
+	match.absence_reason = "suspended"
+	match.absence_detail = "Suspended for this fixture."
+
+	var result = match.generate_result()
+
+	assert_eq(result.get("competition_name", ""), "Kanagawa Premier")
+	assert_eq(result.get("competition_key", ""), "league::kanagawa_premier")
+	assert_true(result.get("did_not_play", false))
+	assert_eq(result.get("absence_reason", ""), "suspended")
+
+
 func _make_match(position: String, home_score: int, away_score: int) -> MatchData:
 	var match = MatchData.new()
 	match.player_position = position
 	match.is_home = true
 	match.home_score = home_score
 	match.away_score = away_score
+	match.home_team = TeamData.new()
+	match.home_team.id = "home_team"
+	match.home_team.name = "Home FC"
+	match.away_team = TeamData.new()
+	match.away_team.id = "away_team"
+	match.away_team.name = "Away FC"
 	return match

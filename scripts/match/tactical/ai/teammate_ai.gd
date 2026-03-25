@@ -8,6 +8,8 @@ class_name TeammateAI
 ## - Movement should feel like real soccer: triangles, runs, spacing
 ## - Context-aware decisions, not random rolls
 
+const TacticalMatchRules = preload("res://scripts/match/tactical/tactical_match_rules.gd")
+
 #region Constants
 
 ## Run types that teammates can make
@@ -191,6 +193,7 @@ static func _decide_with_ball(unit: PlayerUnit, ctx: Dictionary) -> Dictionary:
 			return {
 				"action": "through_ball",
 				"target": through_ball.target,
+				"receiver": through_ball.receiver,
 				"reason": "through_ball_to_player"
 			}
 	
@@ -733,6 +736,8 @@ static func _find_safest_pass(unit: PlayerUnit, ctx: Dictionary) -> Dictionary:
 	for tm in ctx.teammates:
 		if tm.is_goalkeeper():
 			continue
+		if TacticalMatchRules.is_receiver_offside(tm, unit, ctx.opponents, ctx.attacking_right):
+			continue
 		
 		var dist = HexUtils.hex_distance(unit.hex_position, tm.hex_position)
 		if dist < 2 or dist > 10:
@@ -761,6 +766,8 @@ static func _find_forward_pass(unit: PlayerUnit, ctx: Dictionary) -> Dictionary:
 	
 	for tm in ctx.teammates:
 		if tm.is_goalkeeper():
+			continue
+		if TacticalMatchRules.is_receiver_offside(tm, unit, ctx.opponents, ctx.attacking_right):
 			continue
 		
 		var x_diff = (tm.hex_position.x - unit.hex_position.x) * forward_dir
@@ -793,6 +800,8 @@ static func _find_best_pass(unit: PlayerUnit, ctx: Dictionary) -> Dictionary:
 	
 	for tm in ctx.teammates:
 		if tm.is_goalkeeper():
+			continue
+		if TacticalMatchRules.is_receiver_offside(tm, unit, ctx.opponents, ctx.attacking_right):
 			continue
 		
 		var dist = HexUtils.hex_distance(unit.hex_position, tm.hex_position)
@@ -827,6 +836,8 @@ static func _find_through_ball_to_player(unit: PlayerUnit, ctx: Dictionary) -> D
 	# Check if player is making a run ahead
 	if not _is_ahead_of(player, unit, ctx.attacking_right):
 		return {"found": false}
+	if TacticalMatchRules.is_receiver_offside(player, unit, ctx.opponents, ctx.attacking_right):
+		return {"found": false}
 	
 	# Calculate through ball target (space ahead of player)
 	var through_target = Vector2i(
@@ -842,7 +853,7 @@ static func _find_through_ball_to_player(unit: PlayerUnit, ctx: Dictionary) -> D
 		if HexUtils.hex_distance(through_target, opp.hex_position) < 2:
 			return {"found": false}
 	
-	return {"found": true, "target": through_target}
+	return {"found": true, "target": through_target, "receiver": player}
 
 #endregion
 
@@ -867,8 +878,13 @@ static func _find_through_ball_run_target(unit: PlayerUnit, player: PlayerUnit, 
 		var dist_to_goal = HexUtils.hex_distance(hex, ctx.goal_hex)
 		var openness = _calculate_openness_at_hex(hex, ctx.opponents)
 		
-		# Check we're not offside (simplified: not past last defender)
-		# TODO: Implement proper offside check
+		var simulated_runner = unit
+		var original_hex = unit.hex_position
+		simulated_runner.hex_position = hex
+		var is_offside = TacticalMatchRules.is_receiver_offside(simulated_runner, ctx.ball_carrier, ctx.opponents, ctx.attacking_right)
+		simulated_runner.hex_position = original_hex
+		if is_offside:
+			continue
 		
 		var score = forward_gain * 0.5 + openness * 0.5 - dist_to_goal * 0.1
 		
@@ -1250,7 +1266,7 @@ static func _team_has_possession(unit: PlayerUnit, ball: BallController,
 static func _get_teammates(unit: PlayerUnit, all_units: Array[PlayerUnit]) -> Array[PlayerUnit]:
 	var teammates: Array[PlayerUnit] = []
 	for other in all_units:
-		if other != unit and other.is_home_team == unit.is_home_team:
+		if other != unit and other.is_active_in_match() and other.is_home_team == unit.is_home_team:
 			teammates.append(other)
 	return teammates
 
@@ -1259,7 +1275,7 @@ static func _get_teammates(unit: PlayerUnit, all_units: Array[PlayerUnit]) -> Ar
 static func _get_opponents(unit: PlayerUnit, all_units: Array[PlayerUnit]) -> Array[PlayerUnit]:
 	var opponents: Array[PlayerUnit] = []
 	for other in all_units:
-		if other.is_home_team != unit.is_home_team:
+		if other.is_active_in_match() and other.is_home_team != unit.is_home_team:
 			opponents.append(other)
 	return opponents
 
@@ -1268,14 +1284,15 @@ static func _get_opponents(unit: PlayerUnit, all_units: Array[PlayerUnit]) -> Ar
 static func _get_occupied_hexes(all_units: Array[PlayerUnit]) -> Array[Vector2i]:
 	var occupied: Array[Vector2i] = []
 	for u in all_units:
-		occupied.append(u.hex_position)
+		if u.is_active_in_match():
+			occupied.append(u.hex_position)
 	return occupied
 
 
 ## Find the player character unit
 static func _find_player_unit(all_units: Array[PlayerUnit]) -> PlayerUnit:
 	for unit in all_units:
-		if unit.is_player_controlled:
+		if unit.is_active_in_match() and unit.is_player_controlled:
 			return unit
 	return null
 

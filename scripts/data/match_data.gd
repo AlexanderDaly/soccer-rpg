@@ -2,9 +2,13 @@ extends Resource
 class_name MatchData
 ## MatchData - Stores all data for a single match
 
+const TacticalMatchRules = preload("res://scripts/match/tactical/tactical_match_rules.gd")
+
 @export var id: String = ""
 @export var match_type: String = ""  # friendly, league, cup, qualifier, world_cup
 @export var importance: float = 1.0  # Multiplier for XP/reputation gains
+@export var competition_name: String = ""
+@export var competition_key: String = ""
 
 # Teams
 @export var home_team: TeamData
@@ -16,6 +20,9 @@ class_name MatchData
 @export var current_half: int = 1
 @export var current_minute: int = 0
 @export var is_extra_time: bool = false
+@export var did_not_play: bool = false
+@export var absence_reason: String = ""
+@export var absence_detail: String = ""
 
 # Score
 @export var home_score: int = 0
@@ -160,6 +167,11 @@ func setup(player_team: TeamData, opponent_team: TeamData, type: String, player_
 		home_team = opponent_team
 		away_team = player_team
 
+	var next_fixture = SeasonManager.get_next_fixture() if SeasonManager and SeasonManager.has_method("get_next_fixture") else {}
+	competition_name = str(next_fixture.get("competition", ""))
+	if competition_name.is_empty() and SeasonManager and SeasonManager.has_method("get_current_competition_name"):
+		competition_name = str(SeasonManager.get_current_competition_name())
+	competition_key = TacticalMatchRules.build_competition_key(self)
 	_initialize_grid()
 
 
@@ -413,8 +425,13 @@ func generate_result() -> Dictionary:
 	return {
 		"match_id": id,
 		"match_type": match_type,
+		"competition_name": competition_name,
+		"competition_key": competition_key,
 		"importance": importance,
 		"opponent_name": get_opponent_team().name,
+		"did_not_play": did_not_play,
+		"absence_reason": absence_reason,
+		"absence_detail": absence_detail,
 		
 		# Result
 		"won": is_winning(),
@@ -447,7 +464,9 @@ func generate_result() -> Dictionary:
 		"away_fouls": foul_counts.away,
 		
 		# Events
-		"key_events": _get_key_events()
+		"key_events": _get_key_events(),
+		"card_events": _get_card_events(),
+		"injury_events": _get_injury_events()
 	}
 
 
@@ -485,15 +504,52 @@ func _count_team_fouls() -> Dictionary:
 	return {"home": home_fouls, "away": away_fouls}
 
 
+func _get_card_events() -> Array[Dictionary]:
+	var card_events: Array[Dictionary] = []
+	for event in events:
+		var event_type = str(event.get("type", ""))
+		if event_type not in ["yellow_card", "red_card"]:
+			continue
+		var data = event.get("data", {})
+		card_events.append({
+			"minute": int(event.get("minute", 0)),
+			"team_id": str(data.get("team_id", "")),
+			"team_name": str(data.get("team_name", "")),
+			"player_id": str(data.get("player_id", "")),
+			"player_name": str(data.get("player_name", "")),
+			"card_color": "red" if event_type == "red_card" else "yellow",
+			"dismissal_reason": str(data.get("dismissal_reason", ""))
+		})
+	return card_events
+
+
+func _get_injury_events() -> Array[Dictionary]:
+	var injury_events: Array[Dictionary] = []
+	for event in events:
+		if str(event.get("type", "")) != "injury":
+			continue
+		var data = event.get("data", {})
+		var injury_event = data.duplicate(true)
+		injury_event["minute"] = int(event.get("minute", 0))
+		injury_events.append(injury_event)
+	return injury_events
+
+
 func to_dict() -> Dictionary:
 	return {
 		"id": id,
 		"match_type": match_type,
+		"competition_name": competition_name,
+		"competition_key": competition_key,
 		"importance": importance,
 		"is_home": is_home,
 		"player_position": player_position,
 		"current_half": current_half,
 		"current_minute": current_minute,
+		"is_extra_time": is_extra_time,
+		"did_not_play": did_not_play,
+		"absence_reason": absence_reason,
+		"absence_detail": absence_detail,
 		"home_score": home_score,
 		"away_score": away_score,
 		"player_stats": player_stats,

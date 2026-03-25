@@ -30,6 +30,8 @@ func _connect_signals() -> void:
 		CareerManager.scout_interest.connect(_on_scout_interest)
 	if not CareerManager.contract_offer_received.is_connected(_on_contract_offer):
 		CareerManager.contract_offer_received.connect(_on_contract_offer)
+	if not CareerManager.contract_offer_resolved.is_connected(_on_contract_offer_resolved):
+		CareerManager.contract_offer_resolved.connect(_on_contract_offer_resolved)
 
 
 func _load_emails() -> void:
@@ -43,6 +45,7 @@ func _load_emails() -> void:
 			"read": false,
 			"type": "info"
 		})
+	_sync_contract_offer_emails()
 
 
 func _refresh_inbox() -> void:
@@ -247,8 +250,61 @@ func _on_scout_interest(scout_data: Dictionary) -> void:
 
 
 func _on_contract_offer(offer: Dictionary) -> void:
+	_upsert_contract_email(offer)
+
+	if is_open:
+		_refresh_inbox()
+
+
+func _on_contract_offer_resolved(offer: Dictionary, _resolution: String) -> void:
+	_remove_contract_email(str(offer.get("team_id", "")))
+	if is_open:
+		_refresh_inbox()
+
+
+func _sync_contract_offer_emails() -> void:
+	var seen_offer_ids: Dictionary = {}
+	for offer in CareerManager.pending_contract_offers:
+		var team_id = str(offer.get("team_id", ""))
+		if team_id.is_empty():
+			continue
+		seen_offer_ids[_contract_email_id(team_id)] = true
+		_upsert_contract_email(offer)
+
+	for i in range(emails.size() - 1, -1, -1):
+		var email = emails[i]
+		if str(email.get("type", "")) != "contract":
+			continue
+		var email_id = str(email.get("id", ""))
+		if not seen_offer_ids.has(email_id):
+			if selected_email_index == i:
+				selected_email_index = -1
+				_clear_message_display()
+			emails.remove_at(i)
+
+
+func _upsert_contract_email(offer: Dictionary) -> void:
+	var team_id = str(offer.get("team_id", ""))
+	if team_id.is_empty():
+		return
+
+	var email = _build_contract_email(offer)
+	var email_id = str(email.get("id", ""))
+	for i in range(emails.size()):
+		if str(emails[i].get("id", "")) == email_id:
+			var was_read = bool(emails[i].get("read", false))
+			emails[i] = email
+			emails[i]["read"] = was_read
+			return
+
+	emails.insert(0, email)
+
+
+func _build_contract_email(offer: Dictionary) -> Dictionary:
 	var expires_on = offer.get("expires_on", {})
-	emails.insert(0, {
+	var team_id = str(offer.get("team_id", ""))
+	return {
+		"id": _contract_email_id(team_id),
 		"from": offer.get("team_name", "Club"),
 		"subject": "Contract Offer!",
 		"body": "We are pleased to offer you a contract to join %s!\n\nSalary: $%d/year\nLength: %d years\nRole: %s\nWindow: %s\nExpires: %02d/%02d/%04d\n\nWe hope you will consider this opportunity." % [
@@ -264,8 +320,20 @@ func _on_contract_offer(offer: Dictionary) -> void:
 		"date": DesktopManager.get_date_string(),
 		"read": false,
 		"type": "contract",
-		"offer_data": offer
-	})
+		"offer_data": offer.duplicate(true)
+	}
 
-	if is_open:
-		_refresh_inbox()
+
+func _remove_contract_email(team_id: String) -> void:
+	var target_id = _contract_email_id(team_id)
+	for i in range(emails.size() - 1, -1, -1):
+		if str(emails[i].get("id", "")) != target_id:
+			continue
+		if selected_email_index == i:
+			selected_email_index = -1
+			_clear_message_display()
+		emails.remove_at(i)
+
+
+func _contract_email_id(team_id: String) -> String:
+	return "contract_offer_%s" % team_id

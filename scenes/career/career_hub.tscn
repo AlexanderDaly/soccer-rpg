@@ -18,65 +18,192 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.1, 0.15, 0.2, 1)
 
-[node name="MainContainer" type="VBoxContainer" parent="."]
+[node name="MainMargin" type="MarginContainer" parent="."]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -300.0
-offset_top = -200.0
-offset_right = 300.0
-offset_bottom = 200.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = -24.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 30
+theme_override_constants/margin_left = 0
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 0
 
-[node name="PhaseLabel" type="Label" parent="MainContainer"]
+[node name="RootLayout" type="VBoxContainer" parent="MainMargin"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 32
-text = "HIGH SCHOOL"
-horizontal_alignment = 1
+theme_override_constants/separation = 18
 
-[node name="PlayerCard" type="PanelContainer" parent="MainContainer"]
+[node name="TopRow" type="HBoxContainer" parent="MainMargin/RootLayout"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 150)
+theme_override_constants/separation = 18
 
-[node name="PlayerName" type="Label" parent="MainContainer/PlayerCard"]
+[node name="HeaderCard" type="PanelContainer" parent="MainMargin/RootLayout/TopRow"]
+custom_minimum_size = Vector2(0, 140)
 layout_mode = 2
-theme_override_font_sizes/font_size = 28
+size_flags_horizontal = 3
+
+[node name="MarginContainer" type="MarginContainer" parent="MainMargin/RootLayout/TopRow/HeaderCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 18
+
+[node name="HeaderContent" type="VBoxContainer" parent="MainMargin/RootLayout/TopRow/HeaderCard/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HubLabel" type="Label" parent="MainMargin/RootLayout/TopRow/HeaderCard/MarginContainer/HeaderContent"]
+layout_mode = 2
+text = "CAREER HUB"
+
+[node name="PlayerName" type="Label" parent="MainMargin/RootLayout/TopRow/HeaderCard/MarginContainer/HeaderContent"]
+layout_mode = 2
 text = "Player Name"
-horizontal_alignment = 1
-vertical_alignment = 1
 
-[node name="Position" type="Label" parent="MainContainer/PlayerCard"]
+[node name="MetaLabel" type="Label" parent="MainMargin/RootLayout/TopRow/HeaderCard/MarginContainer/HeaderContent"]
 layout_mode = 2
-offset_top = 50.0
-theme_override_font_sizes/font_size = 20
-text = "CM"
-horizontal_alignment = 1
-vertical_alignment = 1
+text = "Team • Position • OVR • Phase"
 
-[node name="Overall" type="Label" parent="MainContainer/PlayerCard"]
+[node name="StatusLabel" type="Label" parent="MainMargin/RootLayout/TopRow/HeaderCard/MarginContainer/HeaderContent"]
 layout_mode = 2
-offset_top = 90.0
-theme_override_font_sizes/font_size = 24
-text = "OVR: 50"
-horizontal_alignment = 1
-vertical_alignment = 1
+text = "REP • Coach Trust • Fans"
 
-[node name="PlaceholderLabel" type="Label" parent="MainContainer"]
+[node name="ActionCard" type="PanelContainer" parent="MainMargin/RootLayout/TopRow"]
+custom_minimum_size = Vector2(280, 140)
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
-text = "[Career Hub - Full implementation coming soon]"
-horizontal_alignment = 1
 
-[node name="BackButton" type="Button" parent="MainContainer"]
-custom_minimum_size = Vector2(0, 50)
+[node name="MarginContainer" type="MarginContainer" parent="MainMargin/RootLayout/TopRow/ActionCard"]
 layout_mode = 2
-text = "Back to Main Menu"
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 18
 
-[connection signal="pressed" from="MainContainer/BackButton" to="." method="_on_back_pressed"]
+[node name="ActionContent" type="VBoxContainer" parent="MainMargin/RootLayout/TopRow/ActionCard/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PrimaryActionButton" type="Button" parent="MainMargin/RootLayout/TopRow/ActionCard/MarginContainer/ActionContent"]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+text = "Play Next Match"
+
+[node name="BackButton" type="Button" parent="MainMargin/RootLayout/TopRow/ActionCard/MarginContainer/ActionContent"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "Back to Dashboard"
+
+[node name="ActionHint" type="Label" parent="MainMargin/RootLayout/TopRow/ActionCard/MarginContainer/ActionContent"]
+layout_mode = 2
+text = "Primary action hint"
+autowrap_mode = 3
+
+[node name="ScrollContainer" type="ScrollContainer" parent="MainMargin/RootLayout"]
+custom_minimum_size = Vector2(0, 400)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Sections" type="VBoxContainer" parent="MainMargin/RootLayout/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 16
+
+[node name="ProgressPanel" type="PanelContainer" parent="MainMargin/RootLayout/ScrollContainer/Sections"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MarginContainer" type="MarginContainer" parent="MainMargin/RootLayout/ScrollContainer/Sections/ProgressPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 18
+
+[node name="ProgressLayout" type="VBoxContainer" parent="MainMargin/RootLayout/ScrollContainer/Sections/ProgressPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="ProgressTitle" type="Label" parent="MainMargin/RootLayout/ScrollContainer/Sections/ProgressPanel/MarginContainer/ProgressLayout"]
+layout_mode = 2
+text = "PROGRESS"
+
+[node name="ProgressContent" type="VBoxContainer" parent="MainMargin/RootLayout/ScrollContainer/Sections/ProgressPanel/MarginContainer/ProgressLayout"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="OffersPanel" type="PanelContainer" parent="MainMargin/RootLayout/ScrollContainer/Sections"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MarginContainer" type="MarginContainer" parent="MainMargin/RootLayout/ScrollContainer/Sections/OffersPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 18
+
+[node name="OffersLayout" type="VBoxContainer" parent="MainMargin/RootLayout/ScrollContainer/Sections/OffersPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="OffersTitle" type="Label" parent="MainMargin/RootLayout/ScrollContainer/Sections/OffersPanel/MarginContainer/OffersLayout"]
+layout_mode = 2
+text = "OFFERS"
+
+[node name="OffersContent" type="VBoxContainer" parent="MainMargin/RootLayout/ScrollContainer/Sections/OffersPanel/MarginContainer/OffersLayout"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="JourneyPanel" type="PanelContainer" parent="MainMargin/RootLayout/ScrollContainer/Sections"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MarginContainer" type="MarginContainer" parent="MainMargin/RootLayout/ScrollContainer/Sections/JourneyPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 18
+
+[node name="JourneyLayout" type="VBoxContainer" parent="MainMargin/RootLayout/ScrollContainer/Sections/JourneyPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="JourneyTitle" type="Label" parent="MainMargin/RootLayout/ScrollContainer/Sections/JourneyPanel/MarginContainer/JourneyLayout"]
+layout_mode = 2
+text = "JOURNEY"
+
+[node name="JourneyContent" type="VBoxContainer" parent="MainMargin/RootLayout/ScrollContainer/Sections/JourneyPanel/MarginContainer/JourneyLayout"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PeoplePanel" type="PanelContainer" parent="MainMargin/RootLayout/ScrollContainer/Sections"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MarginContainer" type="MarginContainer" parent="MainMargin/RootLayout/ScrollContainer/Sections/PeoplePanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 18
+
+[node name="PeopleLayout" type="VBoxContainer" parent="MainMargin/RootLayout/ScrollContainer/Sections/PeoplePanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PeopleTitle" type="Label" parent="MainMargin/RootLayout/ScrollContainer/Sections/PeoplePanel/MarginContainer/PeopleLayout"]
+layout_mode = 2
+text = "PEOPLE"
+
+[node name="PeopleContent" type="VBoxContainer" parent="MainMargin/RootLayout/ScrollContainer/Sections/PeoplePanel/MarginContainer/PeopleLayout"]
+layout_mode = 2
+theme_override_constants/separation = 8

@@ -41,3 +41,23 @@ func test_registry_generated_npc_has_core_fields() -> void:
 	var stored = NpcRegistry.get_npc(npc.id)
 	assert_true(stored.has("name"), "Registry entry should include name")
 	assert_true(stored.has("stats"), "Registry entry should include stats")
+
+
+func test_competition_suspension_blocks_and_serves() -> void:
+	var team_id = NpcRegistry.generate_stable_team_id("Test High", "Kanagawa")
+	var npc = NpcRegistry.get_or_create_npc(team_id, "CM", 0, {
+		"name": "Carded Midfielder",
+		"position": "CM",
+		"stats": {"PAS": 55},
+		"overall": 55
+	}, false)
+
+	NpcRegistry.record_competition_card(npc.id, "league::kanagawa", "yellow")
+	NpcRegistry.record_competition_card(npc.id, "league::kanagawa", "yellow")
+	NpcRegistry.record_competition_card(npc.id, "league::kanagawa", "yellow")
+
+	assert_false(NpcRegistry.is_npc_match_eligible(npc.id, "league::kanagawa"))
+
+	NpcRegistry.serve_suspension(npc.id, "league::kanagawa")
+
+	assert_true(NpcRegistry.is_npc_match_eligible(npc.id, "league::kanagawa"))
