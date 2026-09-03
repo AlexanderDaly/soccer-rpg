@@ -1,6 +1,6 @@
 # Soccer Career RPG
 
-[![CI](https://github.com/yourusername/soccer-rpg/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/soccer-rpg/actions/workflows/ci.yml)
+[![CI](https://github.com/AlexanderDaly/soccer-rpg/actions/workflows/ci.yml/badge.svg)](https://github.com/AlexanderDaly/soccer-rpg/actions/workflows/ci.yml)
 [![Godot 4.x](https://img.shields.io/badge/Godot-4.x-blue.svg)](https://godotengine.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -145,7 +145,7 @@ Each drill features:
 ### Setup
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/soccer-rpg.git
+   git clone https://github.com/AlexanderDaly/soccer-rpg.git
    ```
 2. Open Godot and import the project
 3. Press F5 to run
